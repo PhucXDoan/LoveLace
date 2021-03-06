@@ -167,6 +167,76 @@ type Vector4D =
 		readonly w    : number
 	}
 
+/** Data type for the representation of 3x3 matrices.
+ * ```
+ * data Matrix2x2 = Matrix2x2 (4 Number...) | Matrix2D Vector2D Vector2D
+ * (.ix). (.jx) :: Number
+ * (.iy), (.jy) :: Number
+ * (.i) , (.j)  :: Vector2D
+ * (.x) , (.y)  :: Vector2D
+ * ```
+ */
+type Matrix2x2 =
+	({
+		CONS : 'Matrix2x2'
+	} | {
+		CONS : 'Matrix2D'
+	}) &
+	{
+		readonly ix : number,   readonly jx : number
+		readonly iy : number,   readonly jy : number
+		readonly i  : Vector2D, readonly j  : Vector2D
+		readonly x  : Vector2D, readonly y  : Vector2D
+	}
+
+/** Data type for the representation of 3x3 matrices.
+ * ```
+ * data Matrix3x3 = Matrix3x3 (9 Number...) | Matrix3D Vector3D Vector3D Vector3D
+ * (.ix), (.jx), (.kx) :: Number
+ * (.iy), (.jy), (.ky) :: Number
+ * (.iz), (.jz), (.kz) :: Number
+ * (.i) , (.j) , (.k)  :: Vector3D
+ * (.x) , (.y) , (.z)  :: Vector3D
+ * ```
+ */
+type Matrix3x3 =
+	({
+		CONS : 'Matrix3x3'
+	} | {
+		CONS : 'Matrix3D'
+	}) & {
+		readonly ix : number,   readonly jx : number,   readonly kx : number
+		readonly iy : number,   readonly jy : number,   readonly ky : number
+		readonly iz : number,   readonly jz : number,   readonly kz : number
+		readonly i  : Vector3D, readonly j  : Vector3D, readonly k  : Vector3D
+		readonly x  : Vector3D, readonly y  : Vector3D, readonly z  : Vector3D
+	}
+
+/** Data type for the representation of 4x4 matrices.
+ * ```
+ * data Matrix4x4 = Matrix4x4 (16 Number...) | Matrix4D Vector4D Vector4D Vector4D Vector4D
+ * (.ix), (.jx), (.kx), (.lx) :: Number
+ * (.iy), (.jy), (.ky), (.ly) :: Number
+ * (.iz), (.jz), (.kz), (.lz) :: Number
+ * (.iw), (.jw), (.kw), (.lw) :: Number
+ * (.i) , (.j) , (.k) , (.l)  :: Vector4D
+ * (.x) , (.y) , (.z) , (.w)  :: Vector4D
+ * ```
+ */
+type Matrix4x4 =
+	({
+		CONS : 'Matrix4x4'
+	} | {
+		CONS : 'Matrix4D'
+	}) & {
+		readonly ix : number,   readonly jx : number,   readonly kx : number,   readonly lx : number
+		readonly iy : number,   readonly jy : number,   readonly ky : number,   readonly ly : number
+		readonly iz : number,   readonly jz : number,   readonly kz : number,   readonly lz : number
+		readonly iw : number,   readonly jw : number,   readonly kw : number,   readonly lw : number
+		readonly i  : Vector4D, readonly j  : Vector4D, readonly k  : Vector4D, readonly l  : Vector4D
+		readonly x  : Vector4D, readonly y  : Vector4D, readonly z  : Vector4D, readonly w  : Vector4D
+	}
+
 /********************************************************************************************************************************/
 
 // -- Use only for creating new IO operations; otherwise, compose existing IO monads together.
@@ -290,6 +360,82 @@ const Vector4D = (x : number) => (y : number) => (z : number) => (w : number) : 
 	({
 		CONS : 'Vector4D',
 		x, y, z, w
+	})
+
+/**` Matrix2x2 :: (4 Number...) -> Matrix2x2 `*/
+const Matrix2x2 =
+		(ix : number) => (jx : number) =>
+		(iy : number) => (jy : number) : Matrix2x2 =>
+	({
+		CONS : 'Matrix2x2',
+		ix, jx,
+		iy, jy,
+		i : Vector2D(ix)(iy), j : Vector2D(jx)(jy),
+		x : Vector2D(ix)(jx), y : Vector2D(iy)(jy)
+	})
+
+/**` Matrix2D :: Vector2D -> Vector2D -> Matrix2x2 `*/
+const Matrix2D = (i : Vector2D) => (j : Vector2D) : Matrix2x2 =>
+	({
+		CONS : 'Matrix2D',
+		ix : i.x, jx : j.x,
+		iy : i.y, jy : j.y,
+		i, j,
+		x : Vector2D(i.x)(j.x), y : Vector2D(i.y)(j.y)
+	})
+
+/**` Matrix3x3 :: (9 Number...) -> Matrix3x3 `*/
+const Matrix3x3 =
+		(ix : number) => (jx : number) => (kx : number) =>
+		(iy : number) => (jy : number) => (ky : number) =>
+		(iz : number) => (jz : number) => (kz : number) : Matrix3x3 =>
+	({
+		CONS : 'Matrix3x3',
+		ix, jx, kx,
+		iy, jy, ky,
+		iz, jz, kz,
+		i : Vector3D(ix)(iy)(iz), j : Vector3D(jx)(jy)(jz), k : Vector3D(kx)(ky)(kz),
+		x : Vector3D(ix)(jx)(kx), y : Vector3D(iy)(jy)(ky), z : Vector3D(iz)(jz)(kz)
+	})
+
+/**` Matrix3D :: Vector3D -> Vector3D -> Vector3D -> Matrix3x3 `*/
+const Matrix3D = (i : Vector3D) => (j : Vector3D) => (k : Vector3D) : Matrix3x3 =>
+	({
+		CONS : 'Matrix3D',
+		ix : i.x, jx : j.x, kx : k.x,
+		iy : i.y, jy : j.y, ky : k.y,
+		iz : i.z, jz : j.z, kz : k.z,
+		i, j, k,
+		x : Vector3D(i.x)(j.x)(k.x), y : Vector3D(i.y)(j.y)(k.y), z : Vector3D(i.z)(j.z)(k.z)
+	})
+
+/**` Matrix4x4 :: (16 Number...) -> Matrix4x4 `*/
+const Matrix4x4 =
+		(ix : number) => (jx : number) => (kx : number) => (lx : number) =>
+		(iy : number) => (jy : number) => (ky : number) => (ly : number) =>
+		(iz : number) => (jz : number) => (kz : number) => (lz : number) =>
+		(iw : number) => (jw : number) => (kw : number) => (lw : number) : Matrix4x4 =>
+	({
+		CONS : 'Matrix4x4',
+		ix, jx, kx, lx,
+		iy, jy, ky, ly,
+		iz, jz, kz, lz,
+		iw, jw, kw, lw,
+		i : Vector4D(ix)(iy)(iz)(iw), j : Vector4D(jx)(jy)(jz)(jw), k : Vector4D(kx)(ky)(kz)(kw), l : Vector4D(lx)(ly)(lz)(lw),
+		x : Vector4D(ix)(jx)(kx)(lx), y : Vector4D(iy)(jy)(ky)(ly), z : Vector4D(iz)(jz)(kz)(lz), w : Vector4D(iw)(jw)(kw)(lw)
+	})
+
+/**` Matrix4D :: Vector4D -> Vector4D -> Vector4D -> Vector4D -> Matrix4x4 `*/
+const Matrix4D = (i : Vector4D) => (j : Vector4D) => (k : Vector4D) => (l : Vector4D) : Matrix4x4 =>
+	({
+		CONS : 'Matrix4D',
+		ix : i.x, jx : j.x, kx : k.x, lx : l.x,
+		iy : i.y, jy : j.y, ky : k.y, ly : l.y,
+		iz : i.z, jz : j.z, kz : k.z, lz : l.z,
+		iw : i.w, jw : j.w, kw : k.w, lw : l.w,
+		i, j, k, l,
+		x : Vector4D(i.x)(j.x)(k.x)(l.x), y : Vector4D(i.y)(j.y)(k.y)(l.y),
+		z : Vector4D(i.z)(j.z)(k.z)(l.z), w : Vector4D(i.w)(j.w)(k.w)(l.w)
 	})
 
 /********************************************************************************************************************************/

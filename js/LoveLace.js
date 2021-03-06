@@ -146,6 +146,79 @@ var Vector4D = function (x) { return function (y) { return function (z) { return
         x: x, y: y, z: z, w: w
     });
 }; }; }; };
+var Matrix2x2 = function (ix) { return function (jx) {
+    return function (iy) { return function (jy) {
+        return ({
+            CONS: 'Matrix2x2',
+            ix: ix, jx: jx,
+            iy: iy, jy: jy,
+            i: Vector2D(ix)(iy), j: Vector2D(jx)(jy),
+            x: Vector2D(ix)(jx), y: Vector2D(iy)(jy)
+        });
+    }; };
+}; };
+var Matrix2D = function (i) { return function (j) {
+    return ({
+        CONS: 'Matrix2D',
+        ix: i.x, jx: j.x,
+        iy: i.y, jy: j.y,
+        i: i, j: j,
+        x: Vector2D(i.x)(j.x), y: Vector2D(i.y)(j.y)
+    });
+}; };
+var Matrix3x3 = function (ix) { return function (jx) { return function (kx) {
+    return function (iy) { return function (jy) { return function (ky) {
+        return function (iz) { return function (jz) { return function (kz) {
+            return ({
+                CONS: 'Matrix3x3',
+                ix: ix, jx: jx, kx: kx,
+                iy: iy, jy: jy, ky: ky,
+                iz: iz, jz: jz, kz: kz,
+                i: Vector3D(ix)(iy)(iz), j: Vector3D(jx)(jy)(jz), k: Vector3D(kx)(ky)(kz),
+                x: Vector3D(ix)(jx)(kx), y: Vector3D(iy)(jy)(ky), z: Vector3D(iz)(jz)(kz)
+            });
+        }; }; };
+    }; }; };
+}; }; };
+var Matrix3D = function (i) { return function (j) { return function (k) {
+    return ({
+        CONS: 'Matrix3D',
+        ix: i.x, jx: j.x, kx: k.x,
+        iy: i.y, jy: j.y, ky: k.y,
+        iz: i.z, jz: j.z, kz: k.z,
+        i: i, j: j, k: k,
+        x: Vector3D(i.x)(j.x)(k.x), y: Vector3D(i.y)(j.y)(k.y), z: Vector3D(i.z)(j.z)(k.z)
+    });
+}; }; };
+var Matrix4x4 = function (ix) { return function (jx) { return function (kx) { return function (lx) {
+    return function (iy) { return function (jy) { return function (ky) { return function (ly) {
+        return function (iz) { return function (jz) { return function (kz) { return function (lz) {
+            return function (iw) { return function (jw) { return function (kw) { return function (lw) {
+                return ({
+                    CONS: 'Matrix4x4',
+                    ix: ix, jx: jx, kx: kx, lx: lx,
+                    iy: iy, jy: jy, ky: ky, ly: ly,
+                    iz: iz, jz: jz, kz: kz, lz: lz,
+                    iw: iw, jw: jw, kw: kw, lw: lw,
+                    i: Vector4D(ix)(iy)(iz)(iw), j: Vector4D(jx)(jy)(jz)(jw), k: Vector4D(kx)(ky)(kz)(kw), l: Vector4D(lx)(ly)(lz)(lw),
+                    x: Vector4D(ix)(jx)(kx)(lx), y: Vector4D(iy)(jy)(ky)(ly), z: Vector4D(iz)(jz)(kz)(lz), w: Vector4D(iw)(jw)(kw)(lw)
+                });
+            }; }; }; };
+        }; }; }; };
+    }; }; }; };
+}; }; }; };
+var Matrix4D = function (i) { return function (j) { return function (k) { return function (l) {
+    return ({
+        CONS: 'Matrix4D',
+        ix: i.x, jx: j.x, kx: k.x, lx: l.x,
+        iy: i.y, jy: j.y, ky: k.y, ly: l.y,
+        iz: i.z, jz: j.z, kz: k.z, lz: l.z,
+        iw: i.w, jw: j.w, kw: k.w, lw: l.w,
+        i: i, j: j, k: k, l: l,
+        x: Vector4D(i.x)(j.x)(k.x)(l.x), y: Vector4D(i.y)(j.y)(k.y)(l.y),
+        z: Vector4D(i.z)(j.z)(k.z)(l.z), w: Vector4D(i.w)(j.w)(k.w)(l.w)
+    });
+}; }; }; };
 var Horizontal;
 (function (Horizontal) {
     Horizontal["Leftward"] = "Leftward :: Horizontal";
