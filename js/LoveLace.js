@@ -128,6 +128,24 @@ var List = function () {
         }
     });
 };
+var Vector2D = function (x) { return function (y) {
+    return ({
+        CONS: 'Vector2D',
+        x: x, y: y
+    });
+}; };
+var Vector3D = function (x) { return function (y) { return function (z) {
+    return ({
+        CONS: 'Vector3D',
+        x: x, y: y, z: z
+    });
+}; }; };
+var Vector4D = function (x) { return function (y) { return function (z) { return function (w) {
+    return ({
+        CONS: 'Vector4D',
+        x: x, y: y, z: z, w: w
+    });
+}; }; }; };
 var Horizontal;
 (function (Horizontal) {
     Horizontal["Leftward"] = "Leftward :: Horizontal";

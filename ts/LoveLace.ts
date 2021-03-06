@@ -119,6 +119,54 @@ type List<a> =
 		readonly at : (index : number) => a
 	}
 
+/** `Vector2D` data-type used for two-dimensional linear algebra.
+ * ```
+ * data Vector2D = Vector2D Number Number
+ * (.x) :: Number
+ * (.y) :: Number
+ * ```
+ */
+type Vector2D =
+	{
+		readonly CONS : 'Vector2D'
+		readonly x    : number
+		readonly y    : number
+	}
+
+/** `Vector3D` data-type used for three-dimensional linear algebra.
+ * ```
+ * data Vector3D = Vector3D Number Number Number
+ * (.x) :: Number
+ * (.y) :: Number
+ * (.z) :: Number
+ * ```
+ */
+type Vector3D =
+	{
+		readonly CONS : 'Vector3D'
+		readonly x    : number
+		readonly y    : number
+		readonly z    : number
+	}
+
+/** `Vector4D` data-type used for four-dimensional linear algebra.
+ * ```
+ * data Vector4D = Vector4D Number Number Number Number
+ * (.x) :: Number
+ * (.y) :: Number
+ * (.z) :: Number
+ * (.w) :: Number
+ * ```
+ */
+type Vector4D =
+	{
+		readonly CONS : 'Vector4D'
+		readonly x    : number
+		readonly y    : number
+		readonly z    : number
+		readonly w    : number
+	}
+
 /********************************************************************************************************************************/
 
 // -- Use only for creating new IO operations; otherwise, compose existing IO monads together.
@@ -221,6 +269,27 @@ const List = <a>(...elements : ReadonlyArray<a>) : List<a> =>
 			elements[i] === undefined
 				? THROW(new RangeError(`Out of bounds index (${i}) occured with 'List' monad; indexing returned 'undefined'`))
 				: elements[i] as a
+	})
+
+/**` Vector2D :: Number -> Number -> Vector2D `*/
+const Vector2D = (x : number) => (y : number) : Vector2D =>
+	({
+		CONS : 'Vector2D',
+		x, y
+	})
+
+/**` Vector3D :: Number -> Number -> Number -> Vector3D `*/
+const Vector3D = (x : number) => (y : number) => (z : number) : Vector3D =>
+	({
+		CONS : 'Vector3D',
+		x, y, z
+	})
+
+/**` Vector4D :: Number -> Number -> Number -> Number -> Vector4D `*/
+const Vector4D = (x : number) => (y : number) => (z : number) => (w : number) : Vector4D =>
+	({
+		CONS : 'Vector4D',
+		x, y, z, w
 	})
 
 /********************************************************************************************************************************/
