@@ -1,0 +1,22 @@
+{
+	"include"         : [ "./ts/*.ts" ],
+	"compilerOptions" :
+	{
+		"lib": ["ES2020", "DOM"],
+		"outDir"                       : "./js/",
+		"checkJs"                      : true,
+		"removeComments"               : true,
+		"strict"                       : true,
+		"noImplicitAny"                : true,
+		"strictNullChecks"             : true,
+		"strictFunctionTypes"          : true,
+		"strictPropertyInitialization" : true,
+		"noImplicitThis"               : true,
+		"alwaysStrict"                 : true,
+		"noUnusedLocals"               : true,
+		"noUnusedParameters"           : true,
+		"noImplicitReturns"            : true,
+		"noFallthroughCasesInSwitch"   : true,
+		"noUncheckedIndexedAccess"     : true
+	}
+}
