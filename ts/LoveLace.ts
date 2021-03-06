@@ -183,10 +183,14 @@ type Matrix2x2 =
 		CONS : 'Matrix2D'
 	}) &
 	{
-		readonly ix : number,   readonly jx : number
-		readonly iy : number,   readonly jy : number
-		readonly i  : Vector2D, readonly j  : Vector2D
-		readonly x  : Vector2D, readonly y  : Vector2D
+		readonly ix : number
+		readonly jx : number
+		readonly iy : number
+		readonly jy : number
+		readonly i  : Vector2D
+		readonly j  : Vector2D
+		readonly x  : Vector2D
+		readonly y  : Vector2D
 	}
 
 /** Data type for the representation of 3x3 matrices.
@@ -205,11 +209,21 @@ type Matrix3x3 =
 	} | {
 		CONS : 'Matrix3D'
 	}) & {
-		readonly ix : number,   readonly jx : number,   readonly kx : number
-		readonly iy : number,   readonly jy : number,   readonly ky : number
-		readonly iz : number,   readonly jz : number,   readonly kz : number
-		readonly i  : Vector3D, readonly j  : Vector3D, readonly k  : Vector3D
-		readonly x  : Vector3D, readonly y  : Vector3D, readonly z  : Vector3D
+		readonly ix : number
+		readonly jx : number
+		readonly kx : number
+		readonly iy : number
+		readonly jy : number
+		readonly ky : number
+		readonly iz : number
+		readonly jz : number
+		readonly kz : number
+		readonly i  : Vector3D
+		readonly j  : Vector3D
+		readonly k  : Vector3D
+		readonly x  : Vector3D
+		readonly y  : Vector3D
+		readonly z  : Vector3D
 	}
 
 /** Data type for the representation of 4x4 matrices.
@@ -229,12 +243,30 @@ type Matrix4x4 =
 	} | {
 		CONS : 'Matrix4D'
 	}) & {
-		readonly ix : number,   readonly jx : number,   readonly kx : number,   readonly lx : number
-		readonly iy : number,   readonly jy : number,   readonly ky : number,   readonly ly : number
-		readonly iz : number,   readonly jz : number,   readonly kz : number,   readonly lz : number
-		readonly iw : number,   readonly jw : number,   readonly kw : number,   readonly lw : number
-		readonly i  : Vector4D, readonly j  : Vector4D, readonly k  : Vector4D, readonly l  : Vector4D
-		readonly x  : Vector4D, readonly y  : Vector4D, readonly z  : Vector4D, readonly w  : Vector4D
+		readonly ix : number
+		readonly jx : number
+		readonly kx : number
+		readonly lx : number
+		readonly iy : number
+		readonly jy : number
+		readonly ky : number
+		readonly ly : number
+		readonly iz : number
+		readonly jz : number
+		readonly kz : number
+		readonly lz : number
+		readonly iw : number
+		readonly jw : number
+		readonly kw : number
+		readonly lw : number
+		readonly i  : Vector4D
+		readonly j  : Vector4D
+		readonly k  : Vector4D
+		readonly l  : Vector4D
+		readonly x  : Vector4D
+		readonly y  : Vector4D
+		readonly z  : Vector4D
+		readonly w  : Vector4D
 	}
 
 /********************************************************************************************************************************/
