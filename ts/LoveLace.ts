@@ -516,6 +516,47 @@ enum TextBaseline
 	Bottom      = 'Bottom :: TextBaseline'
 }
 
+/**
+ * ```
+ * data CompositionOperation = SourceOver      | SourceIn      | SourceOut      | SourceAtop      |
+ *                             DestinationOver | DestinationIn | DestinationOut | DestinationAtop |
+ *                             Lighter         | Copy          | Xor            | Multiply        |
+ *                             Screen          | Overlay       | Darken         | Lighten         |
+ *                             ColorDodge      | ColorBurn     | HardLight      | SoftLight       |
+ *                             Difference      | Exclusion     | Hue            | Saturation      |
+ *                             Color           | Luminosity
+ * ```
+ */
+enum CompositionOperation
+{
+	SourceOver      = 'SourceOver :: CompositionOperation',
+	SourceAtop      = 'SourceAtop :: CompositionOperation',
+	SourceIn        = 'SourceIn :: CompositionOperation',
+	SourceOut       = 'SourceOut :: CompositionOperation',
+	DestinationOver = 'DestinationOver :: CompositionOperation',
+	DestinationAtop = 'DestinationAtop :: CompositionOperation',
+	DestinationIn   = 'DestinationIn :: CompositionOperation',
+	DestinationOut  = 'DestinationOut :: CompositionOperation',
+	Lighter         = 'Lighter :: CompositionOperation',
+	Xor             = 'Xor :: CompositionOperation',
+	Copy            = 'Copy :: CompositionOperation',
+	Multiply        = 'Multiply :: CompositionOperation',
+	Screen          = 'Screen :: CompositionOperation',
+	Overlay         = 'Overlay :: CompositionOperation',
+	Darken          = 'Darken :: CompositionOperation',
+	Lighten         = 'Lighten :: CompositionOperation',
+	ColorDodge      = 'ColorDodge :: CompositionOperation',
+	ColorBurn       = 'ColorBurn :: CompositionOperation',
+	HardLight       = 'HardLight :: CompositionOperation',
+	SoftLight       = 'SoftLight :: CompositionOperation',
+	Difference      = 'Difference :: CompositionOperation',
+	Exclusion       = 'Exclusion :: CompositionOperation',
+	Hue             = 'Hue :: CompositionOperation',
+	Saturation      = 'Saturation :: CompositionOperation',
+	Color           = 'Color :: CompositionOperation',
+	Luminosity      = 'Luminosity :: CompositionOperation'
+}
+
 /********************************************************************************************************************************/
 
 /**` relaxHorizontal :: Horizontal -> Horizontal `*/
@@ -857,6 +898,41 @@ namespace Get
 	/**` Get.alpha :: IO Number `*/
 	export const alpha : IO<number> =
 		IO(() => __EXTERNAL__.context.globalAlpha)
+
+	/**` Get.compositionOperation :: IO CompositionOperation `*/
+	export const compositionOperation : IO<CompositionOperation> =
+		IO(() => {
+			switch (__EXTERNAL__.context.globalCompositeOperation)
+			{
+				case 'source-over'      : return CompositionOperation.SourceOver
+				case 'source-in'        : return CompositionOperation.SourceIn
+				case 'source-out'       : return CompositionOperation.SourceOut
+				case 'source-atop'      : return CompositionOperation.SourceAtop
+				case 'destination-over' : return CompositionOperation.DestinationOver
+				case 'destination-in'   : return CompositionOperation.DestinationIn
+				case 'destination-out'  : return CompositionOperation.DestinationOut
+				case 'destination-atop' : return CompositionOperation.DestinationAtop
+				case 'lighter'          : return CompositionOperation.Lighter
+				case 'copy'             : return CompositionOperation.Copy
+				case 'xor'              : return CompositionOperation.Xor
+				case 'multiply'         : return CompositionOperation.Multiply
+				case 'screen'           : return CompositionOperation.Screen
+				case 'overlay'          : return CompositionOperation.Overlay
+				case 'darken'           : return CompositionOperation.Darken
+				case 'lighten'          : return CompositionOperation.Lighten
+				case 'color-dodge'      : return CompositionOperation.ColorDodge
+				case 'color-burn'       : return CompositionOperation.ColorBurn
+				case 'hard-light'       : return CompositionOperation.HardLight
+				case 'soft-light'       : return CompositionOperation.SoftLight
+				case 'difference'       : return CompositionOperation.Difference
+				case 'exclusion'        : return CompositionOperation.Exclusion
+				case 'hue'              : return CompositionOperation.Hue
+				case 'saturation'       : return CompositionOperation.Saturation
+				case 'color'            : return CompositionOperation.Color
+				case 'luminosity'       : return CompositionOperation.Luminosity
+				default                 : return null as any
+			}
+		})
 }
 
 namespace Put
@@ -994,6 +1070,44 @@ namespace Put
 	export const alpha = (opacity : number) : IO<null> =>
 		IO(() => {
 			__EXTERNAL__.context.globalAlpha = opacity
+			return null
+		})
+
+	/**` Put.compositionOperation :: CompositionOperation -> IO () `*/
+	export const compositionOperation = (composition : CompositionOperation) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.globalCompositeOperation = (() => {
+				switch (composition)
+				{
+					case CompositionOperation.SourceOver      : return 'source-over'
+					case CompositionOperation.SourceIn        : return 'source-in'
+					case CompositionOperation.SourceOut       : return 'source-out'
+					case CompositionOperation.SourceAtop      : return 'source-atop'
+					case CompositionOperation.DestinationOver : return 'destination-over'
+					case CompositionOperation.DestinationIn   : return 'destination-in'
+					case CompositionOperation.DestinationOut  : return 'destination-out'
+					case CompositionOperation.DestinationAtop : return 'destination-atop'
+					case CompositionOperation.Lighter         : return 'lighter'
+					case CompositionOperation.Copy            : return 'copy'
+					case CompositionOperation.Xor             : return 'xor'
+					case CompositionOperation.Multiply        : return 'multiply'
+					case CompositionOperation.Screen          : return 'screen'
+					case CompositionOperation.Overlay         : return 'overlay'
+					case CompositionOperation.Darken          : return 'darken'
+					case CompositionOperation.Lighten         : return 'lighten'
+					case CompositionOperation.ColorDodge      : return 'color-dodge'
+					case CompositionOperation.ColorBurn       : return 'color-burn'
+					case CompositionOperation.HardLight       : return 'hard-light'
+					case CompositionOperation.SoftLight       : return 'soft-light'
+					case CompositionOperation.Difference      : return 'difference'
+					case CompositionOperation.Exclusion       : return 'exclusion'
+					case CompositionOperation.Hue             : return 'hue'
+					case CompositionOperation.Saturation      : return 'saturation'
+					case CompositionOperation.Color           : return 'color'
+					case CompositionOperation.Luminosity      : return 'luminosity'
+					default                                   : return __EXTERNAL__.context.globalCompositeOperation
+				}
+			})()
 			return null
 		})
 }

@@ -250,6 +250,35 @@ var TextBaseline;
     TextBaseline["Ideographic"] = "Ideographic :: TextBaseline";
     TextBaseline["Bottom"] = "Bottom :: TextBaseline";
 })(TextBaseline || (TextBaseline = {}));
+var CompositionOperation;
+(function (CompositionOperation) {
+    CompositionOperation["SourceOver"] = "SourceOver :: CompositionOperation";
+    CompositionOperation["SourceAtop"] = "SourceAtop :: CompositionOperation";
+    CompositionOperation["SourceIn"] = "SourceIn :: CompositionOperation";
+    CompositionOperation["SourceOut"] = "SourceOut :: CompositionOperation";
+    CompositionOperation["DestinationOver"] = "DestinationOver :: CompositionOperation";
+    CompositionOperation["DestinationAtop"] = "DestinationAtop :: CompositionOperation";
+    CompositionOperation["DestinationIn"] = "DestinationIn :: CompositionOperation";
+    CompositionOperation["DestinationOut"] = "DestinationOut :: CompositionOperation";
+    CompositionOperation["Lighter"] = "Lighter :: CompositionOperation";
+    CompositionOperation["Xor"] = "Xor :: CompositionOperation";
+    CompositionOperation["Copy"] = "Copy :: CompositionOperation";
+    CompositionOperation["Multiply"] = "Multiply :: CompositionOperation";
+    CompositionOperation["Screen"] = "Screen :: CompositionOperation";
+    CompositionOperation["Overlay"] = "Overlay :: CompositionOperation";
+    CompositionOperation["Darken"] = "Darken :: CompositionOperation";
+    CompositionOperation["Lighten"] = "Lighten :: CompositionOperation";
+    CompositionOperation["ColorDodge"] = "ColorDodge :: CompositionOperation";
+    CompositionOperation["ColorBurn"] = "ColorBurn :: CompositionOperation";
+    CompositionOperation["HardLight"] = "HardLight :: CompositionOperation";
+    CompositionOperation["SoftLight"] = "SoftLight :: CompositionOperation";
+    CompositionOperation["Difference"] = "Difference :: CompositionOperation";
+    CompositionOperation["Exclusion"] = "Exclusion :: CompositionOperation";
+    CompositionOperation["Hue"] = "Hue :: CompositionOperation";
+    CompositionOperation["Saturation"] = "Saturation :: CompositionOperation";
+    CompositionOperation["Color"] = "Color :: CompositionOperation";
+    CompositionOperation["Luminosity"] = "Luminosity :: CompositionOperation";
+})(CompositionOperation || (CompositionOperation = {}));
 var relaxHorizontal = function (direction) {
     return direction === Horizontal.Leftward ? Horizontal.Left :
         direction === Horizontal.Rightward ? Horizontal.Right :
@@ -402,6 +431,37 @@ var Get;
                                 null;
     });
     Get.alpha = IO(function () { return __EXTERNAL__.context.globalAlpha; });
+    Get.compositionOperation = IO(function () {
+        switch (__EXTERNAL__.context.globalCompositeOperation) {
+            case 'source-over': return CompositionOperation.SourceOver;
+            case 'source-in': return CompositionOperation.SourceIn;
+            case 'source-out': return CompositionOperation.SourceOut;
+            case 'source-atop': return CompositionOperation.SourceAtop;
+            case 'destination-over': return CompositionOperation.DestinationOver;
+            case 'destination-in': return CompositionOperation.DestinationIn;
+            case 'destination-out': return CompositionOperation.DestinationOut;
+            case 'destination-atop': return CompositionOperation.DestinationAtop;
+            case 'lighter': return CompositionOperation.Lighter;
+            case 'copy': return CompositionOperation.Copy;
+            case 'xor': return CompositionOperation.Xor;
+            case 'multiply': return CompositionOperation.Multiply;
+            case 'screen': return CompositionOperation.Screen;
+            case 'overlay': return CompositionOperation.Overlay;
+            case 'darken': return CompositionOperation.Darken;
+            case 'lighten': return CompositionOperation.Lighten;
+            case 'color-dodge': return CompositionOperation.ColorDodge;
+            case 'color-burn': return CompositionOperation.ColorBurn;
+            case 'hard-light': return CompositionOperation.HardLight;
+            case 'soft-light': return CompositionOperation.SoftLight;
+            case 'difference': return CompositionOperation.Difference;
+            case 'exclusion': return CompositionOperation.Exclusion;
+            case 'hue': return CompositionOperation.Hue;
+            case 'saturation': return CompositionOperation.Saturation;
+            case 'color': return CompositionOperation.Color;
+            case 'luminosity': return CompositionOperation.Luminosity;
+            default: return null;
+        }
+    });
 })(Get || (Get = {}));
 var Put;
 (function (Put) {
@@ -523,6 +583,42 @@ var Put;
     Put.alpha = function (opacity) {
         return IO(function () {
             __EXTERNAL__.context.globalAlpha = opacity;
+            return null;
+        });
+    };
+    Put.compositionOperation = function (composition) {
+        return IO(function () {
+            __EXTERNAL__.context.globalCompositeOperation = (function () {
+                switch (composition) {
+                    case CompositionOperation.SourceOver: return 'source-over';
+                    case CompositionOperation.SourceIn: return 'source-in';
+                    case CompositionOperation.SourceOut: return 'source-out';
+                    case CompositionOperation.SourceAtop: return 'source-atop';
+                    case CompositionOperation.DestinationOver: return 'destination-over';
+                    case CompositionOperation.DestinationIn: return 'destination-in';
+                    case CompositionOperation.DestinationOut: return 'destination-out';
+                    case CompositionOperation.DestinationAtop: return 'destination-atop';
+                    case CompositionOperation.Lighter: return 'lighter';
+                    case CompositionOperation.Copy: return 'copy';
+                    case CompositionOperation.Xor: return 'xor';
+                    case CompositionOperation.Multiply: return 'multiply';
+                    case CompositionOperation.Screen: return 'screen';
+                    case CompositionOperation.Overlay: return 'overlay';
+                    case CompositionOperation.Darken: return 'darken';
+                    case CompositionOperation.Lighten: return 'lighten';
+                    case CompositionOperation.ColorDodge: return 'color-dodge';
+                    case CompositionOperation.ColorBurn: return 'color-burn';
+                    case CompositionOperation.HardLight: return 'hard-light';
+                    case CompositionOperation.SoftLight: return 'soft-light';
+                    case CompositionOperation.Difference: return 'difference';
+                    case CompositionOperation.Exclusion: return 'exclusion';
+                    case CompositionOperation.Hue: return 'hue';
+                    case CompositionOperation.Saturation: return 'saturation';
+                    case CompositionOperation.Color: return 'color';
+                    case CompositionOperation.Luminosity: return 'luminosity';
+                    default: return __EXTERNAL__.context.globalCompositeOperation;
+                }
+            })();
             return null;
         });
     };
