@@ -857,6 +857,23 @@ namespace Get
 
 namespace Put
 {
+	/**` Put.transform :: (6 Number...) -> IO () `*/
+	export const transform =
+		(ix : number) => (jx : number) =>
+		(iy : number) => (jy : number) =>
+		(kx : number) => (ky : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.setTransform(ix, jx, iy, jy, kx, ky)
+			return null
+		})
+
+	/**` Put.matrixTransform :: Matrix3x3 -> IO () `*/
+	export const matrixTransform = (m : Matrix3x3) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.setTransform(m.ix, m.jx, m.iy, m.jy, m.kx, m.ky)
+			return null
+		})
+
 	/**` Put.lineWidth :: Number -> IO () `*/
 	export const lineWidth = (w : number) : IO<null> =>
 		IO(() => {
@@ -981,6 +998,65 @@ namespace Act
 				(__EXTERNAL__.keyboard as any)[k] = relaxVertical((__EXTERNAL__.keyboard as any)[k])
 			for (const k in __EXTERNAL__.mouse.buttons)
 				__EXTERNAL__.mouse.buttons[k] = relaxVertical(__EXTERNAL__.mouse.buttons[k] as any)
+			return null
+		})
+
+	/**` Act.scale :: Number -> Number -> IO () `*/
+	export const scale = (kx : number) => (ky : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.scale(kx, ky)
+			return null
+		})
+
+	/**` Act.vectorScale :: Vector2D -> IO () `*/
+	export const vectorScale = (v : Vector2D) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.scale(v.x, v.y)
+			return null
+		})
+
+	/**` Act.scaleUniformly :: Number -> IO () `*/
+	export const scaleUniformly = (scalar : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.scale(scalar, scalar)
+			return null
+		})
+
+	/**` Act.rotate :: Number -> IO () `*/
+	export const rotate = (theta : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.rotate(theta)
+			return null
+		})
+
+	/**` Act.translate :: Number -> Number -> IO () `*/
+	export const translate = (dx : number) => (dy : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.translate(dx, dy)
+			return null
+		})
+
+	/**` Act.vectorTranslate :: Vector2D -> IO () `*/
+	export const vectorTranslate = (v : Vector2D) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.translate(v.x, v.y)
+			return null
+		})
+
+	/**` Act.transform :: (6 Number...) -> IO () `*/
+	export const transform =
+		(ix : number) => (jx : number) =>
+		(iy : number) => (jy : number) =>
+		(kx : number) => (ky : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.transform(ix, jx, iy, jy, kx, ky)
+			return null
+		})
+
+	/**` Act.matrixTransform :: Matrix3x3 -> IO () `*/
+	export const matrixTransform = (m : Matrix3x3) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.transform(m.ix, m.jx, m.iy, m.jy, m.kx, m.ky)
 			return null
 		})
 

@@ -404,6 +404,22 @@ var Get;
 })(Get || (Get = {}));
 var Put;
 (function (Put) {
+    Put.transform = function (ix) { return function (jx) {
+        return function (iy) { return function (jy) {
+            return function (kx) { return function (ky) {
+                return IO(function () {
+                    __EXTERNAL__.context.setTransform(ix, jx, iy, jy, kx, ky);
+                    return null;
+                });
+            }; };
+        }; };
+    }; };
+    Put.matrixTransform = function (m) {
+        return IO(function () {
+            __EXTERNAL__.context.setTransform(m.ix, m.jx, m.iy, m.jy, m.kx, m.ky);
+            return null;
+        });
+    };
     Put.lineWidth = function (w) {
         return IO(function () {
             __EXTERNAL__.context.lineWidth = w;
@@ -515,6 +531,58 @@ var Act;
             __EXTERNAL__.mouse.buttons[k] = relaxVertical(__EXTERNAL__.mouse.buttons[k]);
         return null;
     });
+    Act.scale = function (kx) { return function (ky) {
+        return IO(function () {
+            __EXTERNAL__.context.scale(kx, ky);
+            return null;
+        });
+    }; };
+    Act.vectorScale = function (v) {
+        return IO(function () {
+            __EXTERNAL__.context.scale(v.x, v.y);
+            return null;
+        });
+    };
+    Act.scaleUniformly = function (scalar) {
+        return IO(function () {
+            __EXTERNAL__.context.scale(scalar, scalar);
+            return null;
+        });
+    };
+    Act.rotate = function (theta) {
+        return IO(function () {
+            __EXTERNAL__.context.rotate(theta);
+            return null;
+        });
+    };
+    Act.translate = function (dx) { return function (dy) {
+        return IO(function () {
+            __EXTERNAL__.context.translate(dx, dy);
+            return null;
+        });
+    }; };
+    Act.vectorTranslate = function (v) {
+        return IO(function () {
+            __EXTERNAL__.context.translate(v.x, v.y);
+            return null;
+        });
+    };
+    Act.transform = function (ix) { return function (jx) {
+        return function (iy) { return function (jy) {
+            return function (kx) { return function (ky) {
+                return IO(function () {
+                    __EXTERNAL__.context.transform(ix, jx, iy, jy, kx, ky);
+                    return null;
+                });
+            }; };
+        }; };
+    }; };
+    Act.matrixTransform = function (m) {
+        return IO(function () {
+            __EXTERNAL__.context.transform(m.ix, m.jx, m.iy, m.jy, m.kx, m.ky);
+            return null;
+        });
+    };
     Act.clearRect = function (x) { return function (y) { return function (w) { return function (h) {
         return IO(function () {
             __EXTERNAL__.context.clearRect(x, y, w, h);
