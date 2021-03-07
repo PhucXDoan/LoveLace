@@ -955,6 +955,28 @@ namespace Get
 
 namespace Put
 {
+	/**` Put.canvasDimensions :: Number -> Number -> IO () `*/
+	export const canvasDimensions = (w : number) => (h : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.canvas.width  = w
+			__EXTERNAL__.context.canvas.height = h
+			return null
+		})
+
+	/**` Put.canvasDimensionW :: Number -> IO () `*/
+	export const canvasDimensionW = (w : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.canvas.width = w
+			return null
+		})
+
+	/**` Put.canvasDimensionH :: Number -> IO () `*/
+	export const canvasDimensionH = (h : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.canvas.height = h
+			return null
+		})
+
 	/**` Put.transform :: (6 Number...) -> IO () `*/
 	export const transform =
 		(ix : number) => (jx : number) =>

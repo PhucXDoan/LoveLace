@@ -474,6 +474,25 @@ var Get;
 })(Get || (Get = {}));
 var Put;
 (function (Put) {
+    Put.canvasDimensions = function (w) { return function (h) {
+        return IO(function () {
+            __EXTERNAL__.context.canvas.width = w;
+            __EXTERNAL__.context.canvas.height = h;
+            return null;
+        });
+    }; };
+    Put.canvasDimensionW = function (w) {
+        return IO(function () {
+            __EXTERNAL__.context.canvas.width = w;
+            return null;
+        });
+    };
+    Put.canvasDimensionH = function (h) {
+        return IO(function () {
+            __EXTERNAL__.context.canvas.height = h;
+            return null;
+        });
+    };
     Put.transform = function (ix) { return function (jx) {
         return function (iy) { return function (jy) {
             return function (kx) { return function (ky) {
