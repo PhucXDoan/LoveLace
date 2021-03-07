@@ -836,7 +836,7 @@ namespace Get
 			__EXTERNAL__.context.lineCap === 'butt'   ? LineCap.Butt   :
 			__EXTERNAL__.context.lineCap === 'round'  ? LineCap.Round  :
 			__EXTERNAL__.context.lineCap === 'square' ? LineCap.Square :
-			LineCap.Butt
+			THROW(new TypeError(`Unknown '.lineCap' value retrieved: ${__EXTERNAL__.context.lineCap}`))
 		)
 
 	/**` Get.lineJoin :: IO LineJoin `*/
@@ -845,7 +845,7 @@ namespace Get
 			__EXTERNAL__.context.lineJoin === 'bevel' ? LineJoin.Bevel :
 			__EXTERNAL__.context.lineJoin === 'miter' ? LineJoin.Miter :
 			__EXTERNAL__.context.lineJoin === 'round' ? LineJoin.Round :
-			LineJoin.Miter
+			THROW(new TypeError(`Unknown '.lineJoin' value retrieved: ${__EXTERNAL__.context.lineJoin}`))
 		)
 
 	/**` Get.miterLimit :: IO Number `*/
