@@ -158,13 +158,7 @@ var Matrix2x2 = function (ix) { return function (jx) {
     }; };
 }; };
 var Matrix2D = function (i) { return function (j) {
-    return ({
-        CONS: 'Matrix2D',
-        ix: i.x, jx: j.x,
-        iy: i.y, jy: j.y,
-        i: i, j: j,
-        x: Vector2D(i.x)(j.x), y: Vector2D(i.y)(j.y)
-    });
+    return Matrix2x2(i.x)(j.x)(i.y)(j.y);
 }; };
 var Matrix3x3 = function (ix) { return function (jx) { return function (kx) {
     return function (iy) { return function (jy) { return function (ky) {
@@ -181,14 +175,7 @@ var Matrix3x3 = function (ix) { return function (jx) { return function (kx) {
     }; }; };
 }; }; };
 var Matrix3D = function (i) { return function (j) { return function (k) {
-    return ({
-        CONS: 'Matrix3D',
-        ix: i.x, jx: j.x, kx: k.x,
-        iy: i.y, jy: j.y, ky: k.y,
-        iz: i.z, jz: j.z, kz: k.z,
-        i: i, j: j, k: k,
-        x: Vector3D(i.x)(j.x)(k.x), y: Vector3D(i.y)(j.y)(k.y), z: Vector3D(i.z)(j.z)(k.z)
-    });
+    return Matrix3x3(i.x)(j.x)(k.x)(i.y)(j.y)(k.y)(i.z)(j.z)(k.z);
 }; }; };
 var Matrix4x4 = function (ix) { return function (jx) { return function (kx) { return function (lx) {
     return function (iy) { return function (jy) { return function (ky) { return function (ly) {
@@ -208,16 +195,7 @@ var Matrix4x4 = function (ix) { return function (jx) { return function (kx) { re
     }; }; }; };
 }; }; }; };
 var Matrix4D = function (i) { return function (j) { return function (k) { return function (l) {
-    return ({
-        CONS: 'Matrix4D',
-        ix: i.x, jx: j.x, kx: k.x, lx: l.x,
-        iy: i.y, jy: j.y, ky: k.y, ly: l.y,
-        iz: i.z, jz: j.z, kz: k.z, lz: l.z,
-        iw: i.w, jw: j.w, kw: k.w, lw: l.w,
-        i: i, j: j, k: k, l: l,
-        x: Vector4D(i.x)(j.x)(k.x)(l.x), y: Vector4D(i.y)(j.y)(k.y)(l.y),
-        z: Vector4D(i.z)(j.z)(k.z)(l.z), w: Vector4D(i.w)(j.w)(k.w)(l.w)
-    });
+    return Matrix4x4(i.x)(j.x)(k.x)(l.x)(i.y)(j.y)(k.y)(l.y)(i.z)(j.z)(k.z)(l.z)(i.w)(j.w)(k.w)(l.w);
 }; }; }; };
 var Horizontal;
 (function (Horizontal) {
