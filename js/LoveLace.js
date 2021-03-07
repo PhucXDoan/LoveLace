@@ -10,7 +10,8 @@ var __assign = (this && this.__assign) || function () {
     };
     return __assign.apply(this, arguments);
 };
-var THROW = function (error) { throw error; };
+var THROWTYPE = function (message) { throw new TypeError(message); };
+var THROWRANGE = function (message) { throw new RangeError(message); };
 var IO = function (sideeffect) {
     return ({
         CONS: 'IO a',
@@ -123,7 +124,7 @@ var List = function () {
         }; },
         at: function (i) {
             return elements[i] === undefined
-                ? THROW(new RangeError("Out of bounds index (" + i + ") occured with 'List' monad; indexing returned 'undefined'"))
+                ? THROWRANGE("Out of bounds index (" + i + ") occured with 'List' monad; indexing returned 'undefined'")
                 : elements[i];
         }
     });
@@ -396,16 +397,20 @@ var Get;
     };
     Get.lineWidth = IO(function () { return __EXTERNAL__.context.lineWidth; });
     Get.lineCap = IO(function () {
-        return __EXTERNAL__.context.lineCap === 'butt' ? LineCap.Butt :
-            __EXTERNAL__.context.lineCap === 'round' ? LineCap.Round :
-                __EXTERNAL__.context.lineCap === 'square' ? LineCap.Square :
-                    LineCap.Butt;
+        switch (__EXTERNAL__.context.lineCap) {
+            case 'butt': return LineCap.Butt;
+            case 'round': return LineCap.Round;
+            case 'square': return LineCap.Square;
+            default: return THROWTYPE("Unknown '.lineCap' value retrieved: " + __EXTERNAL__.context.lineCap);
+        }
     });
     Get.lineJoin = IO(function () {
-        return __EXTERNAL__.context.lineJoin === 'bevel' ? LineJoin.Bevel :
-            __EXTERNAL__.context.lineJoin === 'miter' ? LineJoin.Miter :
-                __EXTERNAL__.context.lineJoin === 'round' ? LineJoin.Round :
-                    LineJoin.Miter;
+        switch (__EXTERNAL__.context.lineJoin) {
+            case 'bevel': return LineJoin.Bevel;
+            case 'miter': return LineJoin.Miter;
+            case 'round': return LineJoin.Round;
+            default: return THROWTYPE("Unknown '.lineJoin' value retrieved: " + __EXTERNAL__.context.lineJoin);
+        }
     });
     Get.miterLimit = IO(function () { return __EXTERNAL__.context.miterLimit; });
     Get.lineDashPattern = IO(function () { return List.apply(void 0, __EXTERNAL__.context.getLineDash()); });
@@ -414,21 +419,25 @@ var Get;
     Get.fontSize = IO(function () { return +__EXTERNAL__.context.font.slice(0, __EXTERNAL__.context.font.indexOf("px")); });
     Get.fontFamily = IO(function () { return __EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" ") + 1); });
     Get.textAlignment = IO(function () {
-        return __EXTERNAL__.context.textAlign === 'center' ? TextAlignment.Center :
-            __EXTERNAL__.context.textAlign === 'end' ? TextAlignment.End :
-                __EXTERNAL__.context.textAlign === 'left' ? TextAlignment.Left :
-                    __EXTERNAL__.context.textAlign === 'right' ? TextAlignment.Right :
-                        __EXTERNAL__.context.textAlign === 'start' ? TextAlignment.Start :
-                            THROW(new TypeError("Unknown '.textAlign' value retrieved: " + __EXTERNAL__.context.textAlign));
+        switch (__EXTERNAL__.context.textAlign) {
+            case 'center': return TextAlignment.Center;
+            case 'end': return TextAlignment.End;
+            case 'left': return TextAlignment.Left;
+            case 'right': return TextAlignment.Right;
+            case 'start': return TextAlignment.Start;
+            default: return THROWTYPE("Unknown '.textAlign' value retrieved: " + __EXTERNAL__.context.textAlign);
+        }
     });
     Get.textBaseline = IO(function () {
-        return __EXTERNAL__.context.textBaseline === 'alphabetic' ? TextBaseline.Alphabetic :
-            __EXTERNAL__.context.textBaseline === 'bottom' ? TextBaseline.Bottom :
-                __EXTERNAL__.context.textBaseline === 'hanging' ? TextBaseline.Hanging :
-                    __EXTERNAL__.context.textBaseline === 'ideographic' ? TextBaseline.Ideographic :
-                        __EXTERNAL__.context.textBaseline === 'middle' ? TextBaseline.Middle :
-                            __EXTERNAL__.context.textBaseline === 'top' ? TextBaseline.Top :
-                                THROW(new TypeError("Unknown '.textBaseline' value retrieved: " + __EXTERNAL__.context.textBaseline));
+        switch (__EXTERNAL__.context.textBaseline) {
+            case 'alphabetic': return TextBaseline.Alphabetic;
+            case 'bottom': return TextBaseline.Bottom;
+            case 'hanging': return TextBaseline.Hanging;
+            case 'ideographic': return TextBaseline.Ideographic;
+            case 'middle': return TextBaseline.Middle;
+            case 'top': return TextBaseline.Top;
+            default: return THROWTYPE("Unknown '.textBaseline' value retrieved: " + __EXTERNAL__.context.textBaseline);
+        }
     });
     Get.alpha = IO(function () { return __EXTERNAL__.context.globalAlpha; });
     Get.compositionOperation = IO(function () {
@@ -459,7 +468,7 @@ var Get;
             case 'saturation': return CompositionOperation.Saturation;
             case 'color': return CompositionOperation.Color;
             case 'luminosity': return CompositionOperation.Luminosity;
-            default: return THROW(new TypeError("Unknown '.globalCompositeOperation' value retrieved: " + __EXTERNAL__.context.globalCompositeOperation));
+            default: return THROWTYPE("Unknown '.globalCompositeOperation' value retrieved: " + __EXTERNAL__.context.globalCompositeOperation);
         }
     });
 })(Get || (Get = {}));
@@ -489,21 +498,27 @@ var Put;
     };
     Put.lineCap = function (cap) {
         return IO(function () {
-            __EXTERNAL__.context.lineCap =
-                cap === LineCap.Butt ? 'butt' :
-                    cap === LineCap.Round ? 'round' :
-                        cap === LineCap.Square ? 'square' :
-                            THROW(new TypeError("Unknown 'LineCap' value received: " + cap));
+            __EXTERNAL__.context.lineCap = (function () {
+                switch (cap) {
+                    case LineCap.Butt: return 'butt';
+                    case LineCap.Round: return 'round';
+                    case LineCap.Square: return 'square';
+                    default: return THROWTYPE("Unknown 'LineCap' value received: " + cap);
+                }
+            })();
             return null;
         });
     };
     Put.lineJoin = function (join) {
         return IO(function () {
-            __EXTERNAL__.context.lineCap =
-                join === LineJoin.Bevel ? 'bevel' :
-                    join === LineJoin.Miter ? 'miter' :
-                        join === LineJoin.Round ? 'round' :
-                            THROW(new TypeError("Unknown 'LineJoin' value received: " + join));
+            __EXTERNAL__.context.lineCap = (function () {
+                switch (join) {
+                    case LineJoin.Bevel: return 'bevel';
+                    case LineJoin.Miter: return 'miter';
+                    case LineJoin.Round: return 'round';
+                    default: return THROWTYPE("Unknown 'LineJoin' value received: " + join);
+                }
+            })();
             return null;
         });
     };
@@ -545,26 +560,32 @@ var Put;
     };
     Put.textAlignment = function (alignment) {
         return IO(function () {
-            __EXTERNAL__.context.textAlign =
-                alignment === TextAlignment.Center ? 'center' :
-                    alignment === TextAlignment.End ? 'end' :
-                        alignment === TextAlignment.Left ? 'left' :
-                            alignment === TextAlignment.Right ? 'right' :
-                                alignment === TextAlignment.Start ? 'start' :
-                                    THROW(new TypeError("Unknown 'TextAlignment' value received: " + alignment));
+            __EXTERNAL__.context.textAlign = (function () {
+                switch (alignment) {
+                    case TextAlignment.Center: return 'center';
+                    case TextAlignment.End: return 'end';
+                    case TextAlignment.Left: return 'left';
+                    case TextAlignment.Right: return 'right';
+                    case TextAlignment.Start: return 'start';
+                    default: return THROWTYPE("Unknown 'TextAlignment' value received: " + alignment);
+                }
+            })();
             return null;
         });
     };
     Put.textBaseline = function (baseline) {
         return IO(function () {
-            __EXTERNAL__.context.textBaseline =
-                baseline === TextBaseline.Alphabetic ? 'alphabetic' :
-                    baseline === TextBaseline.Bottom ? 'bottom' :
-                        baseline === TextBaseline.Hanging ? 'hanging' :
-                            baseline === TextBaseline.Ideographic ? 'ideographic' :
-                                baseline === TextBaseline.Middle ? 'middle' :
-                                    baseline === TextBaseline.Top ? 'top' :
-                                        THROW(new TypeError("Unknown 'TextBaseline' value received: " + baseline));
+            __EXTERNAL__.context.textBaseline = (function () {
+                switch (baseline) {
+                    case TextBaseline.Alphabetic: return 'alphabetic';
+                    case TextBaseline.Bottom: return 'bottom';
+                    case TextBaseline.Hanging: return 'hanging';
+                    case TextBaseline.Ideographic: return 'ideographic';
+                    case TextBaseline.Middle: return 'middle';
+                    case TextBaseline.Top: return 'top';
+                    default: return THROWTYPE("Unknown 'TextBaseline' value received: " + baseline);
+                }
+            })();
             return null;
         });
     };
@@ -616,7 +637,7 @@ var Put;
                     case CompositionOperation.Saturation: return 'saturation';
                     case CompositionOperation.Color: return 'color';
                     case CompositionOperation.Luminosity: return 'luminosity';
-                    default: return THROW(new TypeError("Unknown 'CompositionOperation' value received: " + composition));
+                    default: return THROWTYPE("Unknown 'CompositionOperation' value received: " + composition);
                 }
             })();
             return null;

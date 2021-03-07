@@ -1,6 +1,10 @@
-/** Throws an error via a function call. */
-const THROW = (error : Error) =>
-	{ throw error }
+/** Throws a type error via a function call. */
+const THROWTYPE = (message : string) =>
+	{ throw new TypeError(message) }
+
+/** Throws a range error via a function call. */
+const THROWRANGE = (message : string) =>
+	{ throw new RangeError(message) }
 
 /********************************************************************************************************************************/
 
@@ -359,7 +363,7 @@ const List = <a>(...elements : ReadonlyArray<a>) : List<a> =>
 			List(...elements.map($ => ({ ...$, [k]: f($) }))) as any,
 		at : i =>
 			elements[i] === undefined
-				? THROW(new RangeError(`Out of bounds index (${i}) occured with 'List' monad; indexing returned 'undefined'`))
+				? THROWRANGE(`Out of bounds index (${i}) occured with 'List' monad; indexing returned 'undefined'`)
 				: elements[i] as a
 	})
 
@@ -832,21 +836,27 @@ namespace Get
 
 	/**` Get.lineCap :: IO LineCap `*/
 	export const lineCap : IO<LineCap> =
-		IO(() =>
-			__EXTERNAL__.context.lineCap === 'butt'   ? LineCap.Butt   :
-			__EXTERNAL__.context.lineCap === 'round'  ? LineCap.Round  :
-			__EXTERNAL__.context.lineCap === 'square' ? LineCap.Square :
-			THROW(new TypeError(`Unknown '.lineCap' value retrieved: ${__EXTERNAL__.context.lineCap}`))
-		)
+		IO(() => {
+			switch (__EXTERNAL__.context.lineCap)
+			{
+				case 'butt'   : return LineCap.Butt
+				case 'round'  : return LineCap.Round
+				case 'square' : return LineCap.Square
+				default: return THROWTYPE(`Unknown '.lineCap' value retrieved: ${__EXTERNAL__.context.lineCap}`)
+			}
+		})
 
 	/**` Get.lineJoin :: IO LineJoin `*/
 	export const lineJoin : IO<LineJoin> =
-		IO(() =>
-			__EXTERNAL__.context.lineJoin === 'bevel' ? LineJoin.Bevel :
-			__EXTERNAL__.context.lineJoin === 'miter' ? LineJoin.Miter :
-			__EXTERNAL__.context.lineJoin === 'round' ? LineJoin.Round :
-			THROW(new TypeError(`Unknown '.lineJoin' value retrieved: ${__EXTERNAL__.context.lineJoin}`))
-		)
+		IO(() => {
+			switch (__EXTERNAL__.context.lineJoin)
+			{
+				case 'bevel' : return LineJoin.Bevel
+				case 'miter' : return LineJoin.Miter
+				case 'round' : return LineJoin.Round
+				default: return THROWTYPE(`Unknown '.lineJoin' value retrieved: ${__EXTERNAL__.context.lineJoin}`)
+			}
+		})
 
 	/**` Get.miterLimit :: IO Number `*/
 	export const miterLimit : IO<number> =
@@ -874,26 +884,32 @@ namespace Get
 
 	/**` Get.textAlignment :: IO TextAlignment `*/
 	export const textAlignment : IO<TextAlignment> =
-		IO(() =>
-				__EXTERNAL__.context.textAlign === 'center' ? TextAlignment.Center :
-				__EXTERNAL__.context.textAlign === 'end'    ? TextAlignment.End    :
-				__EXTERNAL__.context.textAlign === 'left'   ? TextAlignment.Left   :
-				__EXTERNAL__.context.textAlign === 'right'  ? TextAlignment.Right  :
-				__EXTERNAL__.context.textAlign === 'start'  ? TextAlignment.Start  :
-				THROW(new TypeError(`Unknown '.textAlign' value retrieved: ${__EXTERNAL__.context.textAlign}`))
-		)
+		IO(() => {
+			switch (__EXTERNAL__.context.textAlign)
+			{
+				case 'center' : return TextAlignment.Center
+				case 'end'    : return TextAlignment.End
+				case 'left'   : return TextAlignment.Left
+				case 'right'  : return TextAlignment.Right
+				case 'start'  : return TextAlignment.Start
+				default: return THROWTYPE(`Unknown '.textAlign' value retrieved: ${__EXTERNAL__.context.textAlign}`)
+			}
+		})
 
 	/**` Get.textBaseline :: IO TextBaseline `*/
 	export const textBaseline : IO<TextBaseline> =
-		IO(() =>
-				__EXTERNAL__.context.textBaseline === 'alphabetic'  ? TextBaseline.Alphabetic  :
-				__EXTERNAL__.context.textBaseline === 'bottom'      ? TextBaseline.Bottom      :
-				__EXTERNAL__.context.textBaseline === 'hanging'     ? TextBaseline.Hanging     :
-				__EXTERNAL__.context.textBaseline === 'ideographic' ? TextBaseline.Ideographic :
-				__EXTERNAL__.context.textBaseline === 'middle'      ? TextBaseline.Middle      :
-				__EXTERNAL__.context.textBaseline === 'top'         ? TextBaseline.Top         :
-				THROW(new TypeError(`Unknown '.textBaseline' value retrieved: ${__EXTERNAL__.context.textBaseline}`))
-		)
+		IO(() => {
+			switch (__EXTERNAL__.context.textBaseline)
+			{
+				case 'alphabetic'  : return TextBaseline.Alphabetic
+				case 'bottom'      : return TextBaseline.Bottom
+				case 'hanging'     : return TextBaseline.Hanging
+				case 'ideographic' : return TextBaseline.Ideographic
+				case 'middle'      : return TextBaseline.Middle
+				case 'top'         : return TextBaseline.Top
+				default: return THROWTYPE(`Unknown '.textBaseline' value retrieved: ${__EXTERNAL__.context.textBaseline}`)
+			}
+		})
 
 	/**` Get.alpha :: IO Number `*/
 	export const alpha : IO<number> =
@@ -930,7 +946,9 @@ namespace Get
 				case 'saturation'       : return CompositionOperation.Saturation
 				case 'color'            : return CompositionOperation.Color
 				case 'luminosity'       : return CompositionOperation.Luminosity
-				default                 : return THROW(new TypeError(`Unknown '.globalCompositeOperation' value retrieved: ${__EXTERNAL__.context.globalCompositeOperation}`))
+				default: return THROWTYPE(
+					`Unknown '.globalCompositeOperation' value retrieved: ${__EXTERNAL__.context.globalCompositeOperation}`
+				)
 			}
 		})
 }
@@ -964,22 +982,30 @@ namespace Put
 	/**` Put.lineCap :: LineCap -> IO () `*/
 	export const lineCap = (cap : LineCap) : IO<null> =>
 		IO(() => {
-			__EXTERNAL__.context.lineCap =
-				cap === LineCap.Butt   ? 'butt'  :
-				cap === LineCap.Round  ? 'round' :
-				cap === LineCap.Square ? 'square' :
-				THROW(new TypeError(`Unknown 'LineCap' value received: ${cap}`)) as any
+			__EXTERNAL__.context.lineCap = (() => {
+				switch (cap)
+				{
+					case LineCap.Butt   : return 'butt'
+					case LineCap.Round  : return 'round'
+					case LineCap.Square : return 'square'
+					default : return THROWTYPE(`Unknown 'LineCap' value received: ${cap}`) as any
+				}
+			})()
 			return null
 		})
 
 	/**` Put.lineJoin :: LineJoin -> IO () `*/
 	export const lineJoin = (join : LineJoin) : IO<null> =>
 		IO(() => {
-			__EXTERNAL__.context.lineCap =
-				join === LineJoin.Bevel ? 'bevel' :
-				join === LineJoin.Miter ? 'miter' :
-				join === LineJoin.Round ? 'round' :
-				THROW(new TypeError(`Unknown 'LineJoin' value received: ${join}`)) as any
+			__EXTERNAL__.context.lineCap = (() => {
+				switch (join)
+				{
+					case LineJoin.Bevel : return 'bevel'
+					case LineJoin.Miter : return 'miter'
+					case LineJoin.Round : return 'round'
+					default : return THROWTYPE(`Unknown 'LineJoin' value received: ${join}`) as any
+				}
+			})()
 			return null
 		})
 
@@ -1028,27 +1054,35 @@ namespace Put
 	/**` Put.textAlignment :: TextAlignment -> IO () `*/
 	export const textAlignment = (alignment : TextAlignment) : IO<null> =>
 		IO(() => {
-			__EXTERNAL__.context.textAlign =
-				alignment === TextAlignment.Center ? 'center' :
-				alignment === TextAlignment.End    ? 'end'    :
-				alignment === TextAlignment.Left   ? 'left'   :
-				alignment === TextAlignment.Right  ? 'right'  :
-				alignment === TextAlignment.Start  ? 'start'  :
-				THROW(new TypeError(`Unknown 'TextAlignment' value received: ${alignment}`))
+			__EXTERNAL__.context.textAlign = (() => {
+				switch (alignment)
+				{
+					case TextAlignment.Center : return 'center'
+					case TextAlignment.End    : return 'end'
+					case TextAlignment.Left   : return 'left'
+					case TextAlignment.Right  : return 'right'
+					case TextAlignment.Start  : return 'start'
+					default : return THROWTYPE(`Unknown 'TextAlignment' value received: ${alignment}`)
+				}
+			})()
 			return null
 		})
 
 	/**` Put.textBaseline :: TextBaseline -> IO () `*/
 	export const textBaseline = (baseline : TextBaseline) : IO<null> =>
 		IO(() => {
-			__EXTERNAL__.context.textBaseline =
-				baseline === TextBaseline.Alphabetic  ? 'alphabetic'  :
-				baseline === TextBaseline.Bottom      ? 'bottom'      :
-				baseline === TextBaseline.Hanging     ? 'hanging'     :
-				baseline === TextBaseline.Ideographic ? 'ideographic' :
-				baseline === TextBaseline.Middle      ? 'middle'      :
-				baseline === TextBaseline.Top         ? 'top'         :
-				THROW(new TypeError(`Unknown 'TextBaseline' value received: ${baseline}`))
+			__EXTERNAL__.context.textBaseline = (() => {
+				switch (baseline)
+				{
+					case TextBaseline.Alphabetic  : return 'alphabetic'
+					case TextBaseline.Bottom      : return 'bottom'
+					case TextBaseline.Hanging     : return 'hanging'
+					case TextBaseline.Ideographic : return 'ideographic'
+					case TextBaseline.Middle      : return 'middle'
+					case TextBaseline.Top         : return 'top'
+					default : return THROWTYPE(`Unknown 'TextBaseline' value received: ${baseline}`)
+				}
+			})()
 			return null
 		})
 
@@ -1105,7 +1139,7 @@ namespace Put
 					case CompositionOperation.Saturation      : return 'saturation'
 					case CompositionOperation.Color           : return 'color'
 					case CompositionOperation.Luminosity      : return 'luminosity'
-					default : return THROW(new TypeError(`Unknown 'CompositionOperation' value received: ${composition}`))
+					default: return THROWTYPE(`Unknown 'CompositionOperation' value received: ${composition}`)
 				}
 			})()
 			return null
