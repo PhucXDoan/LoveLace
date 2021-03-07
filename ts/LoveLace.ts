@@ -951,6 +951,36 @@ namespace Get
 				)
 			}
 		})
+
+	/**` Get.shadowBlur :: IO Number `*/
+	export const shadowBlur : IO<number> =
+		IO(() => __EXTERNAL__.context.shadowBlur)
+
+	/**` Get.shadowColor :: IO String `*/
+	export const shadowColor : IO<string> =
+		IO(() => __EXTERNAL__.context.shadowColor)
+
+	/**` Get.shadowOffset :: IO (Number, Number) `*/
+	export const shadowOffset : IO<[number, number]> =
+		IO(() => {
+			__EXTERNAL__.context.shadowOffsetX = dx
+			__EXTERNAL__.context.shadowOffsetY = dy
+			return null
+		})
+
+	/**` Get.shadowOffsetX :: Number -> IO () `*/
+	export const shadowOffsetX = (dx : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.shadowOffsetX = dx
+			return null
+		})
+
+	/**` Get.shadowOffsetY :: Number -> IO () `*/
+	export const shadowOffsetY = (dy : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.shadowOffsetY = dy
+			return null
+		})
 }
 
 namespace Put
@@ -1164,6 +1194,42 @@ namespace Put
 					default: return THROWTYPE(`Unknown 'CompositionOperation' value received: ${composition}`)
 				}
 			})()
+			return null
+		})
+
+	/**` Put.shadowBlur :: Number -> IO () `*/
+	export const shadowBlur = (blur : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.shadowBlur = blur
+			return null
+		})
+
+	/**` Put.shadowColor :: Number -> IO () `*/
+	export const shadowColor = (color : string) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.shadowColor = color
+			return null
+		})
+
+	/**` Put.shadowOffset :: Number -> Number -> IO () `*/
+	export const shadowOffset = (dx : number) => (dy : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.shadowOffsetX = dx
+			__EXTERNAL__.context.shadowOffsetY = dy
+			return null
+		})
+
+	/**` Put.shadowOffsetX :: Number -> IO () `*/
+	export const shadowOffsetX = (dx : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.shadowOffsetX = dx
+			return null
+		})
+
+	/**` Put.shadowOffsetY :: Number -> IO () `*/
+	export const shadowOffsetY = (dy : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.shadowOffsetY = dy
 			return null
 		})
 }

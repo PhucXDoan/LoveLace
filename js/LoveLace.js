@@ -471,6 +471,25 @@ var Get;
             default: return THROWTYPE("Unknown '.globalCompositeOperation' value retrieved: " + __EXTERNAL__.context.globalCompositeOperation);
         }
     });
+    Get.shadowBlur = IO(function () { return __EXTERNAL__.context.shadowBlur; });
+    Get.shadowColor = IO(function () { return __EXTERNAL__.context.shadowColor; });
+    Get.shadowOffset = IO(function () {
+        __EXTERNAL__.context.shadowOffsetX = dx;
+        __EXTERNAL__.context.shadowOffsetY = dy;
+        return null;
+    });
+    Get.shadowOffsetX = function (dx) {
+        return IO(function () {
+            __EXTERNAL__.context.shadowOffsetX = dx;
+            return null;
+        });
+    };
+    Get.shadowOffsetY = function (dy) {
+        return IO(function () {
+            __EXTERNAL__.context.shadowOffsetY = dy;
+            return null;
+        });
+    };
 })(Get || (Get = {}));
 var Put;
 (function (Put) {
@@ -659,6 +678,37 @@ var Put;
                     default: return THROWTYPE("Unknown 'CompositionOperation' value received: " + composition);
                 }
             })();
+            return null;
+        });
+    };
+    Put.shadowBlur = function (blur) {
+        return IO(function () {
+            __EXTERNAL__.context.shadowBlur = blur;
+            return null;
+        });
+    };
+    Put.shadowColor = function (color) {
+        return IO(function () {
+            __EXTERNAL__.context.shadowColor = color;
+            return null;
+        });
+    };
+    Put.shadowOffset = function (dx) { return function (dy) {
+        return IO(function () {
+            __EXTERNAL__.context.shadowOffsetX = dx;
+            __EXTERNAL__.context.shadowOffsetY = dy;
+            return null;
+        });
+    }; };
+    Put.shadowOffsetX = function (dx) {
+        return IO(function () {
+            __EXTERNAL__.context.shadowOffsetX = dx;
+            return null;
+        });
+    };
+    Put.shadowOffsetY = function (dy) {
+        return IO(function () {
+            __EXTERNAL__.context.shadowOffsetY = dy;
             return null;
         });
     };
