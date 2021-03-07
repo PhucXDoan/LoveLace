@@ -880,7 +880,7 @@ namespace Get
 				__EXTERNAL__.context.textAlign === 'left'   ? TextAlignment.Left   :
 				__EXTERNAL__.context.textAlign === 'right'  ? TextAlignment.Right  :
 				__EXTERNAL__.context.textAlign === 'start'  ? TextAlignment.Start  :
-				TextAlignment.Start
+				THROW(new TypeError(`Unknown '.textAlign' value retrieved: ${__EXTERNAL__.context.textAlign}`))
 		)
 
 	/**` Get.textBaseline :: IO TextBaseline `*/
@@ -892,7 +892,7 @@ namespace Get
 				__EXTERNAL__.context.textBaseline === 'ideographic' ? TextBaseline.Ideographic :
 				__EXTERNAL__.context.textBaseline === 'middle'      ? TextBaseline.Middle      :
 				__EXTERNAL__.context.textBaseline === 'top'         ? TextBaseline.Top         :
-				null as any
+				THROW(new TypeError(`Unknown '.textBaseline' value retrieved: ${__EXTERNAL__.context.textBaseline}`))
 		)
 
 	/**` Get.alpha :: IO Number `*/
@@ -930,7 +930,7 @@ namespace Get
 				case 'saturation'       : return CompositionOperation.Saturation
 				case 'color'            : return CompositionOperation.Color
 				case 'luminosity'       : return CompositionOperation.Luminosity
-				default                 : return null as any
+				default                 : return THROW(new TypeError(`Unknown '.globalCompositeOperation' value retrieved: ${__EXTERNAL__.context.globalCompositeOperation}`))
 			}
 		})
 }
@@ -968,7 +968,7 @@ namespace Put
 				cap === LineCap.Butt   ? 'butt'  :
 				cap === LineCap.Round  ? 'round' :
 				cap === LineCap.Square ? 'square' :
-				null as any
+				THROW(new TypeError(`Unknown 'LineCap' value received: ${cap}`)) as any
 			return null
 		})
 
@@ -979,7 +979,7 @@ namespace Put
 				join === LineJoin.Bevel ? 'bevel' :
 				join === LineJoin.Miter ? 'miter' :
 				join === LineJoin.Round ? 'round' :
-				null as any
+				THROW(new TypeError(`Unknown 'LineJoin' value received: ${join}`)) as any
 			return null
 		})
 
@@ -1034,7 +1034,7 @@ namespace Put
 				alignment === TextAlignment.Left   ? 'left'   :
 				alignment === TextAlignment.Right  ? 'right'  :
 				alignment === TextAlignment.Start  ? 'start'  :
-				null as any
+				THROW(new TypeError(`Unknown 'TextAlignment' value received: ${alignment}`))
 			return null
 		})
 
@@ -1048,7 +1048,7 @@ namespace Put
 				baseline === TextBaseline.Ideographic ? 'ideographic' :
 				baseline === TextBaseline.Middle      ? 'middle'      :
 				baseline === TextBaseline.Top         ? 'top'         :
-				null as any
+				THROW(new TypeError(`Unknown 'TextBaseline' value received: ${baseline}`))
 			return null
 		})
 
@@ -1105,7 +1105,7 @@ namespace Put
 					case CompositionOperation.Saturation      : return 'saturation'
 					case CompositionOperation.Color           : return 'color'
 					case CompositionOperation.Luminosity      : return 'luminosity'
-					default                                   : return __EXTERNAL__.context.globalCompositeOperation
+					default : return THROW(new TypeError(`Unknown 'CompositionOperation' value received: ${composition}`))
 				}
 			})()
 			return null
