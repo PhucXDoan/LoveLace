@@ -401,6 +401,7 @@ var Get;
                             __EXTERNAL__.context.textBaseline === 'top' ? TextBaseline.Top :
                                 null;
     });
+    Get.alpha = IO(function () { return __EXTERNAL__.context.globalAlpha; });
 })(Get || (Get = {}));
 var Put;
 (function (Put) {
@@ -516,6 +517,12 @@ var Put;
     Put.stroke = function (color) {
         return IO(function () {
             __EXTERNAL__.context.strokeStyle = color;
+            return null;
+        });
+    };
+    Put.alpha = function (opacity) {
+        return IO(function () {
+            __EXTERNAL__.context.globalAlpha = opacity;
             return null;
         });
     };

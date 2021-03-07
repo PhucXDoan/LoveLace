@@ -853,6 +853,10 @@ namespace Get
 				__EXTERNAL__.context.textBaseline === 'top'         ? TextBaseline.Top         :
 				null as any
 		)
+
+	/**` Get.alpha :: IO Number `*/
+	export const alpha : IO<number> =
+		IO(() => __EXTERNAL__.context.globalAlpha)
 }
 
 namespace Put
@@ -983,6 +987,13 @@ namespace Put
 	export const stroke = (color : string) : IO<null> =>
 		IO(() => {
 			__EXTERNAL__.context.strokeStyle = color
+			return null
+		})
+
+	/**` Put.alpha :: Number -> IO () `*/
+	export const alpha = (opacity : number) : IO<null> =>
+		IO(() => {
+			__EXTERNAL__.context.globalAlpha = opacity
 			return null
 		})
 }
