@@ -586,7 +586,7 @@ enum Vertical
 {
 	Downward = 'Downward :: Vertical',
 	Down     = 'Down :: Vertical',
-	CenterY  = 'None :: Vertical',
+	CenterY  = 'CenterY :: Vertical',
 	Up       = 'Up :: Vertical',
 	Upward   = 'Upward :: Vertical'
 }
@@ -798,13 +798,14 @@ type KeyboardKey = typeof __KEYBOARD_KEYS_ARRAY__[number]
 
 const __EXTERNAL__ =
 	{
-		context   : undefined as unknown as CanvasRenderingContext2D,
-		resizeID  : undefined as unknown as number,
-		isResized : false,
-		seed      : (Math.random() - 0.5) * Date.now(),
-		image     : {} as { [key : string] : HTMLImageElement },
-		audio     : {} as { [key : string] : HTMLAudioElement },
-		mouse     :
+		context         : undefined as unknown as CanvasRenderingContext2D,
+		resizeID        : undefined as unknown as number,
+		isResized       : false,
+		isPointerLocked : false,
+		seed            : (Math.random() - 0.5) * Date.now(),
+		image           : {} as { [key : string] : HTMLImageElement },
+		audio           : {} as { [key : string] : HTMLAudioElement },
+		mouse           :
 			{
 				screenX : 0, screenY : 0,
 				windowX : 0, windowY : 0,
@@ -813,7 +814,7 @@ const __EXTERNAL__ =
 				scroll  : Vertical.CenterY,
 				buttons : new Array(5).fill(Vertical.Up) as [Vertical, Vertical, Vertical, Vertical, Vertical]
 			},
-		keyboard  :
+		keyboard        :
 			__KEYBOARD_KEYS_ARRAY__.reduce(($, k) => ({ ...$, [k] : Vertical.Up }), {}) as { [key in KeyboardKey] : Vertical }
 	}
 
@@ -2245,6 +2246,40 @@ namespace Effect
 	export const flush : IO<null> =
 		IO(() => (console.clear(), null))
 
+	/**` Effect.queue :: IO a -> IO () `*/
+	export const queue = (io : IO<any>) : IO<null> =>
+		IO(() => (io.INFO(), null))
+
+	/**` Effect.tick :: IO () `*/
+	export const tick : IO<null> =
+		IO(() => {
+			for (const k in __EXTERNAL__.keyboard)
+				__EXTERNAL__.keyboard[k as KeyboardKey] = relaxVertical(__EXTERNAL__.keyboard[k as KeyboardKey])
+			for (const i in __EXTERNAL__.mouse.buttons)
+				__EXTERNAL__.mouse.buttons[i] = relaxVertical(__EXTERNAL__.mouse.buttons[i]!)
+			__EXTERNAL__.mouse.scroll = Vertical.CenterY
+			__EXTERNAL__.mouse.deltaX = 0
+			__EXTERNAL__.mouse.deltaY = 0
+			return null
+		})
+
+	/**` Effect.activatePointerLock :: IO () `*/
+	export const activatePointerLock : IO<null> =
+		IO(() => {
+			__EXTERNAL__.context.canvas.onmousedown = () =>
+			{
+				if (!__EXTERNAL__.isPointerLocked) __EXTERNAL__.context.canvas.requestPointerLock()
+			}
+			return null
+		})
+
+	/**` Effect.deactivatePointerLock :: IO () `*/
+	export const deactivatePointerLock : IO<null> =
+		IO(() => {
+			__EXTERNAL__.context.canvas.onmousedown = null
+			return null
+		})
+
 	/**` Effect.loadImage :: String -> IO () `*/
 	export const loadImage = (path : string) : IO<null> =>
 		IO(() => {
@@ -2670,5 +2705,10 @@ onload = () =>
 		clearTimeout(__EXTERNAL__.resizeID)
 		__EXTERNAL__.resizeID =
 			setTimeout(() => { __EXTERNAL__.isResized = true }, 250)
+	}
+
+	document.onpointerlockchange = () =>
+	{
+		__EXTERNAL__.isPointerLocked = document.pointerLockElement === __EXTERNAL__.context.canvas
 	}
 }

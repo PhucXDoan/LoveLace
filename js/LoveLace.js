@@ -279,7 +279,7 @@ var Vertical;
 (function (Vertical) {
     Vertical["Downward"] = "Downward :: Vertical";
     Vertical["Down"] = "Down :: Vertical";
-    Vertical["CenterY"] = "None :: Vertical";
+    Vertical["CenterY"] = "CenterY :: Vertical";
     Vertical["Up"] = "Up :: Vertical";
     Vertical["Upward"] = "Upward :: Vertical";
 })(Vertical || (Vertical = {}));
@@ -427,6 +427,7 @@ var __EXTERNAL__ = {
     context: undefined,
     resizeID: undefined,
     isResized: false,
+    isPointerLocked: false,
     seed: (Math.random() - 0.5) * Date.now(),
     image: {},
     audio: {},
@@ -1307,6 +1308,30 @@ var Effect;
         return IO(function () { return (console.log(message), null); });
     };
     Effect.flush = IO(function () { return (console.clear(), null); });
+    Effect.queue = function (io) {
+        return IO(function () { return (io.INFO(), null); });
+    };
+    Effect.tick = IO(function () {
+        for (var k in __EXTERNAL__.keyboard)
+            __EXTERNAL__.keyboard[k] = relaxVertical(__EXTERNAL__.keyboard[k]);
+        for (var i in __EXTERNAL__.mouse.buttons)
+            __EXTERNAL__.mouse.buttons[i] = relaxVertical(__EXTERNAL__.mouse.buttons[i]);
+        __EXTERNAL__.mouse.scroll = Vertical.CenterY;
+        __EXTERNAL__.mouse.deltaX = 0;
+        __EXTERNAL__.mouse.deltaY = 0;
+        return null;
+    });
+    Effect.activatePointerLock = IO(function () {
+        __EXTERNAL__.context.canvas.onmousedown = function () {
+            if (!__EXTERNAL__.isPointerLocked)
+                __EXTERNAL__.context.canvas.requestPointerLock();
+        };
+        return null;
+    });
+    Effect.deactivatePointerLock = IO(function () {
+        __EXTERNAL__.context.canvas.onmousedown = null;
+        return null;
+    });
     Effect.loadImage = function (path) {
         return IO(function () {
             __EXTERNAL__.image[path] = new Image;
@@ -1625,5 +1650,8 @@ onload = function () {
         clearTimeout(__EXTERNAL__.resizeID);
         __EXTERNAL__.resizeID =
             setTimeout(function () { __EXTERNAL__.isResized = true; }, 250);
+    };
+    document.onpointerlockchange = function () {
+        __EXTERNAL__.isPointerLocked = document.pointerLockElement === __EXTERNAL__.context.canvas;
     };
 };
