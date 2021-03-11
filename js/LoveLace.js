@@ -10,8 +10,15 @@ var __assign = (this && this.__assign) || function () {
     };
     return __assign.apply(this, arguments);
 };
+var __spreadArray = (this && this.__spreadArray) || function (to, from) {
+    for (var i = 0, il = from.length, j = to.length; i < il; i++, j++)
+        to[j] = from[i];
+    return to;
+};
+var THROW = function (message) { throw new Error(message); };
 var THROWTYPE = function (message) { throw new TypeError(message); };
 var THROWRANGE = function (message) { throw new RangeError(message); };
+var TAU = 6.283185307179586;
 var IO = function (sideeffect) {
     return ({
         CONS: 'IO a',
@@ -198,6 +205,68 @@ var Matrix4x4 = function (ix) { return function (jx) { return function (kx) { re
 var Matrix4D = function (i) { return function (j) { return function (k) { return function (l) {
     return Matrix4x4(i.x)(j.x)(k.x)(l.x)(i.y)(j.y)(k.y)(l.y)(i.z)(j.z)(k.z)(l.z)(i.w)(j.w)(k.w)(l.w);
 }; }; }; };
+var TextMeasurement = function (text) { return function (width) { return function (height) {
+    return ({
+        CONS: 'TextMeasurement',
+        text: text, width: width, height: height
+    });
+}; }; };
+var Switch = function (f) {
+    return ({
+        CONS: 'Switch',
+        "case": function (x) { return function (y) {
+            return Switch(function (z) {
+                var w = f(z);
+                return w === undefined && z === x ? y() : w;
+            });
+        }; },
+        fall: function (x) { return Switch(function (y) {
+            var z = f(y);
+            return z === undefined ? x() : z;
+        }); },
+        "with": function (x) {
+            var y = f(x);
+            return y === undefined
+                ? THROWRANGE("'Switch' did not cover all cases; missing case on value: '" + x + "'")
+                : y;
+        },
+        thru: function (x) {
+            var y = f(x);
+            return y === undefined ? x : y;
+        }
+    });
+};
+Switch["case"] = function (domain) { return function (codomain) {
+    return Switch(function (x) { return x === domain ? codomain() : undefined; });
+}; };
+var Bijection = function (pairs) {
+    return ({
+        CONS: 'Bijection',
+        INFO: pairs,
+        of: function (x) { return function (y) { return Bijection(__spreadArray(__spreadArray([], pairs), [[x, y]])); }; },
+        domain: function (x) {
+            var y = pairs.find(function (_a) {
+                var z = _a[0], _ = _a[1];
+                return z === x;
+            });
+            return y === undefined
+                ? THROWRANGE("'Bijection' did not have a well-defined enough domain for value: '" + x + "'")
+                : y[1];
+        },
+        codomain: function (x) {
+            var y = pairs.find(function (_a) {
+                var _ = _a[0], z = _a[1];
+                return z === x;
+            });
+            return y === undefined
+                ? THROWRANGE("'Bijection' did not have a well-defined enough codomain for value: '" + x + "'")
+                : y[0];
+        }
+    });
+};
+Bijection.of = function (domainValue) { return function (codomainValue) {
+    return Bijection([[domainValue, codomainValue]]);
+}; };
 var Horizontal;
 (function (Horizontal) {
     Horizontal["Leftward"] = "Leftward :: Horizontal";
@@ -234,14 +303,14 @@ var LineJoin;
     LineJoin["Bevel"] = "Bevel :: LineJoin";
     LineJoin["Miter"] = "Miter :: LineJoin";
 })(LineJoin || (LineJoin = {}));
-var TextAlignment;
-(function (TextAlignment) {
-    TextAlignment["Start"] = "Start :: TextAlignment";
-    TextAlignment["End"] = "End :: TextAlignment";
-    TextAlignment["Left"] = "Left :: TextAlignment";
-    TextAlignment["Right"] = "Right :: TextAlignment";
-    TextAlignment["Center"] = "Center :: TextAlignment";
-})(TextAlignment || (TextAlignment = {}));
+var TextAlign;
+(function (TextAlign) {
+    TextAlign["Start"] = "Start :: TextAlign";
+    TextAlign["End"] = "End :: TextAlign";
+    TextAlign["Left"] = "Left :: TextAlign";
+    TextAlign["Right"] = "Right :: TextAlign";
+    TextAlign["Center"] = "Center :: TextAlign";
+})(TextAlign || (TextAlign = {}));
 var TextBaseline;
 (function (TextBaseline) {
     TextBaseline["Top"] = "Top :: TextBaseline";
@@ -280,21 +349,60 @@ var CompositionOperation;
     CompositionOperation["Color"] = "Color :: CompositionOperation";
     CompositionOperation["Luminosity"] = "Luminosity :: CompositionOperation";
 })(CompositionOperation || (CompositionOperation = {}));
-var relaxHorizontal = function (direction) {
-    return direction === Horizontal.Leftward ? Horizontal.Left :
-        direction === Horizontal.Rightward ? Horizontal.Right :
-            direction;
-};
-var relaxVertical = function (direction) {
-    return direction === Vertical.Downward ? Vertical.Down :
-        direction === Vertical.Upward ? Vertical.Up :
-            direction;
-};
-var relaxLateral = function (direction) {
-    return direction === Lateral.Backward ? Lateral.Back :
-        direction === Lateral.Forward ? Lateral.Fore :
-            direction;
-};
+var relaxHorizontal = Switch["case"](Horizontal.Leftward)(function () { return Horizontal.Left; })["case"](Horizontal.Rightward)(function () { return Horizontal.Right; })
+    .thru;
+var relaxVertical = Switch["case"](Vertical.Downward)(function () { return Vertical.Down; })["case"](Vertical.Upward)(function () { return Vertical.Up; })
+    .thru;
+var relaxLateral = Switch["case"](Lateral.Backward)(function () { return Lateral.Back; })["case"](Lateral.Forward)(function () { return Lateral.Fore; })
+    .thru;
+var bijectionLineCap = Bijection
+    .of(LineCap.Butt)('butt')
+    .of(LineCap.Round)('round')
+    .of(LineCap.Square)('square');
+var bijectionLineJoin = Bijection
+    .of(LineJoin.Round)('round')
+    .of(LineJoin.Bevel)('bevel')
+    .of(LineJoin.Miter)('miter');
+var bijectionTextAlign = Bijection
+    .of(TextAlign.Center)('center')
+    .of(TextAlign.End)('end')
+    .of(TextAlign.Left)('left')
+    .of(TextAlign.Right)('right')
+    .of(TextAlign.Start)('start');
+var bijectionTextBaseline = Bijection
+    .of(TextBaseline.Alphabetic)('alphabetic')
+    .of(TextBaseline.Bottom)('bottom')
+    .of(TextBaseline.Hanging)('hanging')
+    .of(TextBaseline.Ideographic)('ideographic')
+    .of(TextBaseline.Middle)('middle')
+    .of(TextBaseline.Top)('top');
+var bijectionCompositionOperation = Bijection
+    .of(CompositionOperation.SourceOver)('source-over')
+    .of(CompositionOperation.SourceIn)('source-in')
+    .of(CompositionOperation.SourceOut)('source-out')
+    .of(CompositionOperation.SourceAtop)('source-atop')
+    .of(CompositionOperation.DestinationOver)('destination-over')
+    .of(CompositionOperation.DestinationIn)('destination-in')
+    .of(CompositionOperation.DestinationOut)('destination-out')
+    .of(CompositionOperation.DestinationAtop)('destination-atop')
+    .of(CompositionOperation.Lighter)('lighter')
+    .of(CompositionOperation.Copy)('copy')
+    .of(CompositionOperation.Xor)('xor')
+    .of(CompositionOperation.Multiply)('multiply')
+    .of(CompositionOperation.Screen)('screen')
+    .of(CompositionOperation.Overlay)('overlay')
+    .of(CompositionOperation.Darken)('darken')
+    .of(CompositionOperation.Lighten)('lighten')
+    .of(CompositionOperation.ColorDodge)('color-dodge')
+    .of(CompositionOperation.ColorBurn)('color-burn')
+    .of(CompositionOperation.HardLight)('hard-light')
+    .of(CompositionOperation.SoftLight)('soft-light')
+    .of(CompositionOperation.Difference)('difference')
+    .of(CompositionOperation.Exclusion)('exclusion')
+    .of(CompositionOperation.Hue)('hue')
+    .of(CompositionOperation.Saturation)('saturation')
+    .of(CompositionOperation.Color)('color')
+    .of(CompositionOperation.Luminosity)('luminosity');
 var Do = {
     IO: IO(function () { return ({}); }),
     Maybe: Just({}),
@@ -320,6 +428,8 @@ var __EXTERNAL__ = {
     resizeID: undefined,
     isResized: false,
     seed: (Math.random() - 0.5) * Date.now(),
+    image: {},
+    audio: {},
     mouse: {
         screenX: 0, screenY: 0,
         windowX: 0, windowY: 0,
@@ -333,480 +443,1152 @@ var __EXTERNAL__ = {
         return (__assign(__assign({}, $), (_a = {}, _a[k] = Vertical.Up, _a)));
     }, {})
 };
-var Get;
-(function (Get) {
+var Import;
+(function (Import) {
     var Norm;
     (function (Norm) {
-        Norm.mousePositionScreen = IO(function () { return [__EXTERNAL__.mouse.screenX / screen.width, __EXTERNAL__.mouse.screenY / screen.height]; });
-        Norm.mousePositionScreenX = IO(function () { return __EXTERNAL__.mouse.screenX / screen.width; });
-        Norm.mousePositionScreenY = IO(function () { return __EXTERNAL__.mouse.screenY / screen.height; });
-        Norm.mousePositionWindow = IO(function () { return [__EXTERNAL__.mouse.windowX / innerWidth, __EXTERNAL__.mouse.windowY / innerHeight]; });
-        Norm.mousePositionWindowX = IO(function () { return __EXTERNAL__.mouse.windowX / innerWidth; });
-        Norm.mousePositionWindowY = IO(function () { return __EXTERNAL__.mouse.windowY / innerHeight; });
-        Norm.mousePositionCanvas = IO(function () { return [
+        Norm.mouseCanvasPosition = IO(function () { return [
             __EXTERNAL__.mouse.canvasX / __EXTERNAL__.context.canvas.width,
             __EXTERNAL__.mouse.canvasY / __EXTERNAL__.context.canvas.height
         ]; });
-        Norm.mousePositionCanvasX = IO(function () { return __EXTERNAL__.mouse.canvasX / __EXTERNAL__.context.canvas.width; });
-        Norm.mousePositionCanvasY = IO(function () { return __EXTERNAL__.mouse.canvasY / __EXTERNAL__.context.canvas.height; });
-        Norm.mousePositionScreenDelta = IO(function () { return [__EXTERNAL__.mouse.deltaX / screen.width, __EXTERNAL__.mouse.deltaY / screen.height]; });
-        Norm.mousePositionScreenDeltaX = IO(function () { return __EXTERNAL__.mouse.deltaX / screen.width; });
-        Norm.mousePositionScreenDeltaY = IO(function () { return __EXTERNAL__.mouse.deltaY / screen.height; });
-        Norm.mousePositionWindowDelta = IO(function () { return [__EXTERNAL__.mouse.deltaX / innerWidth, __EXTERNAL__.mouse.deltaY / innerHeight]; });
-        Norm.mousePositionWindowDeltaX = IO(function () { return __EXTERNAL__.mouse.deltaX / innerWidth; });
-        Norm.mousePositionWindowDeltaY = IO(function () { return __EXTERNAL__.mouse.deltaY / innerHeight; });
-        Norm.mousePositionCanvasDelta = IO(function () { return [
+        Norm.mouseCanvasPositionVector = IO(function () {
+            return Vector2D(__EXTERNAL__.mouse.canvasX / __EXTERNAL__.context.canvas.width)(__EXTERNAL__.mouse.canvasY / __EXTERNAL__.context.canvas.height);
+        });
+        Norm.mouseCanvasPositionX = IO(function () { return __EXTERNAL__.mouse.canvasX / __EXTERNAL__.context.canvas.width; });
+        Norm.mouseCanvasPositionY = IO(function () { return __EXTERNAL__.mouse.canvasY / __EXTERNAL__.context.canvas.height; });
+        Norm.mouseVelocity = IO(function () { return [
             __EXTERNAL__.mouse.deltaX / __EXTERNAL__.context.canvas.width,
             __EXTERNAL__.mouse.deltaY / __EXTERNAL__.context.canvas.height
         ]; });
-        Norm.mousePositionCanvasDeltaX = IO(function () { return __EXTERNAL__.mouse.deltaX / __EXTERNAL__.context.canvas.width; });
-        Norm.mousePositionCanvasDeltaY = IO(function () { return __EXTERNAL__.mouse.deltaY / __EXTERNAL__.context.canvas.height; });
-    })(Norm = Get.Norm || (Get.Norm = {}));
-    Get.timeSinceBeginning = IO(function () { return performance.now(); });
-    Get.isWindowResized = IO(function () { return __EXTERNAL__.isResized; });
-    Get.universalSeed = IO(function () { return __EXTERNAL__.seed; });
-    Get.windowDimensions = IO(function () { return [innerWidth, innerHeight]; });
-    Get.windowDimensionW = IO(function () { return innerWidth; });
-    Get.windowDimensionH = IO(function () { return innerHeight; });
-    Get.canvasDimensions = IO(function () { return [__EXTERNAL__.context.canvas.width, __EXTERNAL__.context.canvas.height]; });
-    Get.canvasDimensionW = IO(function () { return __EXTERNAL__.context.canvas.width; });
-    Get.canvasDimensionH = IO(function () { return __EXTERNAL__.context.canvas.height; });
-    Get.mousePositionScreen = IO(function () { return [__EXTERNAL__.mouse.screenX, __EXTERNAL__.mouse.screenY]; });
-    Get.mousePositionScreenX = IO(function () { return __EXTERNAL__.mouse.screenX; });
-    Get.mousePositionScreenY = IO(function () { return __EXTERNAL__.mouse.screenY; });
-    Get.mousePositionWindow = IO(function () { return [__EXTERNAL__.mouse.windowX, __EXTERNAL__.mouse.windowY]; });
-    Get.mousePositionWindowX = IO(function () { return __EXTERNAL__.mouse.windowX; });
-    Get.mousePositionWindowY = IO(function () { return __EXTERNAL__.mouse.windowY; });
-    Get.mousePositionCanvas = IO(function () { return [__EXTERNAL__.mouse.canvasX, __EXTERNAL__.mouse.canvasY]; });
-    Get.mousePositionCanvasX = IO(function () { return __EXTERNAL__.mouse.canvasX; });
-    Get.mousePositionCanvasY = IO(function () { return __EXTERNAL__.mouse.canvasY; });
-    Get.mousePositionDelta = IO(function () { return [__EXTERNAL__.mouse.deltaX, __EXTERNAL__.mouse.deltaY]; });
-    Get.mousePositionDeltaX = IO(function () { return __EXTERNAL__.mouse.deltaX; });
-    Get.mousePositionDeltaY = IO(function () { return __EXTERNAL__.mouse.deltaY; });
-    Get.mouseScrollDirection = IO(function () { return __EXTERNAL__.mouse.scroll; });
-    Get.mouseButtonLeft = IO(function () { return __EXTERNAL__.mouse.buttons[0]; });
-    Get.mouseButtonMiddle = IO(function () { return __EXTERNAL__.mouse.buttons[1]; });
-    Get.mouseButtonRight = IO(function () { return __EXTERNAL__.mouse.buttons[2]; });
-    Get.mouseButtonEsotericA = IO(function () { return __EXTERNAL__.mouse.buttons[3]; });
-    Get.mouseButtonEsotericB = IO(function () { return __EXTERNAL__.mouse.buttons[4]; });
-    Get.keyboardKey = function (keyboardKeyName) {
-        return IO(function () { return __EXTERNAL__.keyboard[keyboardKeyName]; });
-    };
-    Get.textMeasurement = function (message) {
-        return IO(function () { return __EXTERNAL__.context.measureText(message); });
-    };
-    Get.lineWidth = IO(function () { return __EXTERNAL__.context.lineWidth; });
-    Get.lineCap = IO(function () {
-        switch (__EXTERNAL__.context.lineCap) {
-            case 'butt': return LineCap.Butt;
-            case 'round': return LineCap.Round;
-            case 'square': return LineCap.Square;
-            default: return THROWTYPE("Unknown '.lineCap' value retrieved: " + __EXTERNAL__.context.lineCap);
-        }
-    });
-    Get.lineJoin = IO(function () {
-        switch (__EXTERNAL__.context.lineJoin) {
-            case 'bevel': return LineJoin.Bevel;
-            case 'miter': return LineJoin.Miter;
-            case 'round': return LineJoin.Round;
-            default: return THROWTYPE("Unknown '.lineJoin' value retrieved: " + __EXTERNAL__.context.lineJoin);
-        }
-    });
-    Get.miterLimit = IO(function () { return __EXTERNAL__.context.miterLimit; });
-    Get.lineDashPattern = IO(function () { return List.apply(void 0, __EXTERNAL__.context.getLineDash()); });
-    Get.lineDashOffset = IO(function () { return __EXTERNAL__.context.lineDashOffset; });
-    Get.font = IO(function () { return __EXTERNAL__.context.font; });
-    Get.fontSize = IO(function () { return +__EXTERNAL__.context.font.slice(0, __EXTERNAL__.context.font.indexOf("px")); });
-    Get.fontFamily = IO(function () { return __EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" ") + 1); });
-    Get.textAlignment = IO(function () {
-        switch (__EXTERNAL__.context.textAlign) {
-            case 'center': return TextAlignment.Center;
-            case 'end': return TextAlignment.End;
-            case 'left': return TextAlignment.Left;
-            case 'right': return TextAlignment.Right;
-            case 'start': return TextAlignment.Start;
-            default: return THROWTYPE("Unknown '.textAlign' value retrieved: " + __EXTERNAL__.context.textAlign);
-        }
-    });
-    Get.textBaseline = IO(function () {
-        switch (__EXTERNAL__.context.textBaseline) {
-            case 'alphabetic': return TextBaseline.Alphabetic;
-            case 'bottom': return TextBaseline.Bottom;
-            case 'hanging': return TextBaseline.Hanging;
-            case 'ideographic': return TextBaseline.Ideographic;
-            case 'middle': return TextBaseline.Middle;
-            case 'top': return TextBaseline.Top;
-            default: return THROWTYPE("Unknown '.textBaseline' value retrieved: " + __EXTERNAL__.context.textBaseline);
-        }
-    });
-    Get.alpha = IO(function () { return __EXTERNAL__.context.globalAlpha; });
-    Get.compositionOperation = IO(function () {
-        switch (__EXTERNAL__.context.globalCompositeOperation) {
-            case 'source-over': return CompositionOperation.SourceOver;
-            case 'source-in': return CompositionOperation.SourceIn;
-            case 'source-out': return CompositionOperation.SourceOut;
-            case 'source-atop': return CompositionOperation.SourceAtop;
-            case 'destination-over': return CompositionOperation.DestinationOver;
-            case 'destination-in': return CompositionOperation.DestinationIn;
-            case 'destination-out': return CompositionOperation.DestinationOut;
-            case 'destination-atop': return CompositionOperation.DestinationAtop;
-            case 'lighter': return CompositionOperation.Lighter;
-            case 'copy': return CompositionOperation.Copy;
-            case 'xor': return CompositionOperation.Xor;
-            case 'multiply': return CompositionOperation.Multiply;
-            case 'screen': return CompositionOperation.Screen;
-            case 'overlay': return CompositionOperation.Overlay;
-            case 'darken': return CompositionOperation.Darken;
-            case 'lighten': return CompositionOperation.Lighten;
-            case 'color-dodge': return CompositionOperation.ColorDodge;
-            case 'color-burn': return CompositionOperation.ColorBurn;
-            case 'hard-light': return CompositionOperation.HardLight;
-            case 'soft-light': return CompositionOperation.SoftLight;
-            case 'difference': return CompositionOperation.Difference;
-            case 'exclusion': return CompositionOperation.Exclusion;
-            case 'hue': return CompositionOperation.Hue;
-            case 'saturation': return CompositionOperation.Saturation;
-            case 'color': return CompositionOperation.Color;
-            case 'luminosity': return CompositionOperation.Luminosity;
-            default: return THROWTYPE("Unknown '.globalCompositeOperation' value retrieved: " + __EXTERNAL__.context.globalCompositeOperation);
-        }
-    });
-    Get.shadowBlur = IO(function () { return __EXTERNAL__.context.shadowBlur; });
-    Get.shadowColor = IO(function () { return __EXTERNAL__.context.shadowColor; });
-    Get.shadowOffset = IO(function () {
-        __EXTERNAL__.context.shadowOffsetX = dx;
-        __EXTERNAL__.context.shadowOffsetY = dy;
-        return null;
-    });
-    Get.shadowOffsetX = function (dx) {
-        return IO(function () {
-            __EXTERNAL__.context.shadowOffsetX = dx;
-            return null;
+        Norm.mouseVelocityVector = IO(function () {
+            return Vector2D(__EXTERNAL__.mouse.deltaX / __EXTERNAL__.context.canvas.width)(__EXTERNAL__.mouse.deltaY / __EXTERNAL__.context.canvas.height);
         });
-    };
-    Get.shadowOffsetY = function (dy) {
-        return IO(function () {
-            __EXTERNAL__.context.shadowOffsetY = dy;
-            return null;
+        Norm.mouseVelocityX = IO(function () { return __EXTERNAL__.mouse.deltaX / __EXTERNAL__.context.canvas.width; });
+        Norm.mouseVelocityY = IO(function () { return __EXTERNAL__.mouse.deltaY / __EXTERNAL__.context.canvas.height; });
+        Norm.textMeasurement = function (text) {
+            return IO(function () {
+                var _a = __EXTERNAL__.context.canvas, width = _a.width, height = _a.height;
+                var _b = __EXTERNAL__.context.measureText(text), actualBoundingBoxLeft = _b.actualBoundingBoxLeft, actualBoundingBoxRight = _b.actualBoundingBoxRight, actualBoundingBoxAscent = _b.actualBoundingBoxAscent, actualBoundingBoxDescent = _b.actualBoundingBoxDescent;
+                return TextMeasurement(text)((Math.abs(actualBoundingBoxLeft) + Math.abs(actualBoundingBoxRight)) / width)((Math.abs(actualBoundingBoxAscent) + Math.abs(actualBoundingBoxDescent)) / height);
+            });
+        };
+        Norm.lineWidth = IO(function () { return __EXTERNAL__.context.lineWidth / __EXTERNAL__.context.canvas.width; });
+        Norm.lineDashPattern = IO(function () { return List.apply(void 0, __EXTERNAL__.context.getLineDash().map(function (n) { return n / __EXTERNAL__.context.canvas.width; })); });
+        Norm.lineDashOffset = IO(function () { return __EXTERNAL__.context.lineDashOffset / __EXTERNAL__.context.canvas.width; });
+        Norm.fontSize = IO(function () { return parseFloat(__EXTERNAL__.context.font) / __EXTERNAL__.context.canvas.width; });
+        Norm.shadowOffset = IO(function () { return [
+            __EXTERNAL__.context.shadowOffsetX / __EXTERNAL__.context.canvas.width,
+            __EXTERNAL__.context.shadowOffsetY / __EXTERNAL__.context.canvas.height
+        ]; });
+        Norm.shadowOffsetVector = IO(function () {
+            return Vector2D(__EXTERNAL__.context.shadowOffsetX / __EXTERNAL__.context.canvas.width)(__EXTERNAL__.context.shadowOffsetY / __EXTERNAL__.context.canvas.height);
         });
-    };
-})(Get || (Get = {}));
-var Put;
-(function (Put) {
-    Put.canvasDimensions = function (w) { return function (h) {
-        return IO(function () {
-            __EXTERNAL__.context.canvas.width = w;
-            __EXTERNAL__.context.canvas.height = h;
-            return null;
-        });
-    }; };
-    Put.canvasDimensionW = function (w) {
-        return IO(function () {
-            __EXTERNAL__.context.canvas.width = w;
-            return null;
-        });
-    };
-    Put.canvasDimensionH = function (h) {
-        return IO(function () {
-            __EXTERNAL__.context.canvas.height = h;
-            return null;
-        });
-    };
-    Put.transform = function (ix) { return function (jx) {
-        return function (iy) { return function (jy) {
-            return function (kx) { return function (ky) {
-                return IO(function () {
-                    __EXTERNAL__.context.setTransform(ix, jx, iy, jy, kx, ky);
-                    return null;
-                });
-            }; };
+        Norm.shadowOffsetX = IO(function () { return __EXTERNAL__.context.shadowOffsetX / __EXTERNAL__.context.canvas.width; });
+        Norm.shadowOffsetY = IO(function () { return __EXTERNAL__.context.shadowOffsetY / __EXTERNAL__.context.canvas.height; });
+        Norm.isPointInEvenOddPath = function (x) { return function (y) {
+            return IO(function () {
+                return __EXTERNAL__.context.isPointInPath(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, 'evenodd');
+            });
         }; };
-    }; };
-    Put.matrixTransform = function (m) {
+        Norm.isPointInNonZeroPath = function (x) { return function (y) {
+            return IO(function () {
+                return __EXTERNAL__.context.isPointInPath(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, 'nonzero');
+            });
+        }; };
+        Norm.isVectorInEvenOddPath = function (v) {
+            return IO(function () {
+                return __EXTERNAL__.context.isPointInPath(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height, 'evenodd');
+            });
+        };
+        Norm.isVectorInNonZeroPath = function (v) {
+            return IO(function () {
+                return __EXTERNAL__.context.isPointInPath(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height, 'nonzero');
+            });
+        };
+        Norm.isPointInStroke = function (x) { return function (y) {
+            return IO(function () {
+                return __EXTERNAL__.context.isPointInStroke(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
+            });
+        }; };
+        Norm.isVectorInStroke = function (v) {
+            return IO(function () {
+                return __EXTERNAL__.context.isPointInStroke(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
+            });
+        };
+        Norm.transformationMatrix = IO(function () {
+            var m = __EXTERNAL__.context.getTransform();
+            return Matrix3x3(m.a)(m.c)(m.e / __EXTERNAL__.context.canvas.width)(m.b)(m.d)(m.f / __EXTERNAL__.context.canvas.height)(0)(0)(1);
+        });
+    })(Norm = Import.Norm || (Import.Norm = {}));
+    Import.timeSinceOpen = IO(function () { return performance.now(); });
+    Import.timeSince1970 = IO(function () { return Date.now(); });
+    Import.universalSeed = IO(function () { return __EXTERNAL__.seed; });
+    Import.isWindowResized = IO(function () { return __EXTERNAL__.isResized; });
+    Import.screenDimensions = IO(function () { return [screen.width, screen.height]; });
+    Import.screenDimensionsVector = IO(function () { return Vector2D(screen.width)(screen.height); });
+    Import.screenDimensionW = IO(function () { return screen.width; });
+    Import.screenDimensionH = IO(function () { return screen.height; });
+    Import.windowDimensions = IO(function () { return [innerWidth, innerHeight]; });
+    Import.windowDimensionsVector = IO(function () { return Vector2D(innerWidth)(innerHeight); });
+    Import.windowDimensionW = IO(function () { return innerWidth; });
+    Import.windowDimensionH = IO(function () { return innerHeight; });
+    Import.canvasDimensions = IO(function () { return [__EXTERNAL__.context.canvas.width, __EXTERNAL__.context.canvas.height]; });
+    Import.canvasDimensionsVector = IO(function () { return Vector2D(__EXTERNAL__.context.canvas.width)(__EXTERNAL__.context.canvas.height); });
+    Import.canvasDimensionW = IO(function () { return __EXTERNAL__.context.canvas.width; });
+    Import.canvasDimensionH = IO(function () { return __EXTERNAL__.context.canvas.height; });
+    Import.mouseScreenPosition = IO(function () { return [__EXTERNAL__.mouse.screenX, __EXTERNAL__.mouse.screenY]; });
+    Import.mouseScreenPositionVector = IO(function () { return Vector2D(__EXTERNAL__.mouse.screenX)(__EXTERNAL__.mouse.screenY); });
+    Import.mouseScreenPositionX = IO(function () { return __EXTERNAL__.mouse.screenX; });
+    Import.mouseScreenPositionY = IO(function () { return __EXTERNAL__.mouse.screenY; });
+    Import.mouseWindowPosition = IO(function () { return [__EXTERNAL__.mouse.windowX, __EXTERNAL__.mouse.windowY]; });
+    Import.mouseWindowPositionVector = IO(function () { return Vector2D(__EXTERNAL__.mouse.windowX)(__EXTERNAL__.mouse.windowY); });
+    Import.mouseWindowPositionX = IO(function () { return __EXTERNAL__.mouse.windowX; });
+    Import.mouseWindowPositionY = IO(function () { return __EXTERNAL__.mouse.windowY; });
+    Import.mouseCanvasPosition = IO(function () { return [__EXTERNAL__.mouse.canvasX, __EXTERNAL__.mouse.canvasY]; });
+    Import.mouseCanvasPositionVector = IO(function () { return Vector2D(__EXTERNAL__.mouse.canvasX)(__EXTERNAL__.mouse.canvasY); });
+    Import.mouseCanvasPositionX = IO(function () { return __EXTERNAL__.mouse.canvasX; });
+    Import.mouseCanvasPositionY = IO(function () { return __EXTERNAL__.mouse.canvasY; });
+    Import.mouseVelocity = IO(function () { return [__EXTERNAL__.mouse.deltaX, __EXTERNAL__.mouse.deltaY]; });
+    Import.mouseVelocityVector = IO(function () { return Vector2D(__EXTERNAL__.mouse.deltaX)(__EXTERNAL__.mouse.deltaY); });
+    Import.mouseVelocityX = IO(function () { return __EXTERNAL__.mouse.deltaX; });
+    Import.mouseVelocityY = IO(function () { return __EXTERNAL__.mouse.deltaY; });
+    Import.mouseButtonLeft = IO(function () { return __EXTERNAL__.mouse.buttons[0]; });
+    Import.mouseButtonMiddle = IO(function () { return __EXTERNAL__.mouse.buttons[1]; });
+    Import.mouseButtonRight = IO(function () { return __EXTERNAL__.mouse.buttons[2]; });
+    Import.mouseButtonA = IO(function () { return __EXTERNAL__.mouse.buttons[3]; });
+    Import.mouseButtonB = IO(function () { return __EXTERNAL__.mouse.buttons[4]; });
+    Import.keyboardKey = function (key) {
+        return IO(function () { return __EXTERNAL__.keyboard[key]; });
+    };
+    Import.textMeasurement = function (text) {
         return IO(function () {
-            __EXTERNAL__.context.setTransform(m.ix, m.jx, m.iy, m.jy, m.kx, m.ky);
+            var metrics = __EXTERNAL__.context.measureText(text);
+            return TextMeasurement(text)(Math.abs(metrics.actualBoundingBoxLeft) + Math.abs(metrics.actualBoundingBoxRight))(Math.abs(metrics.actualBoundingBoxAscent) + Math.abs(metrics.actualBoundingBoxDescent));
+        });
+    };
+    Import.lineWidth = IO(function () { return __EXTERNAL__.context.lineWidth; });
+    Import.lineCap = IO(function () { return bijectionLineCap.codomain(__EXTERNAL__.context.lineCap); });
+    Import.lineJoin = IO(function () { return bijectionLineJoin.codomain(__EXTERNAL__.context.lineJoin); });
+    Import.lineDashPattern = IO(function () { return List.apply(void 0, __EXTERNAL__.context.getLineDash()); });
+    Import.lineDashOffset = IO(function () { return __EXTERNAL__.context.lineDashOffset; });
+    Import.miterLimit = IO(function () { return __EXTERNAL__.context.miterLimit; });
+    Import.font = IO(function () { return __EXTERNAL__.context.font; });
+    Import.fontSize = IO(function () { return parseFloat(__EXTERNAL__.context.font); });
+    Import.fontFamily = IO(function () { return __EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" ") + 1); });
+    Import.textAlign = IO(function () { return bijectionTextAlign.codomain(__EXTERNAL__.context.textAlign); });
+    Import.textBaseline = IO(function () { return bijectionTextBaseline.codomain(__EXTERNAL__.context.textBaseline); });
+    Import.shadowBlurAmount = IO(function () { return __EXTERNAL__.context.shadowBlur; });
+    Import.shadowColor = IO(function () { return __EXTERNAL__.context.shadowColor; });
+    Import.shadowOffset = IO(function () { return [__EXTERNAL__.context.shadowOffsetX, __EXTERNAL__.context.shadowOffsetY]; });
+    Import.shadowOffsetVector = IO(function () { return Vector2D(__EXTERNAL__.context.shadowOffsetX)(__EXTERNAL__.context.shadowOffsetY); });
+    Import.shadowOffsetX = IO(function () { return __EXTERNAL__.context.shadowOffsetX; });
+    Import.shadowOffsetY = IO(function () { return __EXTERNAL__.context.shadowOffsetY; });
+    Import.isPointInEvenOddPath = function (x) { return function (y) {
+        return IO(function () { return __EXTERNAL__.context.isPointInPath(x, y, 'evenodd'); });
+    }; };
+    Import.isPointInNonZeroPath = function (x) { return function (y) {
+        return IO(function () { return __EXTERNAL__.context.isPointInPath(x, y, 'nonzero'); });
+    }; };
+    Import.isVectorInEvenOddPath = function (v) {
+        return IO(function () { return __EXTERNAL__.context.isPointInPath(v.x, v.y, 'evenodd'); });
+    };
+    Import.isVectorInNonZeroPath = function (v) {
+        return IO(function () { return __EXTERNAL__.context.isPointInPath(v.x, v.y, 'nonzero'); });
+    };
+    Import.isPointInStroke = function (x) { return function (y) {
+        return IO(function () { return __EXTERNAL__.context.isPointInStroke(x, y); });
+    }; };
+    Import.isVectorInStroke = function (v) {
+        return IO(function () { return __EXTERNAL__.context.isPointInStroke(v.x, v.y); });
+    };
+    Import.transformationMatrix = IO(function () {
+        var m = __EXTERNAL__.context.getTransform();
+        return Matrix3x3(m.a)(m.c)(m.e)(m.b)(m.d)(m.f)(0)(0)(1);
+    });
+    Import.alpha = IO(function () { return __EXTERNAL__.context.globalAlpha; });
+    Import.compositionOperation = IO(function () { return bijectionCompositionOperation.codomain(__EXTERNAL__.context.globalCompositeOperation); });
+})(Import || (Import = {}));
+var Mutate;
+(function (Mutate) {
+    var Norm;
+    (function (Norm) {
+        Norm.lineWidth = function (w) {
+            return IO(function () {
+                __EXTERNAL__.context.lineWidth = w * __EXTERNAL__.context.canvas.width;
+                return null;
+            });
+        };
+        Norm.lineDashPattern = function (pattern) {
+            return IO(function () {
+                __EXTERNAL__.context.setLineDash(pattern.INFO.map(function (n) { return n * __EXTERNAL__.context.canvas.width; }));
+                return null;
+            });
+        };
+        Norm.lineDashOffset = function (offset) {
+            return IO(function () {
+                __EXTERNAL__.context.lineDashOffset = offset * __EXTERNAL__.context.canvas.width;
+                return null;
+            });
+        };
+        Norm.fontSize = function (size) {
+            return IO(function () {
+                __EXTERNAL__.context.font =
+                    size * __EXTERNAL__.context.canvas.width + "px " +
+                        ("" + __EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" ") + 1));
+                return null;
+            });
+        };
+        Norm.fillRGBA = function (r) { return function (g) { return function (b) { return function (a) {
+            return IO(function () {
+                __EXTERNAL__.context.fillStyle = "rgba(" + r * 255 + "," + g * 255 + "," + b * 255 + "," + a + ")";
+                return null;
+            });
+        }; }; }; };
+        Norm.fillVector = function (v) {
+            return IO(function () {
+                __EXTERNAL__.context.fillStyle = "rgba(" + v.x * 255 + "," + v.y * 255 + "," + v.z * 255 + "," + v.w + ")";
+                return null;
+            });
+        };
+        Norm.strokeRGBA = function (r) { return function (g) { return function (b) { return function (a) {
+            return IO(function () {
+                __EXTERNAL__.context.strokeStyle = "rgba(" + r * 255 + "," + g * 255 + "," + b * 255 + "," + a * 255 + ")";
+                return null;
+            });
+        }; }; }; };
+        Norm.strokeVector = function (v) {
+            return IO(function () {
+                __EXTERNAL__.context.strokeStyle = "rgba(" + v.x * 255 + "," + v.y * 255 + "," + v.z * 255 + "," + v.w + ")";
+                return null;
+            });
+        };
+        Norm.shadowRGBA = function (r) { return function (g) { return function (b) { return function (a) {
+            return IO(function () {
+                __EXTERNAL__.context.shadowColor = "rgba(" + r * 255 + "," + g * 255 + "," + b * 255 + "," + a + ")";
+                return null;
+            });
+        }; }; }; };
+        Norm.shadowVector = function (v) {
+            return IO(function () {
+                __EXTERNAL__.context.shadowColor = "rgba(" + v.x * 255 + "," + v.y * 255 + "," + v.z * 255 + "," + v.w + ")";
+                return null;
+            });
+        };
+        Norm.shadowOffset = function (x) { return function (y) {
+            return IO(function () {
+                __EXTERNAL__.context.shadowOffsetX = x * __EXTERNAL__.context.canvas.width;
+                __EXTERNAL__.context.shadowOffsetY = y * __EXTERNAL__.context.canvas.height;
+                return null;
+            });
+        }; };
+        Norm.shadowOffsetVector = function (v) {
+            return IO(function () {
+                __EXTERNAL__.context.shadowOffsetX = v.x * __EXTERNAL__.context.canvas.width;
+                __EXTERNAL__.context.shadowOffsetY = v.y * __EXTERNAL__.context.canvas.height;
+                return null;
+            });
+        };
+        Norm.shadowOffsetX = function (x) {
+            return IO(function () {
+                __EXTERNAL__.context.shadowOffsetX = x * __EXTERNAL__.context.canvas.width;
+                return null;
+            });
+        };
+        Norm.shadowOffsetY = function (y) {
+            return IO(function () {
+                __EXTERNAL__.context.shadowOffsetY = y * __EXTERNAL__.context.canvas.height;
+                return null;
+            });
+        };
+        Norm.transformationMatrix = function (m) {
+            return IO(function () {
+                __EXTERNAL__.context.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx * __EXTERNAL__.context.canvas.width, m.ky * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        };
+    })(Norm = Mutate.Norm || (Mutate.Norm = {}));
+    Mutate.canvasDimensions = function (w) { return function (h) {
+        return IO(function () {
+            __EXTERNAL__.context.canvas.width = w;
+            __EXTERNAL__.context.canvas.height = h;
+            return null;
+        });
+    }; };
+    Mutate.canvasDimensionVector = function (v) {
+        return IO(function () {
+            __EXTERNAL__.context.canvas.width = v.x;
+            __EXTERNAL__.context.canvas.height = v.y;
             return null;
         });
     };
-    Put.lineWidth = function (w) {
+    Mutate.canvasDimensionW = function (w) {
+        return IO(function () {
+            __EXTERNAL__.context.canvas.width = w;
+            return null;
+        });
+    };
+    Mutate.canvasDimensionH = function (h) {
+        return IO(function () {
+            __EXTERNAL__.context.canvas.height = h;
+            return null;
+        });
+    };
+    Mutate.lineWidth = function (w) {
         return IO(function () {
             __EXTERNAL__.context.lineWidth = w;
             return null;
         });
     };
-    Put.lineCap = function (cap) {
+    Mutate.lineCap = function (cap) {
         return IO(function () {
-            __EXTERNAL__.context.lineCap = (function () {
-                switch (cap) {
-                    case LineCap.Butt: return 'butt';
-                    case LineCap.Round: return 'round';
-                    case LineCap.Square: return 'square';
-                    default: return THROWTYPE("Unknown 'LineCap' value received: " + cap);
-                }
-            })();
+            __EXTERNAL__.context.lineCap = bijectionLineCap.domain(cap);
             return null;
         });
     };
-    Put.lineJoin = function (join) {
+    Mutate.lineJoin = function (joining) {
         return IO(function () {
-            __EXTERNAL__.context.lineCap = (function () {
-                switch (join) {
-                    case LineJoin.Bevel: return 'bevel';
-                    case LineJoin.Miter: return 'miter';
-                    case LineJoin.Round: return 'round';
-                    default: return THROWTYPE("Unknown 'LineJoin' value received: " + join);
-                }
-            })();
+            __EXTERNAL__.context.lineJoin = bijectionLineJoin.domain(joining);
             return null;
         });
     };
-    Put.miterLimit = function (limit) {
-        return IO(function () {
-            __EXTERNAL__.context.miterLimit = limit;
-            return null;
-        });
-    };
-    Put.lineDashPattern = function (pattern) {
+    Mutate.lineDashPattern = function (pattern) {
         return IO(function () {
             __EXTERNAL__.context.setLineDash(pattern.INFO.slice());
             return null;
         });
     };
-    Put.lineDashOffset = function (offset) {
+    Mutate.lineDashOffset = function (offset) {
         return IO(function () {
             __EXTERNAL__.context.lineDashOffset = offset;
             return null;
         });
     };
-    Put.font = function (newfont) {
+    Mutate.miterLimit = function (limit) {
         return IO(function () {
-            __EXTERNAL__.context.font = newfont;
+            __EXTERNAL__.context.miterLimit = limit;
             return null;
         });
     };
-    Put.fontSize = function (size) {
+    Mutate.font = function (fontDescription) {
         return IO(function () {
-            __EXTERNAL__.context.font = size + __EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf("px "));
+            __EXTERNAL__.context.font = fontDescription;
             return null;
         });
     };
-    Put.fontFamily = function (family) {
+    Mutate.fontSize = function (size) {
         return IO(function () {
-            __EXTERNAL__.context.font = __EXTERNAL__.context.font.slice(0, __EXTERNAL__.context.font.indexOf("px ") + 3) + family;
+            __EXTERNAL__.context.font =
+                size + "px " + __EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" ") + 1);
             return null;
         });
     };
-    Put.textAlignment = function (alignment) {
+    Mutate.fontFamily = function (family) {
         return IO(function () {
-            __EXTERNAL__.context.textAlign = (function () {
-                switch (alignment) {
-                    case TextAlignment.Center: return 'center';
-                    case TextAlignment.End: return 'end';
-                    case TextAlignment.Left: return 'left';
-                    case TextAlignment.Right: return 'right';
-                    case TextAlignment.Start: return 'start';
-                    default: return THROWTYPE("Unknown 'TextAlignment' value received: " + alignment);
-                }
-            })();
+            __EXTERNAL__.context.font = parseFloat(__EXTERNAL__.context.font) + "px " + family;
             return null;
         });
     };
-    Put.textBaseline = function (baseline) {
+    Mutate.textAlign = function (align) {
         return IO(function () {
-            __EXTERNAL__.context.textBaseline = (function () {
-                switch (baseline) {
-                    case TextBaseline.Alphabetic: return 'alphabetic';
-                    case TextBaseline.Bottom: return 'bottom';
-                    case TextBaseline.Hanging: return 'hanging';
-                    case TextBaseline.Ideographic: return 'ideographic';
-                    case TextBaseline.Middle: return 'middle';
-                    case TextBaseline.Top: return 'top';
-                    default: return THROWTYPE("Unknown 'TextBaseline' value received: " + baseline);
-                }
-            })();
+            __EXTERNAL__.context.textAlign = bijectionTextAlign.domain(align);
             return null;
         });
     };
-    Put.fill = function (color) {
+    Mutate.textBaseline = function (baseline) {
+        return IO(function () {
+            __EXTERNAL__.context.textBaseline = bijectionTextBaseline.domain(baseline);
+            return null;
+        });
+    };
+    Mutate.fillColor = function (color) {
         return IO(function () {
             __EXTERNAL__.context.fillStyle = color;
             return null;
         });
     };
-    Put.stroke = function (color) {
+    Mutate.fillRGBA = function (r) { return function (g) { return function (b) { return function (a) {
+        return IO(function () {
+            __EXTERNAL__.context.fillStyle = "rgba(" + r + "," + g + "," + b + "," + a + ")";
+            return null;
+        });
+    }; }; }; };
+    Mutate.fillVector = function (v) {
+        return IO(function () {
+            __EXTERNAL__.context.fillStyle = "rgba(" + v.x + "," + v.y + "," + v.z + "," + v.w + ")";
+            return null;
+        });
+    };
+    Mutate.strokeColor = function (color) {
         return IO(function () {
             __EXTERNAL__.context.strokeStyle = color;
             return null;
         });
     };
-    Put.alpha = function (opacity) {
+    Mutate.strokeRGBA = function (r) { return function (g) { return function (b) { return function (a) {
         return IO(function () {
-            __EXTERNAL__.context.globalAlpha = opacity;
+            __EXTERNAL__.context.strokeStyle = "rgba(" + r + "," + g + "," + b + "," + a + ")";
+            return null;
+        });
+    }; }; }; };
+    Mutate.strokeVector = function (v) {
+        return IO(function () {
+            __EXTERNAL__.context.strokeStyle = "rgba(" + v.x + "," + v.y + "," + v.z + "," + v.w + ")";
             return null;
         });
     };
-    Put.compositionOperation = function (composition) {
+    Mutate.shadowBlurAmount = function (amount) {
         return IO(function () {
-            __EXTERNAL__.context.globalCompositeOperation = (function () {
-                switch (composition) {
-                    case CompositionOperation.SourceOver: return 'source-over';
-                    case CompositionOperation.SourceIn: return 'source-in';
-                    case CompositionOperation.SourceOut: return 'source-out';
-                    case CompositionOperation.SourceAtop: return 'source-atop';
-                    case CompositionOperation.DestinationOver: return 'destination-over';
-                    case CompositionOperation.DestinationIn: return 'destination-in';
-                    case CompositionOperation.DestinationOut: return 'destination-out';
-                    case CompositionOperation.DestinationAtop: return 'destination-atop';
-                    case CompositionOperation.Lighter: return 'lighter';
-                    case CompositionOperation.Copy: return 'copy';
-                    case CompositionOperation.Xor: return 'xor';
-                    case CompositionOperation.Multiply: return 'multiply';
-                    case CompositionOperation.Screen: return 'screen';
-                    case CompositionOperation.Overlay: return 'overlay';
-                    case CompositionOperation.Darken: return 'darken';
-                    case CompositionOperation.Lighten: return 'lighten';
-                    case CompositionOperation.ColorDodge: return 'color-dodge';
-                    case CompositionOperation.ColorBurn: return 'color-burn';
-                    case CompositionOperation.HardLight: return 'hard-light';
-                    case CompositionOperation.SoftLight: return 'soft-light';
-                    case CompositionOperation.Difference: return 'difference';
-                    case CompositionOperation.Exclusion: return 'exclusion';
-                    case CompositionOperation.Hue: return 'hue';
-                    case CompositionOperation.Saturation: return 'saturation';
-                    case CompositionOperation.Color: return 'color';
-                    case CompositionOperation.Luminosity: return 'luminosity';
-                    default: return THROWTYPE("Unknown 'CompositionOperation' value received: " + composition);
-                }
-            })();
+            __EXTERNAL__.context.shadowBlur = amount;
             return null;
         });
     };
-    Put.shadowBlur = function (blur) {
-        return IO(function () {
-            __EXTERNAL__.context.shadowBlur = blur;
-            return null;
-        });
-    };
-    Put.shadowColor = function (color) {
+    Mutate.shadowColor = function (color) {
         return IO(function () {
             __EXTERNAL__.context.shadowColor = color;
             return null;
         });
     };
-    Put.shadowOffset = function (dx) { return function (dy) {
+    Mutate.shadowRGBA = function (r) { return function (g) { return function (b) { return function (a) {
         return IO(function () {
-            __EXTERNAL__.context.shadowOffsetX = dx;
-            __EXTERNAL__.context.shadowOffsetY = dy;
+            __EXTERNAL__.context.shadowColor = "rgba(" + r + "," + g + "," + b + "," + a + ")";
+            return null;
+        });
+    }; }; }; };
+    Mutate.shadowVector = function (v) {
+        return IO(function () {
+            __EXTERNAL__.context.shadowColor = "rgba(" + v.x + "," + v.y + "," + v.z + "," + v.w + ")";
+            return null;
+        });
+    };
+    Mutate.shadowOffset = function (x) { return function (y) {
+        return IO(function () {
+            __EXTERNAL__.context.shadowOffsetX = x;
+            __EXTERNAL__.context.shadowOffsetY = y;
             return null;
         });
     }; };
-    Put.shadowOffsetX = function (dx) {
+    Mutate.shadowOffsetVector = function (v) {
         return IO(function () {
-            __EXTERNAL__.context.shadowOffsetX = dx;
+            __EXTERNAL__.context.shadowOffsetX = v.x;
+            __EXTERNAL__.context.shadowOffsetY = v.y;
             return null;
         });
     };
-    Put.shadowOffsetY = function (dy) {
+    Mutate.shadowOffsetX = function (x) {
         return IO(function () {
-            __EXTERNAL__.context.shadowOffsetY = dy;
+            __EXTERNAL__.context.shadowOffsetX = x;
             return null;
         });
     };
-})(Put || (Put = {}));
-var Act;
-(function (Act) {
-    Act.tickExternalState = IO(function () {
-        __EXTERNAL__.mouse.scroll = Vertical.CenterY;
-        __EXTERNAL__.isResized = false;
-        for (var k in __EXTERNAL__.keyboard)
-            __EXTERNAL__.keyboard[k] = relaxVertical(__EXTERNAL__.keyboard[k]);
-        for (var k in __EXTERNAL__.mouse.buttons)
-            __EXTERNAL__.mouse.buttons[k] = relaxVertical(__EXTERNAL__.mouse.buttons[k]);
+    Mutate.shadowOffsetY = function (y) {
+        return IO(function () {
+            __EXTERNAL__.context.shadowOffsetY = y;
+            return null;
+        });
+    };
+    Mutate.transformationMatrix = function (m) {
+        return IO(function () {
+            __EXTERNAL__.context.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx, m.ky);
+            return null;
+        });
+    };
+    Mutate.alpha = function (opacity) {
+        return IO(function () {
+            __EXTERNAL__.context.globalAlpha = opacity;
+            return null;
+        });
+    };
+    Mutate.compositionOperation = function (composition) {
+        return IO(function () {
+            __EXTERNAL__.context.globalCompositeOperation = bijectionCompositionOperation.domain(composition);
+            return null;
+        });
+    };
+})(Mutate || (Mutate = {}));
+var Effect;
+(function (Effect) {
+    var Norm;
+    (function (Norm) {
+        Norm.drawImage = function (path) {
+            return function (cropX) { return function (cropY) {
+                return function (cropW) { return function (cropH) {
+                    return function (x) { return function (y) {
+                        return function (w) { return function (h) {
+                            return IO(function () {
+                                __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], cropX * __EXTERNAL__.image[path].width, cropY * __EXTERNAL__.image[path].height, cropW * __EXTERNAL__.image[path].width, cropH * __EXTERNAL__.image[path].height, x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+                                return null;
+                            });
+                        }; };
+                    }; };
+                }; };
+            }; };
+        };
+        Norm.drawImageVector = function (path) {
+            return function (cropCoordinates) {
+                return function (cropDimensions) {
+                    return function (position) {
+                        return function (dimensions) {
+                            return IO(function () {
+                                __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], cropCoordinates.x * __EXTERNAL__.image[path].width, cropCoordinates.y * __EXTERNAL__.image[path].height, cropDimensions.x * __EXTERNAL__.image[path].width, cropDimensions.y * __EXTERNAL__.image[path].height, position.x * __EXTERNAL__.context.canvas.width, position.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+                                return null;
+                            });
+                        };
+                    };
+                };
+            };
+        };
+        Norm.drawFullImage = function (path) {
+            return function (x) { return function (y) {
+                return function (w) { return function (h) {
+                    return IO(function () {
+                        __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+                        return null;
+                    });
+                }; };
+            }; };
+        };
+        Norm.drawFullImageVector = function (path) {
+            return function (coordinates) {
+                return function (dimensions) {
+                    return IO(function () {
+                        __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+                        return null;
+                    });
+                };
+            };
+        };
+        Norm.drawFixedImage = function (path) { return function (x) { return function (y) { return function (k) {
+            return IO(function () {
+                __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, k * __EXTERNAL__.context.canvas.width, k * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; }; }; };
+        Norm.drawFixedImageVector = function (path) { return function (coordinates) { return function (k) {
+            return IO(function () {
+                var l = k * __EXTERNAL__.context.canvas.width;
+                __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, l, l);
+                return null;
+            });
+        }; }; };
+        Norm.drawScaledImage = function (path) { return function (x) { return function (y) { return function (k) {
+            return IO(function () {
+                __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, k * __EXTERNAL__.context.canvas.width * __EXTERNAL__.image[path].width, k * __EXTERNAL__.context.canvas.height * __EXTERNAL__.image[path].height);
+                return null;
+            });
+        }; }; }; };
+        Norm.drawScaledImageVector = function (path) { return function (coordinates) { return function (k) {
+            return IO(function () {
+                __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, k * __EXTERNAL__.context.canvas.width * __EXTERNAL__.image[path].width, k * __EXTERNAL__.context.canvas.height * __EXTERNAL__.image[path].height);
+                return null;
+            });
+        }; }; };
+        Norm.clearRectangle = function (x) { return function (y) { return function (w) { return function (h) {
+            return IO(function () {
+                __EXTERNAL__.context.clearRect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; }; }; };
+        Norm.clearRectangleVector = function (coordinates) { return function (dimensions) {
+            return IO(function () {
+                __EXTERNAL__.context.clearRect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; };
+        Norm.rotate = function (angle) {
+            return IO(function () {
+                __EXTERNAL__.context.rotate(angle * TAU);
+                return null;
+            });
+        };
+        Norm.translate = function (dx) { return function (dy) {
+            return IO(function () {
+                __EXTERNAL__.context.translate(dx * __EXTERNAL__.context.canvas.width, dy * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; };
+        Norm.translateVector = function (v) {
+            return IO(function () {
+                __EXTERNAL__.context.translate(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        };
+        Norm.transformation = function (m) {
+            return IO(function () {
+                __EXTERNAL__.context.transform(m.ix, m.iy, m.jx, m.jy, m.kx * __EXTERNAL__.context.canvas.width, m.ky * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        };
+        Norm.moveTo = function (x) { return function (y) {
+            return IO(function () {
+                __EXTERNAL__.context.moveTo(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; };
+        Norm.moveToVector = function (v) {
+            return IO(function () {
+                __EXTERNAL__.context.moveTo(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        };
+        Norm.lineTo = function (x) { return function (y) {
+            return IO(function () {
+                __EXTERNAL__.context.lineTo(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; };
+        Norm.lineToVector = function (v) {
+            return IO(function () {
+                __EXTERNAL__.context.lineTo(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        };
+        Norm.bezierCurveTo = function (ix) { return function (iy) {
+            return function (jx) { return function (jy) {
+                return function (x) { return function (y) {
+                    return IO(function () {
+                        __EXTERNAL__.context.bezierCurveTo(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, jx * __EXTERNAL__.context.canvas.width, jy * __EXTERNAL__.context.canvas.height, x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
+                        return null;
+                    });
+                }; };
+            }; };
+        }; };
+        Norm.bezierCurveToVector = function (i) { return function (j) { return function (v) {
+            return IO(function () {
+                __EXTERNAL__.context.bezierCurveTo(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, j.x * __EXTERNAL__.context.canvas.width, j.y * __EXTERNAL__.context.canvas.height, v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; }; };
+        Norm.quadraticCurveTo = function (ix) { return function (iy) {
+            return function (x) { return function (y) {
+                return IO(function () {
+                    __EXTERNAL__.context.quadraticCurveTo(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
+                    return null;
+                });
+            }; };
+        }; };
+        Norm.quadraticCurveToVector = function (i) { return function (v) {
+            return IO(function () {
+                __EXTERNAL__.context.quadraticCurveTo(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; };
+        Norm.arcTo = function (ix) { return function (iy) {
+            return function (jx) { return function (jy) {
+                return function (r) {
+                    return IO(function () {
+                        __EXTERNAL__.context.arcTo(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, jx * __EXTERNAL__.context.canvas.width, jy * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width);
+                        return null;
+                    });
+                };
+            }; };
+        }; };
+        Norm.arcToVector = function (i) { return function (j) { return function (r) {
+            return IO(function () {
+                __EXTERNAL__.context.arcTo(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, j.x * __EXTERNAL__.context.canvas.width, j.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width);
+                return null;
+            });
+        }; }; };
+        Norm.rectangle = function (x) { return function (y) { return function (w) { return function (h) {
+            return IO(function () {
+                __EXTERNAL__.context.rect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; }; }; };
+        Norm.rectangleVector = function (coordinates) { return function (dimensions) {
+            return IO(function () {
+                __EXTERNAL__.context.rect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; };
+        Norm.fillRectangle = function (x) { return function (y) { return function (w) { return function (h) {
+            return IO(function () {
+                __EXTERNAL__.context.fillRect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; }; }; };
+        Norm.fillRectangleVector = function (coordinates) { return function (dimensions) {
+            return IO(function () {
+                __EXTERNAL__.context.fillRect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; };
+        Norm.strokeRectangle = function (x) { return function (y) { return function (w) { return function (h) {
+            return IO(function () {
+                __EXTERNAL__.context.strokeRect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; }; }; };
+        Norm.strokeRectangleVector = function (coordinates) { return function (dimensions) {
+            return IO(function () {
+                __EXTERNAL__.context.strokeRect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; };
+        Norm.arc = function (x) { return function (y) { return function (r) { return function (a) { return function (b) {
+            return IO(function () {
+                __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, a * TAU, b * TAU);
+                return null;
+            });
+        }; }; }; }; };
+        Norm.arcVector = function (v) { return function (r) { return function (a) { return function (b) {
+            return IO(function () {
+                __EXTERNAL__.context.arc(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, a * TAU, b * TAU);
+                return null;
+            });
+        }; }; }; };
+        Norm.circle = function (x) { return function (y) { return function (r) {
+            return IO(function () {
+                __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+                return null;
+            });
+        }; }; };
+        Norm.circleVector = function (coordinates) { return function (r) {
+            return IO(function () {
+                __EXTERNAL__.context.arc(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+                return null;
+            });
+        }; };
+        Norm.strokeCircle = function (x) { return function (y) { return function (r) {
+            return IO(function () {
+                __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+                __EXTERNAL__.context.stroke();
+                return null;
+            });
+        }; }; };
+        Norm.strokeCircleVector = function (coordinates) { return function (r) {
+            return IO(function () {
+                __EXTERNAL__.context.arc(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+                __EXTERNAL__.context.stroke();
+                return null;
+            });
+        }; };
+        Norm.fillCircle = function (x) { return function (y) { return function (r) {
+            return IO(function () {
+                __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+                __EXTERNAL__.context.fill();
+                return null;
+            });
+        }; }; };
+        Norm.fillCircleVector = function (coordinates) { return function (r) {
+            return IO(function () {
+                __EXTERNAL__.context.arc(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+                __EXTERNAL__.context.fill();
+                return null;
+            });
+        }; };
+        Norm.elliptic = function (x) { return function (y) {
+            return function (kx) { return function (ky) {
+                return function (a) { return function (b) {
+                    return function (r) {
+                        return IO(function () {
+                            __EXTERNAL__.context.ellipse(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, kx * __EXTERNAL__.context.canvas.width, ky * __EXTERNAL__.context.canvas.height, r * TAU, a * TAU, b * TAU);
+                            return null;
+                        });
+                    };
+                }; };
+            }; };
+        }; };
+        Norm.ellipticVector = function (coordinates) { return function (dimensions) {
+            return function (a) { return function (b) { return function (r) {
+                return IO(function () {
+                    __EXTERNAL__.context.ellipse(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height, r * TAU, a * TAU, b * TAU);
+                    return null;
+                });
+            }; }; };
+        }; };
+        Norm.ellipse = function (x) { return function (y) {
+            return function (kx) { return function (ky) {
+                return function (r) {
+                    return IO(function () {
+                        __EXTERNAL__.context.ellipse(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, kx * __EXTERNAL__.context.canvas.width, ky * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+                        return null;
+                    });
+                };
+            }; };
+        }; };
+        Norm.ellipseVector = function (coordinates) {
+            return function (dimensions) {
+                return function (r) {
+                    return IO(function () {
+                        __EXTERNAL__.context.ellipse(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+                        return null;
+                    });
+                };
+            };
+        };
+        Norm.strokeEllipse = function (x) { return function (y) {
+            return function (kx) { return function (ky) {
+                return function (r) {
+                    return IO(function () {
+                        __EXTERNAL__.context.ellipse(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, kx * __EXTERNAL__.context.canvas.width, ky * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+                        __EXTERNAL__.context.stroke();
+                        return null;
+                    });
+                };
+            }; };
+        }; };
+        Norm.strokeEllipseVector = function (coordinates) {
+            return function (dimensions) {
+                return function (r) {
+                    return IO(function () {
+                        __EXTERNAL__.context.ellipse(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+                        __EXTERNAL__.context.stroke();
+                        return null;
+                    });
+                };
+            };
+        };
+        Norm.fillEllipse = function (x) { return function (y) {
+            return function (kx) { return function (ky) {
+                return function (r) {
+                    return IO(function () {
+                        __EXTERNAL__.context.ellipse(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, kx * __EXTERNAL__.context.canvas.width, ky * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+                        __EXTERNAL__.context.fill();
+                        return null;
+                    });
+                };
+            }; };
+        }; };
+        Norm.fillEllipseVector = function (coordinates) {
+            return function (dimensions) {
+                return function (r) {
+                    return IO(function () {
+                        __EXTERNAL__.context.ellipse(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+                        __EXTERNAL__.context.fill();
+                        return null;
+                    });
+                };
+            };
+        };
+        Norm.strokeText = function (text) { return function (x) { return function (y) {
+            return IO(function () {
+                __EXTERNAL__.context.strokeText(text, x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; }; };
+        Norm.strokeTextVector = function (text) { return function (coordinates) {
+            return IO(function () {
+                __EXTERNAL__.context.strokeText(text, coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.width);
+                return null;
+            });
+        }; };
+        Norm.fillText = function (text) { return function (x) { return function (y) {
+            return IO(function () {
+                __EXTERNAL__.context.fillText(text, x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
+                return null;
+            });
+        }; }; };
+        Norm.fillTextVector = function (text) { return function (coordinates) {
+            return IO(function () {
+                __EXTERNAL__.context.fillText(text, coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.width);
+                return null;
+            });
+        }; };
+        Norm.area = function (ix) { return function (iy) { return function (jx) { return function (jy) {
+            return IO(function () { return (__EXTERNAL__.context.rect(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, (jx - ix) * __EXTERNAL__.context.canvas.width, (jy - iy) * __EXTERNAL__.context.canvas.height), null); });
+        }; }; }; };
+        Norm.areaVector = function (i) { return function (j) {
+            return IO(function () { return (__EXTERNAL__.context.rect(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, (j.x - i.x) * __EXTERNAL__.context.canvas.width, (j.y - i.y) * __EXTERNAL__.context.canvas.height), null); });
+        }; };
+        Norm.strokeArea = function (ix) { return function (iy) { return function (jx) { return function (jy) {
+            return IO(function () { return (__EXTERNAL__.context.strokeRect(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, (jx - ix) * __EXTERNAL__.context.canvas.width, (jy - iy) * __EXTERNAL__.context.canvas.height), null); });
+        }; }; }; };
+        Norm.strokeAreaVector = function (i) { return function (j) {
+            return IO(function () { return (__EXTERNAL__.context.strokeRect(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, (j.x - i.x) * __EXTERNAL__.context.canvas.width, (j.y - i.y) * __EXTERNAL__.context.canvas.height), null); });
+        }; };
+        Norm.fillArea = function (ix) { return function (iy) { return function (jx) { return function (jy) {
+            return IO(function () { return (__EXTERNAL__.context.fillRect(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, (jx - ix) * __EXTERNAL__.context.canvas.width, (jy - iy) * __EXTERNAL__.context.canvas.height), null); });
+        }; }; }; };
+        Norm.fillAreaVector = function (i) { return function (j) {
+            return IO(function () { return (__EXTERNAL__.context.fillRect(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, (j.x - i.x) * __EXTERNAL__.context.canvas.width, (j.y - i.y) * __EXTERNAL__.context.canvas.height), null); });
+        }; };
+    })(Norm = Effect.Norm || (Effect.Norm = {}));
+    Effect.log = function (message) {
+        return IO(function () { return (console.log(message), null); });
+    };
+    Effect.flush = IO(function () { return (console.clear(), null); });
+    Effect.loadImage = function (path) {
+        return IO(function () {
+            __EXTERNAL__.image[path] = new Image;
+            __EXTERNAL__.image[path].src = path;
+            __EXTERNAL__.image[path].onerror = function () { return THROW("Could not load image: '" + path + "'"); };
+            return null;
+        });
+    };
+    Effect.drawImage = function (path) {
+        return function (cropX) { return function (cropY) {
+            return function (cropW) { return function (cropH) {
+                return function (x) { return function (y) {
+                    return function (w) { return function (h) {
+                        return IO(function () {
+                            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], cropX, cropY, cropW, cropH, x, y, w, h);
+                            return null;
+                        });
+                    }; };
+                }; };
+            }; };
+        }; };
+    };
+    Effect.drawImageVector = function (path) {
+        return function (cropCoordinates) {
+            return function (cropDimensions) {
+                return function (position) {
+                    return function (dimensions) {
+                        return IO(function () {
+                            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], cropCoordinates.x, cropCoordinates.y, cropDimensions.x, cropDimensions.y, position.x, position.y, dimensions.x, dimensions.y);
+                            return null;
+                        });
+                    };
+                };
+            };
+        };
+    };
+    Effect.drawFullImage = function (path) {
+        return function (x) { return function (y) {
+            return function (w) { return function (h) {
+                return IO(function () { return (__EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x, y, w, h), null); });
+            }; };
+        }; };
+    };
+    Effect.drawFullImageVector = function (path) {
+        return function (coordinates) {
+            return function (dimensions) {
+                return IO(function () {
+                    __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x, coordinates.y, dimensions.x, dimensions.y);
+                    return null;
+                });
+            };
+        };
+    };
+    Effect.drawFixedImage = function (path) { return function (x) { return function (y) { return function (k) {
+        return IO(function () { return (__EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x, y, k, k), null); });
+    }; }; }; };
+    Effect.drawFixedImageVector = function (path) { return function (coordinates) { return function (k) {
+        return IO(function () { return (__EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x, coordinates.y, k, k), null); });
+    }; }; };
+    Effect.drawScaledImage = function (path) { return function (x) { return function (y) { return function (k) {
+        return IO(function () {
+            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x, y, k * __EXTERNAL__.image[path].width, k * __EXTERNAL__.image[path].height);
+            return null;
+        });
+    }; }; }; };
+    Effect.drawScaledImageVector = function (path) { return function (coordinates) { return function (k) {
+        return IO(function () {
+            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x, coordinates.y, k * __EXTERNAL__.image[path].width, k * __EXTERNAL__.image[path].height);
+            return null;
+        });
+    }; }; };
+    Effect.loadAudio = function (path) {
+        return IO(function () {
+            __EXTERNAL__.audio[path] = new Audio(path);
+            __EXTERNAL__.audio[path].onerror = function () { return THROW("Could not load audio: '" + path + "'"); };
+            return null;
+        });
+    };
+    Effect.playAudio = function (path) {
+        return IO(function () { return ((__EXTERNAL__.audio[path] || THROW("Audio not preloaded: '" + path + "'")).play(), null); });
+    };
+    Effect.playSFX = function (path) {
+        return IO(function () { return ((__EXTERNAL__.audio[path] || THROW("Audio not preloaded: '" + path + "'")).cloneNode().play(), null); });
+    };
+    Effect.clearRectangle = function (x) { return function (y) { return function (w) { return function (h) {
+        return IO(function () { return (__EXTERNAL__.context.clearRect(x, y, w, h), null); });
+    }; }; }; };
+    Effect.clearRectangleVector = function (coordinates) { return function (dimensions) {
+        return IO(function () { return (__EXTERNAL__.context.clearRect(coordinates.x, coordinates.y, dimensions.x, dimensions.y), null); });
+    }; };
+    Effect.clearCanvas = IO(function () {
+        __EXTERNAL__.context.clearRect(0, 0, __EXTERNAL__.context.canvas.width, __EXTERNAL__.context.canvas.height);
         return null;
     });
-    Act.scale = function (kx) { return function (ky) {
-        return IO(function () {
-            __EXTERNAL__.context.scale(kx, ky);
-            return null;
-        });
+    Effect.fill = IO(function () { return (__EXTERNAL__.context.fill(), null); });
+    Effect.stroke = IO(function () { return (__EXTERNAL__.context.stroke(), null); });
+    Effect.save = IO(function () { return (__EXTERNAL__.context.save(), null); });
+    Effect.restore = IO(function () { return (__EXTERNAL__.context.restore(), null); });
+    Effect.clipEvenOdd = IO(function () { return (__EXTERNAL__.context.clip('evenodd'), null); });
+    Effect.clipNonZero = IO(function () { return (__EXTERNAL__.context.clip('nonzero'), null); });
+    Effect.rotate = function (angle) {
+        return IO(function () { return (__EXTERNAL__.context.rotate(angle), null); });
+    };
+    Effect.scale = function (k) {
+        return IO(function () { return (__EXTERNAL__.context.scale(k, k), null); });
+    };
+    Effect.scaleAxis = function (kx) { return function (ky) {
+        return IO(function () { return (__EXTERNAL__.context.scale(kx, ky), null); });
     }; };
-    Act.vectorScale = function (v) {
-        return IO(function () {
-            __EXTERNAL__.context.scale(v.x, v.y);
-            return null;
-        });
+    Effect.scaleAxisVector = function (v) {
+        return IO(function () { return (__EXTERNAL__.context.scale(v.x, v.y), null); });
     };
-    Act.scaleUniformly = function (scalar) {
-        return IO(function () {
-            __EXTERNAL__.context.scale(scalar, scalar);
-            return null;
-        });
-    };
-    Act.rotate = function (theta) {
-        return IO(function () {
-            __EXTERNAL__.context.rotate(theta);
-            return null;
-        });
-    };
-    Act.translate = function (dx) { return function (dy) {
-        return IO(function () {
-            __EXTERNAL__.context.translate(dx, dy);
-            return null;
-        });
+    Effect.translate = function (dx) { return function (dy) {
+        return IO(function () { return (__EXTERNAL__.context.translate(dx, dy), null); });
     }; };
-    Act.vectorTranslate = function (v) {
+    Effect.translateVector = function (v) {
         return IO(function () {
             __EXTERNAL__.context.translate(v.x, v.y);
             return null;
         });
     };
-    Act.transform = function (ix) { return function (jx) {
-        return function (iy) { return function (jy) {
-            return function (kx) { return function (ky) {
-                return IO(function () {
-                    __EXTERNAL__.context.transform(ix, jx, iy, jy, kx, ky);
-                    return null;
-                });
-            }; };
-        }; };
-    }; };
-    Act.matrixTransform = function (m) {
+    Effect.transformation = function (m) {
         return IO(function () {
-            __EXTERNAL__.context.transform(m.ix, m.jx, m.iy, m.jy, m.kx, m.ky);
+            __EXTERNAL__.context.transform(m.ix, m.iy, m.jx, m.jy, m.kx, m.ky);
             return null;
         });
     };
-    Act.clearRect = function (x) { return function (y) { return function (w) { return function (h) {
-        return IO(function () {
-            __EXTERNAL__.context.clearRect(x, y, w, h);
-            return null;
-        });
+    Effect.beginPath = IO(function () { return (__EXTERNAL__.context.beginPath(), null); });
+    Effect.closePath = IO(function () { return (__EXTERNAL__.context.closePath(), null); });
+    Effect.moveTo = function (x) { return function (y) {
+        return IO(function () { return (__EXTERNAL__.context.moveTo(x, y), null); });
+    }; };
+    Effect.moveToVector = function (v) {
+        return IO(function () { return (__EXTERNAL__.context.moveTo(v.x, v.y), null); });
+    };
+    Effect.lineTo = function (x) { return function (y) {
+        return IO(function () { return (__EXTERNAL__.context.lineTo(x, y), null); });
+    }; };
+    Effect.lineToVector = function (v) {
+        return IO(function () { return (__EXTERNAL__.context.lineTo(v.x, v.y), null); });
+    };
+    Effect.bezierCurveTo = function (ix) { return function (iy) {
+        return function (jx) { return function (jy) {
+            return function (x) { return function (y) {
+                return IO(function () { return (__EXTERNAL__.context.bezierCurveTo(ix, iy, jx, jy, x, y), null); });
+            }; };
+        }; };
+    }; };
+    Effect.bezierCurveToVector = function (i) { return function (j) { return function (v) {
+        return IO(function () { return (__EXTERNAL__.context.bezierCurveTo(i.x, i.y, j.x, j.y, v.x, v.y), null); });
+    }; }; };
+    Effect.quadraticCurveTo = function (ix) { return function (iy) {
+        return function (x) { return function (y) {
+            return IO(function () { return (__EXTERNAL__.context.quadraticCurveTo(ix, iy, x, y), null); });
+        }; };
+    }; };
+    Effect.quadraticCurveToVector = function (i) { return function (v) {
+        return IO(function () { return (__EXTERNAL__.context.quadraticCurveTo(i.x, i.y, v.x, v.y), null); });
+    }; };
+    Effect.arcTo = function (ix) { return function (iy) {
+        return function (jx) { return function (jy) {
+            return function (r) {
+                return IO(function () { return (__EXTERNAL__.context.arcTo(ix, iy, jx, jy, r), null); });
+            };
+        }; };
+    }; };
+    Effect.arcToVector = function (i) { return function (j) { return function (r) {
+        return IO(function () { return (__EXTERNAL__.context.arcTo(i.x, i.y, j.x, j.y, r), null); });
+    }; }; };
+    Effect.rectangle = function (x) { return function (y) { return function (w) { return function (h) {
+        return IO(function () { return (__EXTERNAL__.context.rect(x, y, w, h), null); });
     }; }; }; };
-    Act.fillRect = function (x) { return function (y) { return function (w) { return function (h) {
-        return IO(function () {
-            __EXTERNAL__.context.fillRect(x, y, w, h);
-            return null;
-        });
+    Effect.rectangleVector = function (coordinates) { return function (dimensions) {
+        return IO(function () { return (__EXTERNAL__.context.rect(coordinates.x, coordinates.y, dimensions.x, dimensions.y), null); });
+    }; };
+    Effect.fillRectangle = function (x) { return function (y) { return function (w) { return function (h) {
+        return IO(function () { return (__EXTERNAL__.context.fillRect(x, y, w, h), null); });
     }; }; }; };
-    Act.strokeRect = function (x) { return function (y) { return function (w) { return function (h) {
-        return IO(function () {
-            __EXTERNAL__.context.strokeRect(x, y, w, h);
-            return null;
-        });
+    Effect.fillRectangleVector = function (coordinates) { return function (dimensions) {
+        return IO(function () { return (__EXTERNAL__.context.fillRect(coordinates.x, coordinates.y, dimensions.x, dimensions.y), null); });
+    }; };
+    Effect.strokeRectangle = function (x) { return function (y) { return function (w) { return function (h) {
+        return IO(function () { return (__EXTERNAL__.context.strokeRect(x, y, w, h), null); });
     }; }; }; };
-    Act.fillText = function (message) { return function (x) { return function (y) {
+    Effect.strokeRectangleVector = function (coordinates) { return function (dimensions) {
+        return IO(function () { return (__EXTERNAL__.context.strokeRect(coordinates.x, coordinates.y, dimensions.x, dimensions.y), null); });
+    }; };
+    Effect.arc = function (x) { return function (y) { return function (r) { return function (a) { return function (b) {
+        return IO(function () { return (__EXTERNAL__.context.arc(x, y, r, a, b), null); });
+    }; }; }; }; };
+    Effect.arcVector = function (v) { return function (r) { return function (a) { return function (b) {
+        return IO(function () { return (__EXTERNAL__.context.arc(v.x, v.y, r, a, b), null); });
+    }; }; }; };
+    Effect.circle = function (x) { return function (y) { return function (r) {
+        return IO(function () { return (__EXTERNAL__.context.arc(x, y, r, 0, TAU), null); });
+    }; }; };
+    Effect.circleVector = function (coordinates) { return function (r) {
+        return IO(function () { return (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), null); });
+    }; };
+    Effect.strokeCircle = function (x) { return function (y) { return function (r) {
+        return IO(function () { return (__EXTERNAL__.context.arc(x, y, r, 0, TAU), __EXTERNAL__.context.stroke(), null); });
+    }; }; };
+    Effect.strokeCircleVector = function (coordinates) { return function (r) {
+        return IO(function () { return (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), __EXTERNAL__.context.stroke(), null); });
+    }; };
+    Effect.fillCircle = function (x) { return function (y) { return function (r) {
+        return IO(function () { return (__EXTERNAL__.context.arc(x, y, r, 0, TAU), __EXTERNAL__.context.fill(), null); });
+    }; }; };
+    Effect.fillCircleVector = function (coordinates) { return function (r) {
+        return IO(function () { return (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), __EXTERNAL__.context.fill(), null); });
+    }; };
+    Effect.elliptic = function (x) { return function (y) {
+        return function (kx) { return function (ky) {
+            return function (a) { return function (b) {
+                return function (r) {
+                    return IO(function () { return (__EXTERNAL__.context.ellipse(x, y, kx, ky, r, a, b), null); });
+                };
+            }; };
+        }; };
+    }; };
+    Effect.ellipticVector = function (coordinates) { return function (dimensions) {
+        return function (a) { return function (b) { return function (r) {
+            return IO(function () { return (__EXTERNAL__.context.ellipse(coordinates.x, coordinates.y, dimensions.x, dimensions.y, r, a, b), null); });
+        }; }; };
+    }; };
+    Effect.ellipse = function (x) { return function (y) { return function (kx) { return function (ky) { return function (r) {
+        return IO(function () { return (__EXTERNAL__.context.ellipse(x, y, kx, ky, r, 0, TAU), null); });
+    }; }; }; }; };
+    Effect.ellipseVector = function (coordinates) { return function (dimensions) { return function (r) {
+        return IO(function () { return (__EXTERNAL__.context.ellipse(coordinates.x, coordinates.y, dimensions.x, dimensions.y, r, 0, TAU), null); });
+    }; }; };
+    Effect.strokeEllipse = function (x) { return function (y) { return function (kx) { return function (ky) { return function (r) {
+        return IO(function () { return (__EXTERNAL__.context.ellipse(x, y, kx, ky, r, 0, TAU), __EXTERNAL__.context.stroke(), null); });
+    }; }; }; }; };
+    Effect.strokeEllipseVector = function (coordinates) { return function (dimensions) { return function (r) {
         return IO(function () {
-            __EXTERNAL__.context.fillText(message, x, y);
+            __EXTERNAL__.context.ellipse(coordinates.x, coordinates.y, dimensions.x, dimensions.y, r, 0, TAU);
+            __EXTERNAL__.context.stroke();
             return null;
         });
     }; }; };
-    Act.strokeText = function (message) { return function (x) { return function (y) {
+    Effect.fillEllipse = function (x) { return function (y) { return function (kx) { return function (ky) { return function (r) {
+        return IO(function () { return (__EXTERNAL__.context.ellipse(x, y, kx, ky, r, 0, TAU), __EXTERNAL__.context.fill(), null); });
+    }; }; }; }; };
+    Effect.fillEllipseVector = function (coordinates) { return function (dimensions) { return function (r) {
         return IO(function () {
-            __EXTERNAL__.context.strokeText(message, x, y);
+            __EXTERNAL__.context.ellipse(coordinates.x, coordinates.y, dimensions.x, dimensions.y, r, 0, TAU);
+            __EXTERNAL__.context.fill();
             return null;
         });
     }; }; };
-})(Act || (Act = {}));
+    Effect.strokeText = function (text) { return function (x) { return function (y) {
+        return IO(function () { return (__EXTERNAL__.context.strokeText(text, x, y), null); });
+    }; }; };
+    Effect.strokeTextVector = function (text) { return function (coordinates) {
+        return IO(function () { return (__EXTERNAL__.context.strokeText(text, coordinates.x, coordinates.y), null); });
+    }; };
+    Effect.fillText = function (text) { return function (x) { return function (y) {
+        return IO(function () { return (__EXTERNAL__.context.fillText(text, x, y), null); });
+    }; }; };
+    Effect.fillTextVector = function (text) { return function (coordinates) {
+        return IO(function () { return (__EXTERNAL__.context.fillText(text, coordinates.x, coordinates.y), null); });
+    }; };
+    Effect.area = function (ix) { return function (iy) { return function (jx) { return function (jy) {
+        return IO(function () { return (__EXTERNAL__.context.rect(ix, iy, jx - ix, jy - iy), null); });
+    }; }; }; };
+    Effect.areaVector = function (i) { return function (j) {
+        return IO(function () { return (__EXTERNAL__.context.rect(i.x, i.y, j.x - i.x, j.y - i.y), null); });
+    }; };
+    Effect.strokeArea = function (ix) { return function (iy) { return function (jx) { return function (jy) {
+        return IO(function () { return (__EXTERNAL__.context.strokeRect(ix, iy, jx - ix, jy - iy), null); });
+    }; }; }; };
+    Effect.strokeAreaVector = function (i) { return function (j) {
+        return IO(function () { return (__EXTERNAL__.context.strokeRect(i.x, i.y, j.x - i.x, j.y - i.y), null); });
+    }; };
+    Effect.fillArea = function (ix) { return function (iy) { return function (jx) { return function (jy) {
+        return IO(function () { return (__EXTERNAL__.context.fillRect(ix, iy, jx - ix, jy - iy), null); });
+    }; }; }; };
+    Effect.fillAreaVector = function (i) { return function (j) {
+        return IO(function () { return (__EXTERNAL__.context.fillRect(i.x, i.y, j.x - i.x, j.y - i.y), null); });
+    }; };
+})(Effect || (Effect = {}));
 onload = function () {
     __EXTERNAL__.context = document.querySelector('canvas').getContext('2d');
     onkeydown = function (event) {
