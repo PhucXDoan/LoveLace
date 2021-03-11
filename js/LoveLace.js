@@ -404,10 +404,10 @@ var bijectionCompositionOperation = Bijection
     .of(CompositionOperation.Color)('color')
     .of(CompositionOperation.Luminosity)('luminosity');
 var Do = {
-    IO: IO(function () { return ({}); }),
-    Maybe: Just({}),
-    State: State(function (s) { return [s, {}]; }),
-    List: List({})
+    IO: IO(function () { return Object.create(null); }),
+    Maybe: Just(Object.create(null)),
+    State: State(function (s) { return [s, Object.create(null)]; }),
+    List: List(Object.create(null))
 };
 var __KEYBOARD_KEYS_ARRAY__ = [
     'AltLeft', 'AltRight', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Backquote',

@@ -12,7 +12,7 @@ const THROWRANGE = (message : string) =>
 
 /********************************************************************************************************************************/
 
-// TAU :: Number
+/**` TAU :: Number `*/
 const TAU : number = 6.283185307179586
 
 /********************************************************************************************************************************/
@@ -767,17 +767,18 @@ const bijectionCompositionOperation : Bijection<CompositionOperation, string> =
 
 /********************************************************************************************************************************/
 
+// The Do-Notation syntax where a monad stores an empty object.
 const Do =
 	{
-		IO    : IO    (() => ({})),
-		Maybe : Just  ({}),
-		State : State ((s : any) => [s, {}]),
-		List  : List  ({})
+		IO    : IO    (() => Object.create(null)),
+		Maybe : Just  (Object.create(null)),
+		State : State ((s : any) => [s, Object.create(null)]),
+		List  : List  (Object.create(null))
 	} as const
 
 /********************************************************************************************************************************/
 
-// __KEYBOARD_KEYS_ARRAY__ :: [String]
+/**` __KEYBOARD_KEYS_ARRAY__ :: [String] `*/
 const __KEYBOARD_KEYS_ARRAY__ =
 	[
 		'AltLeft'        , 'AltRight'  , 'ArrowDown'   , 'ArrowLeft'     , 'ArrowRight'   , 'ArrowUp'     , 'Backquote'      ,
