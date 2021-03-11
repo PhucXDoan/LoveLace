@@ -1416,6 +1416,12 @@ var Effect;
     Effect.playSFX = function (path) {
         return IO(function () { return ((__EXTERNAL__.audio[path] || THROW("Audio not preloaded: '" + path + "'")).cloneNode().play(), null); });
     };
+    Effect.loadFont = function (path) {
+        return IO(function () {
+            document.styleSheets[0].insertRule("@font-face{font-family:\"" + path.slice(path.lastIndexOf("/") + 1, path.lastIndexOf(".")) + "\";src:url(\"" + path + "\")}");
+            return null;
+        });
+    };
     Effect.clearRectangle = function (x) { return function (y) { return function (w) { return function (h) {
         return IO(function () { return (__EXTERNAL__.context.clearRect(x, y, w, h), null); });
     }; }; }; };

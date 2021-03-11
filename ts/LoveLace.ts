@@ -2382,6 +2382,15 @@ namespace Effect
 	export const playSFX = (path : string) : IO<null> =>
 		IO(() => (((__EXTERNAL__.audio[path] || THROW(`Audio not preloaded: '${path}'`)).cloneNode() as any).play(), null))
 
+	/**` Effect.loadFont :: String -> IO () `*/
+	export const loadFont = (path : string) : IO<null> =>
+		IO(() => {
+			document.styleSheets[0]!.insertRule(
+				`@font-face{font-family:"${path.slice(path.lastIndexOf("/") + 1, path.lastIndexOf("."))}";src:url("${path}")}`
+			)
+			return null
+		})
+
 	/**` Effect.clearRectangle :: Number -> Number -> Number -> Number -> IO () `*/
 	export const clearRectangle = (x : number) => (y : number) => (w : number) => (h : number) : IO<null> =>
 		IO(() => (__EXTERNAL__.context.clearRect(x, y, w, h), null))
