@@ -21,7 +21,7 @@ var THROWRANGE = function (message) { throw new RangeError(message); };
 var TAU = 6.283185307179586;
 var IO = function (sideeffect) {
     return ({
-        CONS: 'IO a',
+        CONS: 'IO',
         INFO: sideeffect,
         bind: function (f) { return IO(function () { return f(sideeffect()).INFO(); }); },
         fmap: function (f) { return IO(function () { return f(sideeffect()); }); },
@@ -51,7 +51,7 @@ var Nothing = {
 };
 var Just = function (value) {
     return ({
-        CONS: 'Just a',
+        CONS: 'Just',
         INFO: value,
         bind: function (f) {
             var x = f(value);
@@ -75,7 +75,7 @@ var Just = function (value) {
 };
 var State = function (statefulComputation) {
     return ({
-        CONS: 'State (s -> (s, a))',
+        CONS: 'State',
         INFO: statefulComputation,
         bind: function (f) {
             return State(function (x) {
@@ -113,7 +113,7 @@ var List = function () {
         elements[_i] = arguments[_i];
     }
     return ({
-        CONS: 'List a',
+        CONS: 'List',
         INFO: elements,
         bind: function (f) { return List.apply(void 0, elements.flatMap(function (x) { return f(x).INFO; })); },
         fmap: function (f) { return List.apply(void 0, elements.map(function (x) { return f(x); })); },
@@ -267,6 +267,9 @@ var Bijection = function (pairs) {
 Bijection.of = function (domainValue) { return function (codomainValue) {
     return Bijection([[domainValue, codomainValue]]);
 }; };
+var Clock = function (time) { return function (delta) { return function (counter) {
+    return ({ CONS: 'Clock', time: time, delta: delta, counter: counter });
+}; }; };
 var Horizontal;
 (function (Horizontal) {
     Horizontal["Leftward"] = "Leftward :: Horizontal";
@@ -403,6 +406,12 @@ var bijectionCompositionOperation = Bijection
     .of(CompositionOperation.Saturation)('saturation')
     .of(CompositionOperation.Color)('color')
     .of(CompositionOperation.Luminosity)('luminosity');
+var updateClock = function (clock) { return function (present) {
+    return Clock(present)(present - clock.time)(clock.counter + present - clock.time);
+}; };
+var clearClock = function (clock) {
+    return Clock(clock.time)(clock.delta)(0);
+};
 var Do = {
     IO: IO(function () { return Object.create(null); }),
     Maybe: Just(Object.create(null)),

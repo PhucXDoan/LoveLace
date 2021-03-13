@@ -32,7 +32,7 @@ const TAU : number = 6.283185307179586
  */
 type IO<a> =
 	{
-		readonly CONS   : 'IO a'
+		readonly CONS   : 'IO'
 		readonly INFO   : () => a
 		readonly bind   : <b>(reaction    : (evaluation : a) => IO<b>) => IO<b>
 		readonly fmap   : <b>(computation : (evaluation : a) =>    b ) => IO<b>
@@ -61,7 +61,7 @@ type Maybe<a> =
 	({
 		readonly CONS   : 'Nothing'
 	} | {
-		readonly CONS   : 'Just a'
+		readonly CONS   : 'Just'
 		readonly INFO   : a
 	}) & {
 		readonly bind   : <b>(reaction    : (evaluation : a) => Maybe<b>) => Maybe<b>
@@ -88,7 +88,7 @@ type Maybe<a> =
  */
 type State<s, a> =
 	{
-		readonly CONS   : 'State (s -> (s, a))'
+		readonly CONS   : 'State'
 		readonly INFO   : (inputState : s) => [s, a]
 		readonly bind   : <b>(reaction    : (statefulComputationOutput : a) => State<s, b>) => State<s, b>
 		readonly fmap   : <b>(computation : (statefulComputationOutput : a) =>          b ) => State<s, b>
@@ -116,7 +116,7 @@ type State<s, a> =
  */
 type List<a> =
 	{
-		readonly CONS   : 'List a'
+		readonly CONS   : 'List'
 		readonly INFO   : ReadonlyArray<a>
 		readonly bind   : <b>(reaction    : (element : a) => List<b>) => List<b>
 		readonly fmap   : <b>(computation : (element : a) =>      b ) => List<b>
@@ -323,12 +323,28 @@ type Bijection<a, b> =
 		readonly codomain : (codomainValue : b) => a
 	}
 
+/**
+ * ```
+ * data Clock = Clock Number Number Number
+ * (.time)    :: Number
+ * (.delta)   :: Number
+ * (.counter) :: Number
+ * ```
+ */
+type Clock =
+	{
+		readonly CONS    : 'Clock'
+		readonly time    : number
+		readonly delta   : number
+		readonly counter : number
+	}
+
 /********************************************************************************************************************************/
 
 // -- Use only for creating new IO operations; otherwise, compose existing IO monads together.
 const IO = <a>(sideeffect : () => a) : IO<a> =>
 	({
-		CONS   : 'IO a',
+		CONS   : 'IO',
 		INFO   : sideeffect,
 		bind   : f => IO(() => f(sideeffect()).INFO()),
 		fmap   : f => IO(() => f(sideeffect())),
@@ -359,7 +375,7 @@ const Nothing : Maybe<any> =
 /**` Just :: a -> Maybe a `*/
 const Just = <a>(value : a) : Maybe<a> =>
 	({
-		CONS   : 'Just a',
+		CONS   : 'Just',
 		INFO   : value,
 		bind   : f =>
 			{
@@ -383,7 +399,7 @@ const Just = <a>(value : a) : Maybe<a> =>
 /**` State :: (s -> (s, a)) -> State s a `*/
 const State = <s, a>(statefulComputation : (inputState : s) => [s, a]) : State<s, a> =>
 	({
-		CONS   : 'State (s -> (s, a))',
+		CONS   : 'State',
 		INFO   : statefulComputation,
 		bind   : f =>
 			State(x => {
@@ -413,7 +429,7 @@ const State = <s, a>(statefulComputation : (inputState : s) => [s, a]) : State<s
 /**` List :: [a] -> List a `*/
 const List = <a>(...elements : ReadonlyArray<a>) : List<a> =>
 	({
-		CONS   : 'List a',
+		CONS   : 'List',
 		INFO   : elements,
 		bind   : f    => List(...elements.flatMap(x => f(x).INFO)),
 		fmap   : f => List(...elements.map(x => f(x))),
@@ -568,6 +584,10 @@ const Bijection = <a, b>(pairs : ReadonlyArray<[a, b]>) : Bijection<a, b> =>
 
 Bijection.of = <a>(domainValue : a) => <b>(codomainValue : b) : Bijection<a, b> =>
 	Bijection([[domainValue, codomainValue]])
+
+/**` Clock :: Number -> Number -> Number -> Clock `*/
+const Clock = (time : number) => (delta : number) => (counter : number) : Clock =>
+	({ CONS : 'Clock', time, delta, counter })
 
 /********************************************************************************************************************************/
 
@@ -764,6 +784,14 @@ const bijectionCompositionOperation : Bijection<CompositionOperation, string> =
 		.of(CompositionOperation.Saturation)      ('saturation')
 		.of(CompositionOperation.Color)           ('color')
 		.of(CompositionOperation.Luminosity)      ('luminosity')
+
+/**` updateClock :: Clock -> Number -> Clock `*/
+const updateClock = (clock : Clock) => (present : number) : Clock =>
+	Clock(present)(present - clock.time)(clock.counter + present - clock.time)
+
+/**` clearClock :: Clock -> Clock `*/
+const clearClock = (clock : Clock) : Clock =>
+	Clock(clock.time)(clock.delta)(0)
 
 /********************************************************************************************************************************/
 
