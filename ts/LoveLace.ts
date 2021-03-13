@@ -12,8 +12,236 @@ const THROWRANGE = (message : string) =>
 
 /********************************************************************************************************************************/
 
+/**` E :: Number `*/
+const E : number = 2.718281828459045
+
+/**` LN2 :: Number `*/
+const LN2 : number = 0.6931471805599453
+
+/**` LN10 :: Number `*/
+const LN10 : number = 2.302585092994046
+
+/**` LOG2E :: Number `*/
+const LOG2E : number = 1.4426950408889634
+
+/**` LOG10E :: Number `*/
+const LOG10E : number = 0.4342944819032518
+
+/**` PI :: Number `*/
+const PI : number = 3.141592653589793
+
 /**` TAU :: Number `*/
 const TAU : number = 6.283185307179586
+
+/**` INVSQRT2 :: Number `*/
+const INVSQRT2 : number = 0.7071067811865476
+
+/**` SQRT2 :: Number `*/
+const SQRT2 : number = 1.4142135623730951
+
+/**` abs :: Number -> Number `*/
+const abs = Math.abs
+
+/**` acos :: Number -> Number `*/
+const acos = Math.acos
+
+/**` acosh :: Number -> Number `*/
+const acosh = Math.acosh
+
+/**` add :: Number -> Number -> Number `*/
+const add = (x : number) => (y : number) : number => x + y
+
+/**` asin :: Number -> Number `*/
+const asin = Math.asin
+
+/**` asinh :: Number -> Number `*/
+const asinh = Math.asinh
+
+/**` atan :: Number -> Number `*/
+const atan = Math.atan
+
+/**` atan2 :: Number -> Number -> Number `*/
+const atan2 = (y : number) => (x : number) : number => Math.atan2(y, x)
+
+/**` ratan2 :: Number -> Number -> Number `*/
+const ratan2 = (x : number) => (y : number) : number => Math.atan2(y, x)
+
+/**` atanh :: Number -> Number `*/
+const atanh = Math.atanh
+
+/**` cbrt :: Number -> Number `*/
+const cbrt = Math.cbrt
+
+/**` ceil :: Number -> Number `*/
+const ceil = Math.ceil
+
+/**` cos :: Number -> Number `*/
+const cos = Math.cos
+
+/**` cosh :: Number -> Number `*/
+const cosh = Math.cosh
+
+/**` div :: Number -> Number -> Number `*/
+const div = (x : number) => (y : number) : number => x / y
+
+/**` rdiv :: Number -> Number -> Number `*/
+const rdiv = (y : number) => (x : number) : number => x / y
+
+/**` exp :: Number -> Number `*/
+const exp = Math.exp
+
+/**` expm1 :: Number -> Number `*/
+const expm1 = Math.expm1
+
+/**` floor :: Number -> Number `*/
+const floor = Math.floor
+
+/**` fround :: Number -> Number `*/
+const fround = Math.fround
+
+/**` ln :: Number -> Number `*/
+const ln = Math.log
+
+/**` log10 :: Number -> Number `*/
+const log10 = Math.log10
+
+/**` lnp1 :: Number -> Number `*/
+const lnp1 = Math.log1p
+
+/**` log2 :: Number -> Number `*/
+const log2 = Math.log2
+
+/**` max :: Number -> Number -> Number `*/
+const max = (x : number) => (y : number) : number => Math.max(x, y)
+
+/**` min :: Number -> Number -> Number `*/
+const min = (x : number) => (y : number) : number => Math.min(x, y)
+
+/**` mod :: Number -> Number -> Number `*/
+const mod = (x : number) => (y : number) : number => x % y
+
+/**` rmod :: Number -> Number -> Number `*/
+const rmod = (y : number) => (x : number) : number => x % y
+
+/**` mul :: Number -> Number -> Number `*/
+const mul = (x : number) => (y : number) : number => x * y
+
+/**` negate :: Number -> Number `*/
+const negate = (x : number) => -x
+
+/**` pow :: Number -> Number -> Number `*/
+const pow = (x : number) => (y : number) : number => x ** y
+
+/**` rpow :: Number -> Number -> Number `*/
+const rpow = (y : number) => (x : number) : number => x ** y
+
+/**` pythagoras :: Number -> Number -> Number `*/
+const pythagoras = (x : number) => (y : number) : number => Math.sqrt(x * x + y * y)
+
+/**` round :: Number -> Number `*/
+const round = Math.round
+
+/**` sign :: Number -> Number `*/
+const sign = Math.sign
+
+/**` sin :: Number -> Number `*/
+const sin = Math.sin
+
+/**` sinh :: Number -> Number `*/
+const sinh = Math.sinh
+
+/**` sqrt :: Number -> Number `*/
+const sqrt = Math.sqrt
+
+/**` sub :: Number -> Number -> Number `*/
+const sub = (x : number) => (y : number) : number => x - y
+
+/**` rsub :: Number -> Number -> Number `*/
+const rsub = (y : number) => (x : number) : number => x - y
+
+/**` tan :: Number -> Number `*/
+const tan = Math.tan
+
+/**` tanh :: Number -> Number `*/
+const tanh = Math.tanh
+
+/**` trunc :: Number -> Number `*/
+const trunc = Math.trunc
+
+/**` CLZ32 :: Number -> Number `*/
+const CLZ32 = Math.clz32
+
+/**` NOT :: Number -> Number `*/
+const NOT = (x : number) : number => ~x
+
+/**` AND :: Number -> Number -> Number `*/
+const AND = (x : number) => (y : number) : number => x & y
+
+/**` NAND :: Number -> Number -> Number `*/
+const NAND = (x : number) => (y : number) : number => ~(x & y)
+
+/**` OR :: Number -> Number -> Number `*/
+const OR = (x : number) => (y : number) : number => x | y
+
+/**` NOR :: Number -> Number -> Number `*/
+const NOR = (x : number) => (y : number) : number => ~(x | y)
+
+/**` XOR :: Number -> Number -> Number `*/
+const XOR = (x : number) => (y : number) : number => x ^ y
+
+/**` LSHIFT :: Number -> Number `*/
+const LSHIFT = (x : number) => (y : number) : number => x << y
+
+/**` rLSHIFT :: Number -> Number `*/
+const rLSHIFT = (y : number) => (x : number) : number => x << y
+
+/**` RSHIFT :: Number -> Number `*/
+const RSHIFT = (x : number) => (y : number) : number => x >> y
+
+/**` rRSHIFT :: Number -> Number `*/
+const rRSHIFT = (y : number) => (x : number) : number => x >> y
+
+/**` URSHIFT :: Number -> Number `*/
+const URSHIFT = (x : number) => (y : number) : number => x >>> y
+
+/**` rURSHIFT :: Number -> Number `*/
+const rURSHIFT = (y : number) => (x : number) : number => x >>> y
+
+/**` eq :: a -> a -> Boolean `*/
+const eq = <a>(x : a) => (y : a) : boolean => x === y
+
+/**` neq :: a -> a -> Boolean `*/
+const neq = <a>(x : a) => (y : a) : boolean => x !== y
+
+/**` lt :: Number -> Number -> Boolean `*/
+const lt = (x : number) => (y : number) : boolean => x < y
+
+/**` lte :: Number -> Number -> Boolean `*/
+const lte = (x : number) => (y : number) : boolean => x <= y
+
+/**` gt :: Number -> Number -> Boolean `*/
+const gt = (x : number) => (y : number) : boolean => x > y
+
+/**` gte :: Number -> Number -> Boolean `*/
+const gte = (x : number) => (y : number) : boolean => x >= y
+
+/**` not :: Boolean -> Boolean `*/
+const not = (x : boolean) : boolean => !x
+
+/**` and :: Boolean -> Boolean -> Boolean `*/
+const and = (x : boolean) => (y : boolean) : boolean => x && y
+
+/**` nand :: Boolean -> Boolean -> Boolean `*/
+const nand = (x : boolean) => (y : boolean) : boolean => !(x && y)
+
+/**` or :: Boolean -> Boolean -> Boolean `*/
+const or = (x : boolean) => (y : boolean) : boolean => x || y
+
+/**` nor :: Boolean -> Boolean -> Boolean `*/
+const nor = (x : boolean) => (y : boolean) : boolean => !(x || y)
+
+/**` xor :: Boolean -> Boolean -> Boolean `*/
+const xor = (x : boolean) => (y : boolean) : boolean => x !== y
 
 /********************************************************************************************************************************/
 
@@ -792,6 +1020,13 @@ const updateClock = (clock : Clock) => (present : number) : Clock =>
 /**` clearClock :: Clock -> Clock `*/
 const clearClock = (clock : Clock) : Clock =>
 	Clock(clock.time)(clock.delta)(0)
+
+/**` pseudoRandom :: State Number Number `*/
+const pseudoRandom : State<number, number> =
+	State(seed => [
+		(-67 * seed * seed * seed + 23 * seed * seed - 91 * seed + 73) % 65536,
+		Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536
+	])
 
 /********************************************************************************************************************************/
 

@@ -18,7 +18,83 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from) {
 var THROW = function (message) { throw new Error(message); };
 var THROWTYPE = function (message) { throw new TypeError(message); };
 var THROWRANGE = function (message) { throw new RangeError(message); };
+var E = 2.718281828459045;
+var LN2 = 0.6931471805599453;
+var LN10 = 2.302585092994046;
+var LOG2E = 1.4426950408889634;
+var LOG10E = 0.4342944819032518;
+var PI = 3.141592653589793;
 var TAU = 6.283185307179586;
+var INVSQRT2 = 0.7071067811865476;
+var SQRT2 = 1.4142135623730951;
+var abs = Math.abs;
+var acos = Math.acos;
+var acosh = Math.acosh;
+var add = function (x) { return function (y) { return x + y; }; };
+var asin = Math.asin;
+var asinh = Math.asinh;
+var atan = Math.atan;
+var atan2 = function (y) { return function (x) { return Math.atan2(y, x); }; };
+var ratan2 = function (x) { return function (y) { return Math.atan2(y, x); }; };
+var atanh = Math.atanh;
+var cbrt = Math.cbrt;
+var ceil = Math.ceil;
+var cos = Math.cos;
+var cosh = Math.cosh;
+var div = function (x) { return function (y) { return x / y; }; };
+var rdiv = function (y) { return function (x) { return x / y; }; };
+var exp = Math.exp;
+var expm1 = Math.expm1;
+var floor = Math.floor;
+var fround = Math.fround;
+var ln = Math.log;
+var log10 = Math.log10;
+var lnp1 = Math.log1p;
+var log2 = Math.log2;
+var max = function (x) { return function (y) { return Math.max(x, y); }; };
+var min = function (x) { return function (y) { return Math.min(x, y); }; };
+var mod = function (x) { return function (y) { return x % y; }; };
+var rmod = function (y) { return function (x) { return x % y; }; };
+var mul = function (x) { return function (y) { return x * y; }; };
+var negate = function (x) { return -x; };
+var pow = function (x) { return function (y) { return Math.pow(x, y); }; };
+var rpow = function (y) { return function (x) { return Math.pow(x, y); }; };
+var pythagoras = function (x) { return function (y) { return Math.sqrt(x * x + y * y); }; };
+var round = Math.round;
+var sign = Math.sign;
+var sin = Math.sin;
+var sinh = Math.sinh;
+var sqrt = Math.sqrt;
+var sub = function (x) { return function (y) { return x - y; }; };
+var rsub = function (y) { return function (x) { return x - y; }; };
+var tan = Math.tan;
+var tanh = Math.tanh;
+var trunc = Math.trunc;
+var CLZ32 = Math.clz32;
+var NOT = function (x) { return ~x; };
+var AND = function (x) { return function (y) { return x & y; }; };
+var NAND = function (x) { return function (y) { return ~(x & y); }; };
+var OR = function (x) { return function (y) { return x | y; }; };
+var NOR = function (x) { return function (y) { return ~(x | y); }; };
+var XOR = function (x) { return function (y) { return x ^ y; }; };
+var LSHIFT = function (x) { return function (y) { return x << y; }; };
+var rLSHIFT = function (y) { return function (x) { return x << y; }; };
+var RSHIFT = function (x) { return function (y) { return x >> y; }; };
+var rRSHIFT = function (y) { return function (x) { return x >> y; }; };
+var URSHIFT = function (x) { return function (y) { return x >>> y; }; };
+var rURSHIFT = function (y) { return function (x) { return x >>> y; }; };
+var eq = function (x) { return function (y) { return x === y; }; };
+var neq = function (x) { return function (y) { return x !== y; }; };
+var lt = function (x) { return function (y) { return x < y; }; };
+var lte = function (x) { return function (y) { return x <= y; }; };
+var gt = function (x) { return function (y) { return x > y; }; };
+var gte = function (x) { return function (y) { return x >= y; }; };
+var not = function (x) { return !x; };
+var and = function (x) { return function (y) { return x && y; }; };
+var nand = function (x) { return function (y) { return !(x && y); }; };
+var or = function (x) { return function (y) { return x || y; }; };
+var nor = function (x) { return function (y) { return !(x || y); }; };
+var xor = function (x) { return function (y) { return x !== y; }; };
 var IO = function (sideeffect) {
     return ({
         CONS: 'IO',
@@ -412,6 +488,10 @@ var updateClock = function (clock) { return function (present) {
 var clearClock = function (clock) {
     return Clock(clock.time)(clock.delta)(0);
 };
+var pseudoRandom = State(function (seed) { return [
+    (-67 * seed * seed * seed + 23 * seed * seed - 91 * seed + 73) % 65536,
+    Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536
+]; });
 var Do = {
     IO: IO(function () { return Object.create(null); }),
     Maybe: Just(Object.create(null)),
