@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 /** Throws am error via a function call. */
 const THROW = (message : string) =>
 	{ throw new Error(message) }
@@ -264,15 +266,8 @@ type IO<a> =
 		readonly INFO   : () => a
 		readonly bind   : <b>(reaction    : (evaluation : a) => IO<b>) => IO<b>
 		readonly fmap   : <b>(computation : (evaluation : a) =>    b ) => IO<b>
-		readonly bindto :
-			<k extends string>(name : k)
-				=> <b>(reaction : ($ : a) => IO<b>)
-				=> IO<a & { [x in k] : b }>
-		readonly fmapto :
-			<k extends string>(name : k)
-				=> <b>(computation : ($ : a) => b)
-				=> IO<a & { [x in k] : b }>
-
+		readonly bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => IO<b>) => IO<a & { [x in k] : b }>
+		readonly fmapto : <k extends string>(name : k) => <b>(computation : ($ : a) => b) => IO<a & { [x in k] : b }>
 		readonly then : <b>(successor : IO<b>) => IO<b>
 	}
 
@@ -307,57 +302,170 @@ type Maybe<a> =
 /** The `State` monad.
  * ```
  * data State s a = State (s -> (s, a))
- * (.bind)   :: State s a -> (a -> State s b) -> State s b
- * (.fmap)   :: State s a -> (a ->         b) -> State s b
- * (.bindto) :: State s $ -> String -> ($ -> State s a) -> State s $
- * (.fmapto) :: State s $ -> String -> ($ ->         b) -> State s $
- * (.then)   :: State s a -> State s b -> State s b
+ * (.bind)      :: State s a -> (a -> State s b) -> State s b
+ * (.fmap)      :: State s a -> (a ->         b) -> State s b
+ * (.bindto)    :: State s $ -> String -> ($ -> State s a) -> State s $
+ * (.fmapto)    :: State s $ -> String -> ($ ->         b) -> State s $
+ * (.then)      :: State s a -> State s b -> State s b
+ * (.runState)  :: State s a -> s -> (s, a)
+ * (.evalState) :: State s a -> s -> s
+ * (.execState) :: State s a -> s -> a
  * ```
  */
 type State<s, a> =
 	{
-		readonly CONS   : 'State'
-		readonly INFO   : (inputState : s) => [s, a]
-		readonly bind   : <b>(reaction    : (statefulComputationOutput : a) => State<s, b>) => State<s, b>
-		readonly fmap   : <b>(computation : (statefulComputationOutput : a) =>          b ) => State<s, b>
-		readonly bindto :
+		readonly CONS      : 'State'
+		readonly INFO      : (inputState : s) => [s, a]
+		readonly bind      : <b>(reaction    : (statefulComputationOutput : a) => State<s, b>) => State<s, b>
+		readonly fmap      : <b>(computation : (statefulComputationOutput : a) =>          b ) => State<s, b>
+		readonly bindto    :
 			<k extends string>(name : k)
 				=> <b>(reaction : ($ : a) => State<s, b>)
 				=> State<s, a & { [x in k] : b }>
-		readonly fmapto :
+		readonly fmapto    :
 			<k extends string>(name : k)
 				=> <b>(computation : ($ : a) => b)
 				=> State<s, a & { [x in k] : b }>
-
-		readonly then : <b>(successor : State<s, b>) => State<s, b>
+		readonly then      : <b>(successor : State<s, b>) => State<s, b>
+		readonly runState  : (initialState : s) => [s, a]
+		readonly evalState : (initialState : s) =>  s
+		readonly execState : (initialState : s) =>     a
 	}
 
-/** The `List` monad.
- * ```
- * data List a = List [a]
- * (.bind)   :: List a -> (a -> List b) -> List b
- * (.fmap)   :: List a -> (a ->      b) -> List b
- * (.bindto) :: List $ -> String -> ($ -> List b) -> List $
- * (.fmapto) :: List $ -> String -> ($ ->      b) -> List $
- * (.at)     :: List a -> Number -> a
- * ```
- */
+/** The `List` monad. */
 type List<a> =
 	{
-		readonly CONS   : 'List'
-		readonly INFO   : ReadonlyArray<a>
-		readonly bind   : <b>(reaction    : (element : a) => List<b>) => List<b>
-		readonly fmap   : <b>(computation : (element : a) =>      b ) => List<b>
-		readonly bindto :
-			<k extends string>(name : k)
-				=> <b>(reaction : ($ : a) => List<b>)
-				=> List<a & { [x in k] : b }>
-		readonly fmapto :
-			<k extends string>(name : k)
-				=> <b>(computation : ($ : a) => b)
-				=> List<a & { [x in k] : b }>
+		readonly CONS : 'List'
+		readonly INFO : ReadonlyArray<a>
 
+		/**` (List).all :: List a -> (a -> Boolean) -> Boolean `*/
+		readonly all : (predicate : (element : a) => boolean) => boolean
+
+		/**` (List).any :: List a -> (a -> Boolean) -> Boolean `*/
+		readonly any : (predicate : (element : a) => boolean) => boolean
+
+		/**` (List).append :: List a -> a -> List a `*/
+		readonly append : (element : a) => List<a>
+
+		/**` (List).at :: List a -> Number -> a `*/
 		readonly at : (index : number) => a
+
+		/**` (List).bind :: List a -> (a -> List b) -> List b `*/
+		readonly bind : <b>(reaction : (element : a) => List<b>) => List<b>
+
+		/**` (List).bindto :: List $ -> String -> ($ -> List b) -> List $ `*/
+		readonly bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => List<b>) => List<a & { [x in k] : b }>
+
+		/**` (List).break :: List a -> (a -> Boolean) -> (List a, List a) `*/
+		readonly break : (predicate : (element : a) => boolean) => [List<a>, List<a>]
+
+		/**` (List).concat :: List a -> List a -> List a `*/
+		readonly concat : (succeeding : List<a>) => List<a>
+
+		/**` (List).drop :: List a -> Number -> List a `*/
+		readonly drop : (count : number) => List<a>
+
+		/**` (List).dropWhile :: List a -> (a -> Boolean) -> List a `*/
+		readonly dropWhile : (predicate : (element : a) => boolean) => List<a>
+
+		/**` (List).elem :: List a -> a -> Boolean `*/
+		readonly elem : (match : a) => boolean
+
+		/**` (List).elemIndex :: List a -> a -> Maybe Number `*/
+		readonly elemIndex : (match : a) => Maybe<number>
+
+		/**` (List).elemIndices :: List a -> a -> List Number `*/
+		readonly elemIndices : (match : a) => List<number>
+
+		/**` (List).filter :: List a -> (a -> Boolean) -> List a `*/
+		readonly filter : (predicate : (element : a) => boolean) => List<a>
+
+		/**` (List).find :: List a -> (a -> Boolean) -> Maybe a `*/
+		readonly find : (predicate : (element : a) => boolean) => Maybe<a>
+
+		/**` (List).findIndex :: List a -> (a -> Boolean) -> Maybe Number `*/
+		readonly findIndex : (predicate : (element : a) => boolean) => Maybe<number>
+
+		/**` (List).findIndices :: List a -> (a -> Boolean) -> List Number `*/
+		readonly findIndices : (predicate : (element : a) => boolean) => List<number>
+
+		/**` (List).fmap :: List a -> (a -> b) -> List b `*/
+		readonly fmap : <b>(computation : (element : a) => b) => List<b>
+
+		/**` (List).fmapto :: List $ -> String -> ($ -> b) -> List $ `*/
+		readonly fmapto : <k extends string>(name : k) => <b>(computation : ($ : a) => b) => List<a & { [x in k] : b }>
+
+		/**` (List).foldl :: List a -> (b -> a -> b) -> b -> b `*/
+		readonly foldl : <b>(builder : (first : b) => (second : a) => b) => (initialValue : b) => b
+
+		/**` (List).foldr :: List a -> (a -> b -> b) -> b -> b `*/
+		readonly foldr : <b>(builder : (second : a) => (first : b) => b) => (initialValue : b) => b
+
+		/**` (List).foldl1 :: List a -> (a -> a -> a) -> a `*/
+		readonly foldl1 : (builder : (first : a) => (second : a) => a) => a
+
+		/**` (List).foldr1 :: List a -> (a -> a -> a) -> a `*/
+		readonly foldr1 : (builder : (second : a) => (first : a) => a) => a
+
+		/**` (List).head :: List a -> a `*/
+		readonly head : a
+
+		/**` (List).init :: List a -> List a `*/
+		readonly init : List<a>
+
+		/**` (List).inits :: List a -> List (List a) `*/
+		readonly inits : List<List<a>>
+
+		/**` (List).intersperse :: List a -> a -> List a `*/
+		readonly intersperse : (delimiter : a) => List<a>
+
+		/**` (List).last :: List a -> a `*/
+		readonly last : a
+
+		/**` (List).notElem :: List a -> a -> Boolean `*/
+		readonly notElem : (delimiter : a) => boolean
+
+		/**` (List).prepend :: List a -> a -> List a `*/
+		readonly prepend : (element : a) => List<a>
+
+		/**` (List).reverse :: List a -> List a `*/
+		readonly reverse : List<a>
+
+		/**` (List).scanl :: List a -> (b -> a -> b) -> b -> List b `*/
+		readonly scanl : <b>(builder : (first : b) => (second : a) => b) => (initialValue : b) => List<b>
+
+		/**` (List).scanr :: List a -> (a -> b -> b) -> b -> List b `*/
+		readonly scanr : <b>(builder : (second : a) => (first : b) => b) => (initialValue : b) => List<b>
+
+		/**` (List).scanl1 :: List a -> (a -> a -> a) -> List a `*/
+		readonly scanl1 : (builder : (first : a) => (second : a) => a) => List<a>
+
+		/**` (List).scanr1 :: List a -> (a -> a -> a) -> List a `*/
+		readonly scanr1 : (builder : (second : a) => (first : a) => a) => List<a>
+
+		/**` (List).span :: List a -> (a -> Boolean) -> (List a, List a) `*/
+		readonly span : (predicate : (element : a) => boolean) => [List<a>, List<a>]
+
+		/**` (List).splitAt :: List a -> Number -> (List a, List a) `*/
+		readonly splitAt : (index : number) => [List<a>, List<a>]
+
+		/**` (List).tail :: List a -> List a `*/
+		readonly tail : List<a>
+
+		/**` (List).tails :: List a -> List (List a) `*/
+		readonly tails : List<List<a>>
+
+		/**` (List).take :: List a -> Number -> List a `*/
+		readonly take : (count : number) => List<a>
+
+		/**` (List).takeWhile :: List a -> (a -> Boolean) -> List a `*/
+		readonly takeWhile : (predicate : (element : a) => boolean) => List<a>
+
+		/**` (List).zip :: List a -> List b -> List (a, b) `*/
+		readonly zip : <b>(postfixes : List<b>) => List<[a, b]>
+
+		/**` (List).zipWith :: List a -> List b -> (a -> b -> c) -> List c `*/
+		readonly zipWith : <b>(postfixes : List<b>) => <c>(builder : (firstElement : a) => (secondElement : b) => c) => List<c>
 	}
 
 /** `Vector2D` data-type used for two-dimensional linear algebra.
@@ -586,7 +694,6 @@ const IO = <a>(sideeffect : () => a) : IO<a> =>
 				const $ = sideeffect()
 				return { ...$, [x]: f($) } as any
 			}),
-
 		then : x => IO(() => (sideeffect(), x.INFO()))
 	})
 
@@ -627,48 +734,172 @@ const Just = <a>(value : a) : Maybe<a> =>
 /**` State :: (s -> (s, a)) -> State s a `*/
 const State = <s, a>(statefulComputation : (inputState : s) => [s, a]) : State<s, a> =>
 	({
-		CONS   : 'State',
-		INFO   : statefulComputation,
-		bind   : f =>
+		CONS      : 'State',
+		INFO      : statefulComputation,
+		bind      : f =>
 			State(x => {
 				const [y, z] = statefulComputation(x)
 				return f(z).INFO(y)
 			}),
-		fmap   : f =>
+		fmap      : f =>
 			State(x => {
 				const [y, z] = statefulComputation(x)
 				return [y, f(z)]
 			}),
-		bindto : k => f =>
+		bindto    : k => f =>
 			State(x => {
 				const [y, $] = statefulComputation(x)
 				const [z, w] = f($).INFO(y)
 				return [z, { ...$, [k]: w }] as any
 			}),
-		fmapto : k => f =>
+		fmapto    : k => f =>
 			State(x => {
 				const [y, $] = statefulComputation(x)
 				return [y, { ...$, [k]: f($) }] as any
 			}),
-
-		then : s => State(x => s.INFO(statefulComputation(x)[0]))
+		then      : s => State(x => s.INFO(statefulComputation(x)[0])),
+		runState  : s => statefulComputation(s),
+		evalState : s => statefulComputation(s)[0],
+		execState : s => statefulComputation(s)[1]
 	})
 
 /**` List :: [a] -> List a `*/
 const List = <a>(...elements : ReadonlyArray<a>) : List<a> =>
 	({
-		CONS   : 'List',
-		INFO   : elements,
-		bind   : f    => List(...elements.flatMap(x => f(x).INFO)),
-		fmap   : f => List(...elements.map(x => f(x))),
-		bindto : k => f =>
-			List(...elements.flatMap($ => f($).INFO.map(x => ({ ...$, [k]: x })))) as any,
-		fmapto : k => f =>
-			List(...elements.map($ => ({ ...$, [k]: f($) }))) as any,
+		CONS : 'List',
+		INFO : elements,
+		all : f => elements.every(x => f(x)),
+		any : f => elements.some(x => f(x)),
+		append : x => List(...elements, x),
 		at : i =>
-			elements[i] === undefined
-				? THROWRANGE(`Out of bounds index (${i}) occured with 'List' monad; indexing returned 'undefined'`)
-				: elements[i] as a
+			i < elements.length && i >= 0
+				? elements[i] as a
+				: THROWRANGE(`Cannot retrive element at index '${i}' in 'List' of length '${elements.length}'`),
+		bind : f => List(...elements.flatMap(x => f(x).INFO)),
+		bindto : k => f => List(...elements.flatMap($ => f($).INFO.map(x => ({ ...$, [k]: x })))) as any,
+		break : f =>
+		{
+			const i = elements.findIndex(x => f(x))
+			return ~i
+				? [List(...elements.slice(0, i)), List(...elements.slice(i))]
+				: [List(...elements), List()]
+		},
+		concat : xs => List(...elements, ...xs.INFO),
+		drop : x => List(...elements.slice(Math.max(0, x))),
+		dropWhile : f =>
+		{
+			const i = elements.findIndex(x => !f(x))
+			return List(...(~i ? elements.slice(i) : []))
+		},
+		elem : x => elements.includes(x),
+		elemIndex : x =>
+		{
+			const i = elements.indexOf(x)
+			return ~i ? Just(i) : Nothing
+		},
+		elemIndices : x =>
+		{
+			const is : Array<number> = []
+			elements.forEach((y, i) => {
+				if (x === y) is.push(i)
+			})
+			return List(...is)
+		},
+		filter : f => List(...elements.filter(x => f(x))),
+		find : f =>
+		{
+			const x = elements.find(y => f(y))
+			return x === undefined ? Nothing : Just(x)
+		},
+		findIndex : f =>
+		{
+			const i = elements.findIndex(y => f(y))
+			return ~i ? Just(i) : Nothing
+		},
+		findIndices : f =>
+		{
+			const is : Array<number> = []
+			elements.forEach((y, i) => {
+				if (f(y)) is.push(i)
+			})
+			return List(...is)
+		},
+		fmap : f => List(...elements.map(x => f(x))),
+		fmapto : k => f => List(...elements.map($ => ({ ...$, [k]: f($) }))) as any,
+		foldl : f => x => elements.reduce((y, z) => f(y)(z), x),
+		foldr : f => x => elements.reduceRight((y, z) => f(z)(y), x),
+		foldl1 : f =>
+			elements.length
+				? elements.reduce((y, z) => f(y)(z))
+				: THROWRANGE(`Cannot 'foldl1' on an empty 'List'`),
+		foldr1 : f =>
+			elements.length
+				? elements.reduceRight((y, z) => f(z)(y))
+				: THROWRANGE(`Cannot 'foldr1' on an empty 'List'`),
+		get head()
+		{
+			return elements.length
+				? elements[0] as a
+				: THROWRANGE(`Cannot get 'head' of an empty 'List'`)
+		},
+		get init()
+		{
+			return List(...elements.slice(0, -1))
+		},
+		get inits()
+		{
+			return List(...Array(elements.length + 1).fill(null).map((_, i) => List(...elements.slice(0, i))))
+		},
+		intersperse : x =>
+			List(...Array(Math.max(0, elements.length * 2 - 1)).fill(null).map((_, i) => i % 2 ? x : elements[i / 2] as a)),
+		get last()
+		{
+			return elements.length
+				? elements[elements.length - 1] as a
+				: THROWRANGE(`Cannot get 'last' of an empty 'List'`)
+		},
+		notElem : x => !elements.includes(x),
+		prepend : x => List(x, ...elements),
+		get reverse()
+		{
+			return List(...elements.slice().reverse())
+		},
+		scanl : f => x => List(...elements.reduce((y, z) => y.concat(f(y[y.length - 1]!)(z)), [x])),
+		scanr : f => x => List(...elements.reduceRight((y, z) => [f(z)(y[0]!)].concat(y), [x])),
+		scanl1 : f =>
+			List(...elements.slice(1).reduce((x, y) => x.concat(f(x[x.length - 1]!)(y)), [elements[0] as a])),
+		scanr1 : f =>
+			List(...elements.slice(0, -1).reduceRight((x, y) => [f(y)(x[0]!)].concat(x), [elements[elements.length - 1] as a])),
+		span : f =>
+		{
+			const i = elements.findIndex(x => !f(x))
+			return ~i
+				? [List(...elements.slice(0, i)), List(...elements.slice(i))]
+				: [List(), List(...elements)]
+		},
+		splitAt : i => [List(...elements.slice(0, Math.max(0, i))), List(...elements.slice(Math.max(0, i)))],
+		get tail()
+		{
+			return elements.length
+				? List(...elements.slice(1))
+				: THROWRANGE(`Cannot get 'tail' of an empty 'List'`)
+		},
+		get tails()
+		{
+			return List(...Array(elements.length + 1).fill(null).map((_, i) => List(...elements.slice(i))))
+		},
+		take : x => List(...elements.slice(0, Math.max(0, x))),
+		takeWhile : f =>
+		{
+			const i = elements.findIndex(x => !f(x))
+			return ~i
+				? List(...elements.slice(0, i))
+				: List(...elements)
+		},
+		zip : xs =>
+			List(...Array(Math.min(elements.length, xs.INFO.length)).fill(null).map((_, i) => [elements[i], xs.INFO[i]] as any)),
+		zipWith : xs => f =>
+			List(...Array(Math.min(elements.length, xs.INFO.length)).fill(null).map((_, i) => f(elements[i]!)(xs.INFO[i]!)))
 	})
 
 /**` Vector2D :: Number -> Number -> Vector2D `*/
@@ -1012,14 +1243,6 @@ const bijectionCompositionOperation : Bijection<CompositionOperation, string> =
 		.of(CompositionOperation.Saturation)      ('saturation')
 		.of(CompositionOperation.Color)           ('color')
 		.of(CompositionOperation.Luminosity)      ('luminosity')
-
-/**` updateClock :: Clock -> Number -> Clock `*/
-const updateClock = (clock : Clock) => (present : number) : Clock =>
-	Clock(present)(present - clock.time)(clock.counter + present - clock.time)
-
-/**` clearClock :: Clock -> Clock `*/
-const clearClock = (clock : Clock) : Clock =>
-	Clock(clock.time)(clock.delta)(0)
 
 /**` pseudoRandom :: State Number Number `*/
 const pseudoRandom : State<number, number> =

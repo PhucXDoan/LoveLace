@@ -1,351 +1,347 @@
 "use strict";
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-var __spreadArray = (this && this.__spreadArray) || function (to, from) {
-    for (var i = 0, il = from.length, j = to.length; i < il; i++, j++)
-        to[j] = from[i];
-    return to;
-};
-var THROW = function (message) { throw new Error(message); };
-var THROWTYPE = function (message) { throw new TypeError(message); };
-var THROWRANGE = function (message) { throw new RangeError(message); };
-var E = 2.718281828459045;
-var LN2 = 0.6931471805599453;
-var LN10 = 2.302585092994046;
-var LOG2E = 1.4426950408889634;
-var LOG10E = 0.4342944819032518;
-var PI = 3.141592653589793;
-var TAU = 6.283185307179586;
-var INVSQRT2 = 0.7071067811865476;
-var SQRT2 = 1.4142135623730951;
-var abs = Math.abs;
-var acos = Math.acos;
-var acosh = Math.acosh;
-var add = function (x) { return function (y) { return x + y; }; };
-var asin = Math.asin;
-var asinh = Math.asinh;
-var atan = Math.atan;
-var atan2 = function (y) { return function (x) { return Math.atan2(y, x); }; };
-var ratan2 = function (x) { return function (y) { return Math.atan2(y, x); }; };
-var atanh = Math.atanh;
-var cbrt = Math.cbrt;
-var ceil = Math.ceil;
-var cos = Math.cos;
-var cosh = Math.cosh;
-var div = function (x) { return function (y) { return x / y; }; };
-var rdiv = function (y) { return function (x) { return x / y; }; };
-var exp = Math.exp;
-var expm1 = Math.expm1;
-var floor = Math.floor;
-var fround = Math.fround;
-var ln = Math.log;
-var log10 = Math.log10;
-var lnp1 = Math.log1p;
-var log2 = Math.log2;
-var max = function (x) { return function (y) { return Math.max(x, y); }; };
-var min = function (x) { return function (y) { return Math.min(x, y); }; };
-var mod = function (x) { return function (y) { return x % y; }; };
-var rmod = function (y) { return function (x) { return x % y; }; };
-var mul = function (x) { return function (y) { return x * y; }; };
-var negate = function (x) { return -x; };
-var pow = function (x) { return function (y) { return Math.pow(x, y); }; };
-var rpow = function (y) { return function (x) { return Math.pow(x, y); }; };
-var pythagoras = function (x) { return function (y) { return Math.sqrt(x * x + y * y); }; };
-var round = Math.round;
-var sign = Math.sign;
-var sin = Math.sin;
-var sinh = Math.sinh;
-var sqrt = Math.sqrt;
-var sub = function (x) { return function (y) { return x - y; }; };
-var rsub = function (y) { return function (x) { return x - y; }; };
-var tan = Math.tan;
-var tanh = Math.tanh;
-var trunc = Math.trunc;
-var CLZ32 = Math.clz32;
-var NOT = function (x) { return ~x; };
-var AND = function (x) { return function (y) { return x & y; }; };
-var NAND = function (x) { return function (y) { return ~(x & y); }; };
-var OR = function (x) { return function (y) { return x | y; }; };
-var NOR = function (x) { return function (y) { return ~(x | y); }; };
-var XOR = function (x) { return function (y) { return x ^ y; }; };
-var LSHIFT = function (x) { return function (y) { return x << y; }; };
-var rLSHIFT = function (y) { return function (x) { return x << y; }; };
-var RSHIFT = function (x) { return function (y) { return x >> y; }; };
-var rRSHIFT = function (y) { return function (x) { return x >> y; }; };
-var URSHIFT = function (x) { return function (y) { return x >>> y; }; };
-var rURSHIFT = function (y) { return function (x) { return x >>> y; }; };
-var eq = function (x) { return function (y) { return x === y; }; };
-var neq = function (x) { return function (y) { return x !== y; }; };
-var lt = function (x) { return function (y) { return x < y; }; };
-var lte = function (x) { return function (y) { return x <= y; }; };
-var gt = function (x) { return function (y) { return x > y; }; };
-var gte = function (x) { return function (y) { return x >= y; }; };
-var not = function (x) { return !x; };
-var and = function (x) { return function (y) { return x && y; }; };
-var nand = function (x) { return function (y) { return !(x && y); }; };
-var or = function (x) { return function (y) { return x || y; }; };
-var nor = function (x) { return function (y) { return !(x || y); }; };
-var xor = function (x) { return function (y) { return x !== y; }; };
-var IO = function (sideeffect) {
-    return ({
-        CONS: 'IO',
-        INFO: sideeffect,
-        bind: function (f) { return IO(function () { return f(sideeffect()).INFO(); }); },
-        fmap: function (f) { return IO(function () { return f(sideeffect()); }); },
-        bindto: function (x) { return function (f) {
-            return IO(function () {
-                var _a;
-                var $ = sideeffect();
-                return __assign(__assign({}, $), (_a = {}, _a[x] = f($).INFO(), _a));
-            });
-        }; },
-        fmapto: function (x) { return function (f) {
-            return IO(function () {
-                var _a;
-                var $ = sideeffect();
-                return __assign(__assign({}, $), (_a = {}, _a[x] = f($), _a));
-            });
-        }; },
-        then: function (x) { return IO(function () { return (sideeffect(), x.INFO()); }); }
-    });
-};
-var Nothing = {
+const THROW = (message) => { throw new Error(message); };
+const THROWTYPE = (message) => { throw new TypeError(message); };
+const THROWRANGE = (message) => { throw new RangeError(message); };
+const E = 2.718281828459045;
+const LN2 = 0.6931471805599453;
+const LN10 = 2.302585092994046;
+const LOG2E = 1.4426950408889634;
+const LOG10E = 0.4342944819032518;
+const PI = 3.141592653589793;
+const TAU = 6.283185307179586;
+const INVSQRT2 = 0.7071067811865476;
+const SQRT2 = 1.4142135623730951;
+const abs = Math.abs;
+const acos = Math.acos;
+const acosh = Math.acosh;
+const add = (x) => (y) => x + y;
+const asin = Math.asin;
+const asinh = Math.asinh;
+const atan = Math.atan;
+const atan2 = (y) => (x) => Math.atan2(y, x);
+const ratan2 = (x) => (y) => Math.atan2(y, x);
+const atanh = Math.atanh;
+const cbrt = Math.cbrt;
+const ceil = Math.ceil;
+const cos = Math.cos;
+const cosh = Math.cosh;
+const div = (x) => (y) => x / y;
+const rdiv = (y) => (x) => x / y;
+const exp = Math.exp;
+const expm1 = Math.expm1;
+const floor = Math.floor;
+const fround = Math.fround;
+const ln = Math.log;
+const log10 = Math.log10;
+const lnp1 = Math.log1p;
+const log2 = Math.log2;
+const max = (x) => (y) => Math.max(x, y);
+const min = (x) => (y) => Math.min(x, y);
+const mod = (x) => (y) => x % y;
+const rmod = (y) => (x) => x % y;
+const mul = (x) => (y) => x * y;
+const negate = (x) => -x;
+const pow = (x) => (y) => Math.pow(x, y);
+const rpow = (y) => (x) => Math.pow(x, y);
+const pythagoras = (x) => (y) => Math.sqrt(x * x + y * y);
+const round = Math.round;
+const sign = Math.sign;
+const sin = Math.sin;
+const sinh = Math.sinh;
+const sqrt = Math.sqrt;
+const sub = (x) => (y) => x - y;
+const rsub = (y) => (x) => x - y;
+const tan = Math.tan;
+const tanh = Math.tanh;
+const trunc = Math.trunc;
+const CLZ32 = Math.clz32;
+const NOT = (x) => ~x;
+const AND = (x) => (y) => x & y;
+const NAND = (x) => (y) => ~(x & y);
+const OR = (x) => (y) => x | y;
+const NOR = (x) => (y) => ~(x | y);
+const XOR = (x) => (y) => x ^ y;
+const LSHIFT = (x) => (y) => x << y;
+const rLSHIFT = (y) => (x) => x << y;
+const RSHIFT = (x) => (y) => x >> y;
+const rRSHIFT = (y) => (x) => x >> y;
+const URSHIFT = (x) => (y) => x >>> y;
+const rURSHIFT = (y) => (x) => x >>> y;
+const eq = (x) => (y) => x === y;
+const neq = (x) => (y) => x !== y;
+const lt = (x) => (y) => x < y;
+const lte = (x) => (y) => x <= y;
+const gt = (x) => (y) => x > y;
+const gte = (x) => (y) => x >= y;
+const not = (x) => !x;
+const and = (x) => (y) => x && y;
+const nand = (x) => (y) => !(x && y);
+const or = (x) => (y) => x || y;
+const nor = (x) => (y) => !(x || y);
+const xor = (x) => (y) => x !== y;
+const IO = (sideeffect) => ({
+    CONS: 'IO',
+    INFO: sideeffect,
+    bind: f => IO(() => f(sideeffect()).INFO()),
+    fmap: f => IO(() => f(sideeffect())),
+    bindto: x => f => IO(() => {
+        const $ = sideeffect();
+        return Object.assign(Object.assign({}, $), { [x]: f($).INFO() });
+    }),
+    fmapto: x => f => IO(() => {
+        const $ = sideeffect();
+        return Object.assign(Object.assign({}, $), { [x]: f($) });
+    }),
+    then: x => IO(() => (sideeffect(), x.INFO()))
+});
+const Nothing = {
     CONS: 'Nothing',
-    bind: function (_) { return Nothing; },
-    fmap: function (_) { return Nothing; },
-    bindto: function (_) { return function (_) { return Nothing; }; },
-    fmapto: function (_) { return function (_) { return Nothing; }; }
+    bind: _ => Nothing,
+    fmap: _ => Nothing,
+    bindto: _ => _ => Nothing,
+    fmapto: _ => _ => Nothing
 };
-var Just = function (value) {
-    return ({
-        CONS: 'Just',
-        INFO: value,
-        bind: function (f) {
-            var x = f(value);
-            return x.CONS === 'Nothing'
-                ? Nothing
-                : x;
-        },
-        fmap: function (f) { return Just(f(value)); },
-        bindto: function (x) { return function (f) {
-            var _a;
-            var y = f(value);
-            return y.CONS === 'Nothing'
-                ? Nothing
-                : Just(__assign(__assign({}, value), (_a = {}, _a[x] = y.INFO, _a)));
-        }; },
-        fmapto: function (x) { return function (f) {
-            var _a;
-            return Just(__assign(__assign({}, value), (_a = {}, _a[x] = f(value), _a)));
-        }; }
-    });
-};
-var State = function (statefulComputation) {
-    return ({
-        CONS: 'State',
-        INFO: statefulComputation,
-        bind: function (f) {
-            return State(function (x) {
-                var _a = statefulComputation(x), y = _a[0], z = _a[1];
-                return f(z).INFO(y);
-            });
-        },
-        fmap: function (f) {
-            return State(function (x) {
-                var _a = statefulComputation(x), y = _a[0], z = _a[1];
-                return [y, f(z)];
-            });
-        },
-        bindto: function (k) { return function (f) {
-            return State(function (x) {
-                var _a;
-                var _b = statefulComputation(x), y = _b[0], $ = _b[1];
-                var _c = f($).INFO(y), z = _c[0], w = _c[1];
-                return [z, __assign(__assign({}, $), (_a = {}, _a[k] = w, _a))];
-            });
-        }; },
-        fmapto: function (k) { return function (f) {
-            return State(function (x) {
-                var _a;
-                var _b = statefulComputation(x), y = _b[0], $ = _b[1];
-                return [y, __assign(__assign({}, $), (_a = {}, _a[k] = f($), _a))];
-            });
-        }; },
-        then: function (s) { return State(function (x) { return s.INFO(statefulComputation(x)[0]); }); }
-    });
-};
-var List = function () {
-    var elements = [];
-    for (var _i = 0; _i < arguments.length; _i++) {
-        elements[_i] = arguments[_i];
-    }
-    return ({
-        CONS: 'List',
-        INFO: elements,
-        bind: function (f) { return List.apply(void 0, elements.flatMap(function (x) { return f(x).INFO; })); },
-        fmap: function (f) { return List.apply(void 0, elements.map(function (x) { return f(x); })); },
-        bindto: function (k) { return function (f) {
-            return List.apply(void 0, elements.flatMap(function ($) { return f($).INFO.map(function (x) {
-                var _a;
-                return (__assign(__assign({}, $), (_a = {}, _a[k] = x, _a)));
-            }); }));
-        }; },
-        fmapto: function (k) { return function (f) {
-            return List.apply(void 0, elements.map(function ($) {
-                var _a;
-                return (__assign(__assign({}, $), (_a = {}, _a[k] = f($), _a)));
-            }));
-        }; },
-        at: function (i) {
-            return elements[i] === undefined
-                ? THROWRANGE("Out of bounds index (" + i + ") occured with 'List' monad; indexing returned 'undefined'")
-                : elements[i];
-        }
-    });
-};
-var Vector2D = function (x) { return function (y) {
-    return ({
-        CONS: 'Vector2D',
-        x: x, y: y
-    });
-}; };
-var Vector3D = function (x) { return function (y) { return function (z) {
-    return ({
-        CONS: 'Vector3D',
-        x: x, y: y, z: z
-    });
-}; }; };
-var Vector4D = function (x) { return function (y) { return function (z) { return function (w) {
-    return ({
-        CONS: 'Vector4D',
-        x: x, y: y, z: z, w: w
-    });
-}; }; }; };
-var Matrix2x2 = function (ix) { return function (jx) {
-    return function (iy) { return function (jy) {
-        return ({
-            CONS: 'Matrix2x2',
-            ix: ix, jx: jx,
-            iy: iy, jy: jy,
-            i: Vector2D(ix)(iy), j: Vector2D(jx)(jy),
-            x: Vector2D(ix)(jx), y: Vector2D(iy)(jy)
+const Just = (value) => ({
+    CONS: 'Just',
+    INFO: value,
+    bind: f => {
+        const x = f(value);
+        return x.CONS === 'Nothing'
+            ? Nothing
+            : x;
+    },
+    fmap: f => Just(f(value)),
+    bindto: x => f => {
+        const y = f(value);
+        return y.CONS === 'Nothing'
+            ? Nothing
+            : Just(Object.assign(Object.assign({}, value), { [x]: y.INFO }));
+    },
+    fmapto: x => f => Just(Object.assign(Object.assign({}, value), { [x]: f(value) }))
+});
+const State = (statefulComputation) => ({
+    CONS: 'State',
+    INFO: statefulComputation,
+    bind: f => State(x => {
+        const [y, z] = statefulComputation(x);
+        return f(z).INFO(y);
+    }),
+    fmap: f => State(x => {
+        const [y, z] = statefulComputation(x);
+        return [y, f(z)];
+    }),
+    bindto: k => f => State(x => {
+        const [y, $] = statefulComputation(x);
+        const [z, w] = f($).INFO(y);
+        return [z, Object.assign(Object.assign({}, $), { [k]: w })];
+    }),
+    fmapto: k => f => State(x => {
+        const [y, $] = statefulComputation(x);
+        return [y, Object.assign(Object.assign({}, $), { [k]: f($) })];
+    }),
+    then: s => State(x => s.INFO(statefulComputation(x)[0])),
+    runState: s => statefulComputation(s),
+    evalState: s => statefulComputation(s)[0],
+    execState: s => statefulComputation(s)[1]
+});
+const List = (...elements) => ({
+    CONS: 'List',
+    INFO: elements,
+    all: f => elements.every(x => f(x)),
+    any: f => elements.some(x => f(x)),
+    append: x => List(...elements, x),
+    at: i => i < elements.length && i >= 0
+        ? elements[i]
+        : THROWRANGE(`Cannot retrive element at index '${i}' in 'List' of length '${elements.length}'`),
+    bind: f => List(...elements.flatMap(x => f(x).INFO)),
+    bindto: k => f => List(...elements.flatMap($ => f($).INFO.map(x => (Object.assign(Object.assign({}, $), { [k]: x }))))),
+    break: f => {
+        const i = elements.findIndex(x => f(x));
+        return ~i
+            ? [List(...elements.slice(0, i)), List(...elements.slice(i))]
+            : [List(...elements), List()];
+    },
+    concat: xs => List(...elements, ...xs.INFO),
+    drop: x => List(...elements.slice(Math.max(0, x))),
+    dropWhile: f => {
+        const i = elements.findIndex(x => !f(x));
+        return List(...(~i ? elements.slice(i) : []));
+    },
+    elem: x => elements.includes(x),
+    elemIndex: x => {
+        const i = elements.indexOf(x);
+        return ~i ? Just(i) : Nothing;
+    },
+    elemIndices: x => {
+        const is = [];
+        elements.forEach((y, i) => {
+            if (x === y)
+                is.push(i);
         });
-    }; };
-}; };
-var Matrix2D = function (i) { return function (j) {
-    return Matrix2x2(i.x)(j.x)(i.y)(j.y);
-}; };
-var Matrix3x3 = function (ix) { return function (jx) { return function (kx) {
-    return function (iy) { return function (jy) { return function (ky) {
-        return function (iz) { return function (jz) { return function (kz) {
-            return ({
-                CONS: 'Matrix3x3',
-                ix: ix, jx: jx, kx: kx,
-                iy: iy, jy: jy, ky: ky,
-                iz: iz, jz: jz, kz: kz,
-                i: Vector3D(ix)(iy)(iz), j: Vector3D(jx)(jy)(jz), k: Vector3D(kx)(ky)(kz),
-                x: Vector3D(ix)(jx)(kx), y: Vector3D(iy)(jy)(ky), z: Vector3D(iz)(jz)(kz)
-            });
-        }; }; };
-    }; }; };
-}; }; };
-var Matrix3D = function (i) { return function (j) { return function (k) {
-    return Matrix3x3(i.x)(j.x)(k.x)(i.y)(j.y)(k.y)(i.z)(j.z)(k.z);
-}; }; };
-var Matrix4x4 = function (ix) { return function (jx) { return function (kx) { return function (lx) {
-    return function (iy) { return function (jy) { return function (ky) { return function (ly) {
-        return function (iz) { return function (jz) { return function (kz) { return function (lz) {
-            return function (iw) { return function (jw) { return function (kw) { return function (lw) {
-                return ({
-                    CONS: 'Matrix4x4',
-                    ix: ix, jx: jx, kx: kx, lx: lx,
-                    iy: iy, jy: jy, ky: ky, ly: ly,
-                    iz: iz, jz: jz, kz: kz, lz: lz,
-                    iw: iw, jw: jw, kw: kw, lw: lw,
-                    i: Vector4D(ix)(iy)(iz)(iw), j: Vector4D(jx)(jy)(jz)(jw), k: Vector4D(kx)(ky)(kz)(kw), l: Vector4D(lx)(ly)(lz)(lw),
-                    x: Vector4D(ix)(jx)(kx)(lx), y: Vector4D(iy)(jy)(ky)(ly), z: Vector4D(iz)(jz)(kz)(lz), w: Vector4D(iw)(jw)(kw)(lw)
-                });
-            }; }; }; };
-        }; }; }; };
-    }; }; }; };
-}; }; }; };
-var Matrix4D = function (i) { return function (j) { return function (k) { return function (l) {
-    return Matrix4x4(i.x)(j.x)(k.x)(l.x)(i.y)(j.y)(k.y)(l.y)(i.z)(j.z)(k.z)(l.z)(i.w)(j.w)(k.w)(l.w);
-}; }; }; };
-var TextMeasurement = function (text) { return function (width) { return function (height) {
-    return ({
-        CONS: 'TextMeasurement',
-        text: text, width: width, height: height
-    });
-}; }; };
-var Switch = function (f) {
-    return ({
-        CONS: 'Switch',
-        "case": function (x) { return function (y) {
-            return Switch(function (z) {
-                var w = f(z);
-                return w === undefined && z === x ? y() : w;
-            });
-        }; },
-        fall: function (x) { return Switch(function (y) {
-            var z = f(y);
-            return z === undefined ? x() : z;
-        }); },
-        "with": function (x) {
-            var y = f(x);
-            return y === undefined
-                ? THROWRANGE("'Switch' did not cover all cases; missing case on value: '" + x + "'")
-                : y;
-        },
-        thru: function (x) {
-            var y = f(x);
-            return y === undefined ? x : y;
-        }
-    });
-};
-Switch["case"] = function (domain) { return function (codomain) {
-    return Switch(function (x) { return x === domain ? codomain() : undefined; });
-}; };
-var Bijection = function (pairs) {
-    return ({
-        CONS: 'Bijection',
-        INFO: pairs,
-        of: function (x) { return function (y) { return Bijection(__spreadArray(__spreadArray([], pairs), [[x, y]])); }; },
-        domain: function (x) {
-            var y = pairs.find(function (_a) {
-                var z = _a[0], _ = _a[1];
-                return z === x;
-            });
-            return y === undefined
-                ? THROWRANGE("'Bijection' did not have a well-defined enough domain for value: '" + x + "'")
-                : y[1];
-        },
-        codomain: function (x) {
-            var y = pairs.find(function (_a) {
-                var _ = _a[0], z = _a[1];
-                return z === x;
-            });
-            return y === undefined
-                ? THROWRANGE("'Bijection' did not have a well-defined enough codomain for value: '" + x + "'")
-                : y[0];
-        }
-    });
-};
-Bijection.of = function (domainValue) { return function (codomainValue) {
-    return Bijection([[domainValue, codomainValue]]);
-}; };
-var Clock = function (time) { return function (delta) { return function (counter) {
-    return ({ CONS: 'Clock', time: time, delta: delta, counter: counter });
-}; }; };
+        return List(...is);
+    },
+    filter: f => List(...elements.filter(x => f(x))),
+    find: f => {
+        const x = elements.find(y => f(y));
+        return x === undefined ? Nothing : Just(x);
+    },
+    findIndex: f => {
+        const i = elements.findIndex(y => f(y));
+        return ~i ? Just(i) : Nothing;
+    },
+    findIndices: f => {
+        const is = [];
+        elements.forEach((y, i) => {
+            if (f(y))
+                is.push(i);
+        });
+        return List(...is);
+    },
+    fmap: f => List(...elements.map(x => f(x))),
+    fmapto: k => f => List(...elements.map($ => (Object.assign(Object.assign({}, $), { [k]: f($) })))),
+    foldl: f => x => elements.reduce((y, z) => f(y)(z), x),
+    foldr: f => x => elements.reduceRight((y, z) => f(z)(y), x),
+    foldl1: f => elements.length
+        ? elements.reduce((y, z) => f(y)(z))
+        : THROWRANGE(`Cannot 'foldl1' on an empty 'List'`),
+    foldr1: f => elements.length
+        ? elements.reduceRight((y, z) => f(z)(y))
+        : THROWRANGE(`Cannot 'foldr1' on an empty 'List'`),
+    get head() {
+        return elements.length
+            ? elements[0]
+            : THROWRANGE(`Cannot get 'head' of an empty 'List'`);
+    },
+    get init() {
+        return List(...elements.slice(0, -1));
+    },
+    get inits() {
+        return List(...Array(elements.length + 1).fill(null).map((_, i) => List(...elements.slice(0, i))));
+    },
+    intersperse: x => List(...Array(Math.max(0, elements.length * 2 - 1)).fill(null).map((_, i) => i % 2 ? x : elements[i / 2])),
+    get last() {
+        return elements.length
+            ? elements[elements.length - 1]
+            : THROWRANGE(`Cannot get 'last' of an empty 'List'`);
+    },
+    notElem: x => !elements.includes(x),
+    prepend: x => List(x, ...elements),
+    get reverse() {
+        return List(...elements.slice().reverse());
+    },
+    scanl: f => x => List(...elements.reduce((y, z) => y.concat(f(y[y.length - 1])(z)), [x])),
+    scanr: f => x => List(...elements.reduceRight((y, z) => [f(z)(y[0])].concat(y), [x])),
+    scanl1: f => List(...elements.slice(1).reduce((x, y) => x.concat(f(x[x.length - 1])(y)), [elements[0]])),
+    scanr1: f => List(...elements.slice(0, -1).reduceRight((x, y) => [f(y)(x[0])].concat(x), [elements[elements.length - 1]])),
+    span: f => {
+        const i = elements.findIndex(x => !f(x));
+        return ~i
+            ? [List(...elements.slice(0, i)), List(...elements.slice(i))]
+            : [List(), List(...elements)];
+    },
+    splitAt: i => [List(...elements.slice(0, Math.max(0, i))), List(...elements.slice(Math.max(0, i)))],
+    get tail() {
+        return elements.length
+            ? List(...elements.slice(1))
+            : THROWRANGE(`Cannot get 'tail' of an empty 'List'`);
+    },
+    get tails() {
+        return List(...Array(elements.length + 1).fill(null).map((_, i) => List(...elements.slice(i))));
+    },
+    take: x => List(...elements.slice(0, Math.max(0, x))),
+    takeWhile: f => {
+        const i = elements.findIndex(x => !f(x));
+        return ~i
+            ? List(...elements.slice(0, i))
+            : List(...elements);
+    },
+    zip: xs => List(...Array(Math.min(elements.length, xs.INFO.length)).fill(null).map((_, i) => [elements[i], xs.INFO[i]])),
+    zipWith: xs => f => List(...Array(Math.min(elements.length, xs.INFO.length)).fill(null).map((_, i) => f(elements[i])(xs.INFO[i])))
+});
+const Vector2D = (x) => (y) => ({
+    CONS: 'Vector2D',
+    x, y
+});
+const Vector3D = (x) => (y) => (z) => ({
+    CONS: 'Vector3D',
+    x, y, z
+});
+const Vector4D = (x) => (y) => (z) => (w) => ({
+    CONS: 'Vector4D',
+    x, y, z, w
+});
+const Matrix2x2 = (ix) => (jx) => (iy) => (jy) => ({
+    CONS: 'Matrix2x2',
+    ix, jx,
+    iy, jy,
+    i: Vector2D(ix)(iy), j: Vector2D(jx)(jy),
+    x: Vector2D(ix)(jx), y: Vector2D(iy)(jy)
+});
+const Matrix2D = (i) => (j) => Matrix2x2(i.x)(j.x)(i.y)(j.y);
+const Matrix3x3 = (ix) => (jx) => (kx) => (iy) => (jy) => (ky) => (iz) => (jz) => (kz) => ({
+    CONS: 'Matrix3x3',
+    ix, jx, kx,
+    iy, jy, ky,
+    iz, jz, kz,
+    i: Vector3D(ix)(iy)(iz), j: Vector3D(jx)(jy)(jz), k: Vector3D(kx)(ky)(kz),
+    x: Vector3D(ix)(jx)(kx), y: Vector3D(iy)(jy)(ky), z: Vector3D(iz)(jz)(kz)
+});
+const Matrix3D = (i) => (j) => (k) => Matrix3x3(i.x)(j.x)(k.x)(i.y)(j.y)(k.y)(i.z)(j.z)(k.z);
+const Matrix4x4 = (ix) => (jx) => (kx) => (lx) => (iy) => (jy) => (ky) => (ly) => (iz) => (jz) => (kz) => (lz) => (iw) => (jw) => (kw) => (lw) => ({
+    CONS: 'Matrix4x4',
+    ix, jx, kx, lx,
+    iy, jy, ky, ly,
+    iz, jz, kz, lz,
+    iw, jw, kw, lw,
+    i: Vector4D(ix)(iy)(iz)(iw), j: Vector4D(jx)(jy)(jz)(jw), k: Vector4D(kx)(ky)(kz)(kw), l: Vector4D(lx)(ly)(lz)(lw),
+    x: Vector4D(ix)(jx)(kx)(lx), y: Vector4D(iy)(jy)(ky)(ly), z: Vector4D(iz)(jz)(kz)(lz), w: Vector4D(iw)(jw)(kw)(lw)
+});
+const Matrix4D = (i) => (j) => (k) => (l) => Matrix4x4(i.x)(j.x)(k.x)(l.x)(i.y)(j.y)(k.y)(l.y)(i.z)(j.z)(k.z)(l.z)(i.w)(j.w)(k.w)(l.w);
+const TextMeasurement = (text) => (width) => (height) => ({
+    CONS: 'TextMeasurement',
+    text, width, height
+});
+const Switch = (f) => ({
+    CONS: 'Switch',
+    case: x => y => Switch(z => {
+        const w = f(z);
+        return w === undefined && z === x ? y() : w;
+    }),
+    fall: x => Switch(y => {
+        const z = f(y);
+        return z === undefined ? x() : z;
+    }),
+    with: x => {
+        const y = f(x);
+        return y === undefined
+            ? THROWRANGE(`'Switch' did not cover all cases; missing case on value: '${x}'`)
+            : y;
+    },
+    thru: x => {
+        const y = f(x);
+        return y === undefined ? x : y;
+    }
+});
+Switch.case = (domain) => (codomain) => Switch(x => x === domain ? codomain() : undefined);
+const Bijection = (pairs) => ({
+    CONS: 'Bijection',
+    INFO: pairs,
+    of: x => y => Bijection([...pairs, [x, y]]),
+    domain: x => {
+        const y = pairs.find(([z, _]) => z === x);
+        return y === undefined
+            ? THROWRANGE(`'Bijection' did not have a well-defined enough domain for value: '${x}'`)
+            : y[1];
+    },
+    codomain: x => {
+        const y = pairs.find(([_, z]) => z === x);
+        return y === undefined
+            ? THROWRANGE(`'Bijection' did not have a well-defined enough codomain for value: '${x}'`)
+            : y[0];
+    }
+});
+Bijection.of = (domainValue) => (codomainValue) => Bijection([[domainValue, codomainValue]]);
+const Clock = (time) => (delta) => (counter) => ({ CONS: 'Clock', time, delta, counter });
 var Horizontal;
 (function (Horizontal) {
     Horizontal["Leftward"] = "Leftward :: Horizontal";
@@ -428,34 +424,40 @@ var CompositionOperation;
     CompositionOperation["Color"] = "Color :: CompositionOperation";
     CompositionOperation["Luminosity"] = "Luminosity :: CompositionOperation";
 })(CompositionOperation || (CompositionOperation = {}));
-var relaxHorizontal = Switch["case"](Horizontal.Leftward)(function () { return Horizontal.Left; })["case"](Horizontal.Rightward)(function () { return Horizontal.Right; })
+const relaxHorizontal = Switch
+    .case(Horizontal.Leftward)(() => Horizontal.Left)
+    .case(Horizontal.Rightward)(() => Horizontal.Right)
     .thru;
-var relaxVertical = Switch["case"](Vertical.Downward)(function () { return Vertical.Down; })["case"](Vertical.Upward)(function () { return Vertical.Up; })
+const relaxVertical = Switch
+    .case(Vertical.Downward)(() => Vertical.Down)
+    .case(Vertical.Upward)(() => Vertical.Up)
     .thru;
-var relaxLateral = Switch["case"](Lateral.Backward)(function () { return Lateral.Back; })["case"](Lateral.Forward)(function () { return Lateral.Fore; })
+const relaxLateral = Switch
+    .case(Lateral.Backward)(() => Lateral.Back)
+    .case(Lateral.Forward)(() => Lateral.Fore)
     .thru;
-var bijectionLineCap = Bijection
+const bijectionLineCap = Bijection
     .of(LineCap.Butt)('butt')
     .of(LineCap.Round)('round')
     .of(LineCap.Square)('square');
-var bijectionLineJoin = Bijection
+const bijectionLineJoin = Bijection
     .of(LineJoin.Round)('round')
     .of(LineJoin.Bevel)('bevel')
     .of(LineJoin.Miter)('miter');
-var bijectionTextAlign = Bijection
+const bijectionTextAlign = Bijection
     .of(TextAlign.Center)('center')
     .of(TextAlign.End)('end')
     .of(TextAlign.Left)('left')
     .of(TextAlign.Right)('right')
     .of(TextAlign.Start)('start');
-var bijectionTextBaseline = Bijection
+const bijectionTextBaseline = Bijection
     .of(TextBaseline.Alphabetic)('alphabetic')
     .of(TextBaseline.Bottom)('bottom')
     .of(TextBaseline.Hanging)('hanging')
     .of(TextBaseline.Ideographic)('ideographic')
     .of(TextBaseline.Middle)('middle')
     .of(TextBaseline.Top)('top');
-var bijectionCompositionOperation = Bijection
+const bijectionCompositionOperation = Bijection
     .of(CompositionOperation.SourceOver)('source-over')
     .of(CompositionOperation.SourceIn)('source-in')
     .of(CompositionOperation.SourceOut)('source-out')
@@ -482,23 +484,17 @@ var bijectionCompositionOperation = Bijection
     .of(CompositionOperation.Saturation)('saturation')
     .of(CompositionOperation.Color)('color')
     .of(CompositionOperation.Luminosity)('luminosity');
-var updateClock = function (clock) { return function (present) {
-    return Clock(present)(present - clock.time)(clock.counter + present - clock.time);
-}; };
-var clearClock = function (clock) {
-    return Clock(clock.time)(clock.delta)(0);
-};
-var pseudoRandom = State(function (seed) { return [
+const pseudoRandom = State(seed => [
     (-67 * seed * seed * seed + 23 * seed * seed - 91 * seed + 73) % 65536,
     Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536
-]; });
-var Do = {
-    IO: IO(function () { return Object.create(null); }),
+]);
+const Do = {
+    IO: IO(() => Object.create(null)),
     Maybe: Just(Object.create(null)),
-    State: State(function (s) { return [s, Object.create(null)]; }),
+    State: State((s) => [s, Object.create(null)]),
     List: List(Object.create(null))
 };
-var __KEYBOARD_KEYS_ARRAY__ = [
+const __KEYBOARD_KEYS_ARRAY__ = [
     'AltLeft', 'AltRight', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Backquote',
     'Backslash', 'Backspace', 'BracketLeft', 'BracketRight', 'CapsLock', 'Comma', 'ControlLeft',
     'ControlRight', 'Delete', 'NumpadAdd', 'NumpadDecimal', 'NumpadDivide', 'NumpadEnter', 'NumpadMultiply',
@@ -512,7 +508,7 @@ var __KEYBOARD_KEYS_ARRAY__ = [
     'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS',
     'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ'
 ];
-var __EXTERNAL__ = {
+const __EXTERNAL__ = {
     context: undefined,
     resizeID: undefined,
     isResized: false,
@@ -528,1197 +524,700 @@ var __EXTERNAL__ = {
         scroll: Vertical.CenterY,
         buttons: new Array(5).fill(Vertical.Up)
     },
-    keyboard: __KEYBOARD_KEYS_ARRAY__.reduce(function ($, k) {
-        var _a;
-        return (__assign(__assign({}, $), (_a = {}, _a[k] = Vertical.Up, _a)));
-    }, {})
+    keyboard: __KEYBOARD_KEYS_ARRAY__.reduce(($, k) => (Object.assign(Object.assign({}, $), { [k]: Vertical.Up })), {})
 };
 var Import;
 (function (Import) {
-    var Norm;
+    let Norm;
     (function (Norm) {
-        Norm.mouseCanvasPosition = IO(function () { return [
+        Norm.mouseCanvasPosition = IO(() => [
             __EXTERNAL__.mouse.canvasX / __EXTERNAL__.context.canvas.width,
             __EXTERNAL__.mouse.canvasY / __EXTERNAL__.context.canvas.height
-        ]; });
-        Norm.mouseCanvasPositionVector = IO(function () {
-            return Vector2D(__EXTERNAL__.mouse.canvasX / __EXTERNAL__.context.canvas.width)(__EXTERNAL__.mouse.canvasY / __EXTERNAL__.context.canvas.height);
-        });
-        Norm.mouseCanvasPositionX = IO(function () { return __EXTERNAL__.mouse.canvasX / __EXTERNAL__.context.canvas.width; });
-        Norm.mouseCanvasPositionY = IO(function () { return __EXTERNAL__.mouse.canvasY / __EXTERNAL__.context.canvas.height; });
-        Norm.mouseVelocity = IO(function () { return [
+        ]);
+        Norm.mouseCanvasPositionVector = IO(() => Vector2D(__EXTERNAL__.mouse.canvasX / __EXTERNAL__.context.canvas.width)(__EXTERNAL__.mouse.canvasY / __EXTERNAL__.context.canvas.height));
+        Norm.mouseCanvasPositionX = IO(() => __EXTERNAL__.mouse.canvasX / __EXTERNAL__.context.canvas.width);
+        Norm.mouseCanvasPositionY = IO(() => __EXTERNAL__.mouse.canvasY / __EXTERNAL__.context.canvas.height);
+        Norm.mouseVelocity = IO(() => [
             __EXTERNAL__.mouse.deltaX / __EXTERNAL__.context.canvas.width,
             __EXTERNAL__.mouse.deltaY / __EXTERNAL__.context.canvas.height
-        ]; });
-        Norm.mouseVelocityVector = IO(function () {
-            return Vector2D(__EXTERNAL__.mouse.deltaX / __EXTERNAL__.context.canvas.width)(__EXTERNAL__.mouse.deltaY / __EXTERNAL__.context.canvas.height);
+        ]);
+        Norm.mouseVelocityVector = IO(() => Vector2D(__EXTERNAL__.mouse.deltaX / __EXTERNAL__.context.canvas.width)(__EXTERNAL__.mouse.deltaY / __EXTERNAL__.context.canvas.height));
+        Norm.mouseVelocityX = IO(() => __EXTERNAL__.mouse.deltaX / __EXTERNAL__.context.canvas.width);
+        Norm.mouseVelocityY = IO(() => __EXTERNAL__.mouse.deltaY / __EXTERNAL__.context.canvas.height);
+        Norm.textMeasurement = (text) => IO(() => {
+            const { width, height } = __EXTERNAL__.context.canvas;
+            const { actualBoundingBoxLeft, actualBoundingBoxRight, actualBoundingBoxAscent, actualBoundingBoxDescent } = __EXTERNAL__.context.measureText(text);
+            return TextMeasurement(text)((Math.abs(actualBoundingBoxLeft) + Math.abs(actualBoundingBoxRight)) / width)((Math.abs(actualBoundingBoxAscent) + Math.abs(actualBoundingBoxDescent)) / height);
         });
-        Norm.mouseVelocityX = IO(function () { return __EXTERNAL__.mouse.deltaX / __EXTERNAL__.context.canvas.width; });
-        Norm.mouseVelocityY = IO(function () { return __EXTERNAL__.mouse.deltaY / __EXTERNAL__.context.canvas.height; });
-        Norm.textMeasurement = function (text) {
-            return IO(function () {
-                var _a = __EXTERNAL__.context.canvas, width = _a.width, height = _a.height;
-                var _b = __EXTERNAL__.context.measureText(text), actualBoundingBoxLeft = _b.actualBoundingBoxLeft, actualBoundingBoxRight = _b.actualBoundingBoxRight, actualBoundingBoxAscent = _b.actualBoundingBoxAscent, actualBoundingBoxDescent = _b.actualBoundingBoxDescent;
-                return TextMeasurement(text)((Math.abs(actualBoundingBoxLeft) + Math.abs(actualBoundingBoxRight)) / width)((Math.abs(actualBoundingBoxAscent) + Math.abs(actualBoundingBoxDescent)) / height);
-            });
-        };
-        Norm.lineWidth = IO(function () { return __EXTERNAL__.context.lineWidth / __EXTERNAL__.context.canvas.width; });
-        Norm.lineDashPattern = IO(function () { return List.apply(void 0, __EXTERNAL__.context.getLineDash().map(function (n) { return n / __EXTERNAL__.context.canvas.width; })); });
-        Norm.lineDashOffset = IO(function () { return __EXTERNAL__.context.lineDashOffset / __EXTERNAL__.context.canvas.width; });
-        Norm.fontSize = IO(function () { return parseFloat(__EXTERNAL__.context.font) / __EXTERNAL__.context.canvas.width; });
-        Norm.shadowOffset = IO(function () { return [
+        Norm.lineWidth = IO(() => __EXTERNAL__.context.lineWidth / __EXTERNAL__.context.canvas.width);
+        Norm.lineDashPattern = IO(() => List(...__EXTERNAL__.context.getLineDash().map(n => n / __EXTERNAL__.context.canvas.width)));
+        Norm.lineDashOffset = IO(() => __EXTERNAL__.context.lineDashOffset / __EXTERNAL__.context.canvas.width);
+        Norm.fontSize = IO(() => parseFloat(__EXTERNAL__.context.font) / __EXTERNAL__.context.canvas.width);
+        Norm.shadowOffset = IO(() => [
             __EXTERNAL__.context.shadowOffsetX / __EXTERNAL__.context.canvas.width,
             __EXTERNAL__.context.shadowOffsetY / __EXTERNAL__.context.canvas.height
-        ]; });
-        Norm.shadowOffsetVector = IO(function () {
-            return Vector2D(__EXTERNAL__.context.shadowOffsetX / __EXTERNAL__.context.canvas.width)(__EXTERNAL__.context.shadowOffsetY / __EXTERNAL__.context.canvas.height);
-        });
-        Norm.shadowOffsetX = IO(function () { return __EXTERNAL__.context.shadowOffsetX / __EXTERNAL__.context.canvas.width; });
-        Norm.shadowOffsetY = IO(function () { return __EXTERNAL__.context.shadowOffsetY / __EXTERNAL__.context.canvas.height; });
-        Norm.isPointInEvenOddPath = function (x) { return function (y) {
-            return IO(function () {
-                return __EXTERNAL__.context.isPointInPath(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, 'evenodd');
-            });
-        }; };
-        Norm.isPointInNonZeroPath = function (x) { return function (y) {
-            return IO(function () {
-                return __EXTERNAL__.context.isPointInPath(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, 'nonzero');
-            });
-        }; };
-        Norm.isVectorInEvenOddPath = function (v) {
-            return IO(function () {
-                return __EXTERNAL__.context.isPointInPath(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height, 'evenodd');
-            });
-        };
-        Norm.isVectorInNonZeroPath = function (v) {
-            return IO(function () {
-                return __EXTERNAL__.context.isPointInPath(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height, 'nonzero');
-            });
-        };
-        Norm.isPointInStroke = function (x) { return function (y) {
-            return IO(function () {
-                return __EXTERNAL__.context.isPointInStroke(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
-            });
-        }; };
-        Norm.isVectorInStroke = function (v) {
-            return IO(function () {
-                return __EXTERNAL__.context.isPointInStroke(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
-            });
-        };
-        Norm.transformationMatrix = IO(function () {
-            var m = __EXTERNAL__.context.getTransform();
+        ]);
+        Norm.shadowOffsetVector = IO(() => Vector2D(__EXTERNAL__.context.shadowOffsetX / __EXTERNAL__.context.canvas.width)(__EXTERNAL__.context.shadowOffsetY / __EXTERNAL__.context.canvas.height));
+        Norm.shadowOffsetX = IO(() => __EXTERNAL__.context.shadowOffsetX / __EXTERNAL__.context.canvas.width);
+        Norm.shadowOffsetY = IO(() => __EXTERNAL__.context.shadowOffsetY / __EXTERNAL__.context.canvas.height);
+        Norm.isPointInEvenOddPath = (x) => (y) => IO(() => __EXTERNAL__.context.isPointInPath(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, 'evenodd'));
+        Norm.isPointInNonZeroPath = (x) => (y) => IO(() => __EXTERNAL__.context.isPointInPath(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, 'nonzero'));
+        Norm.isVectorInEvenOddPath = (v) => IO(() => __EXTERNAL__.context.isPointInPath(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height, 'evenodd'));
+        Norm.isVectorInNonZeroPath = (v) => IO(() => __EXTERNAL__.context.isPointInPath(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height, 'nonzero'));
+        Norm.isPointInStroke = (x) => (y) => IO(() => __EXTERNAL__.context.isPointInStroke(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height));
+        Norm.isVectorInStroke = (v) => IO(() => __EXTERNAL__.context.isPointInStroke(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height));
+        Norm.transformationMatrix = IO(() => {
+            const m = __EXTERNAL__.context.getTransform();
             return Matrix3x3(m.a)(m.c)(m.e / __EXTERNAL__.context.canvas.width)(m.b)(m.d)(m.f / __EXTERNAL__.context.canvas.height)(0)(0)(1);
         });
     })(Norm = Import.Norm || (Import.Norm = {}));
-    Import.timeSinceOpen = IO(function () { return performance.now(); });
-    Import.timeSince1970 = IO(function () { return Date.now(); });
-    Import.universalSeed = IO(function () { return __EXTERNAL__.seed; });
-    Import.isWindowResized = IO(function () { return __EXTERNAL__.isResized; });
-    Import.screenDimensions = IO(function () { return [screen.width, screen.height]; });
-    Import.screenDimensionsVector = IO(function () { return Vector2D(screen.width)(screen.height); });
-    Import.screenDimensionW = IO(function () { return screen.width; });
-    Import.screenDimensionH = IO(function () { return screen.height; });
-    Import.windowDimensions = IO(function () { return [innerWidth, innerHeight]; });
-    Import.windowDimensionsVector = IO(function () { return Vector2D(innerWidth)(innerHeight); });
-    Import.windowDimensionW = IO(function () { return innerWidth; });
-    Import.windowDimensionH = IO(function () { return innerHeight; });
-    Import.canvasDimensions = IO(function () { return [__EXTERNAL__.context.canvas.width, __EXTERNAL__.context.canvas.height]; });
-    Import.canvasDimensionsVector = IO(function () { return Vector2D(__EXTERNAL__.context.canvas.width)(__EXTERNAL__.context.canvas.height); });
-    Import.canvasDimensionW = IO(function () { return __EXTERNAL__.context.canvas.width; });
-    Import.canvasDimensionH = IO(function () { return __EXTERNAL__.context.canvas.height; });
-    Import.mouseScreenPosition = IO(function () { return [__EXTERNAL__.mouse.screenX, __EXTERNAL__.mouse.screenY]; });
-    Import.mouseScreenPositionVector = IO(function () { return Vector2D(__EXTERNAL__.mouse.screenX)(__EXTERNAL__.mouse.screenY); });
-    Import.mouseScreenPositionX = IO(function () { return __EXTERNAL__.mouse.screenX; });
-    Import.mouseScreenPositionY = IO(function () { return __EXTERNAL__.mouse.screenY; });
-    Import.mouseWindowPosition = IO(function () { return [__EXTERNAL__.mouse.windowX, __EXTERNAL__.mouse.windowY]; });
-    Import.mouseWindowPositionVector = IO(function () { return Vector2D(__EXTERNAL__.mouse.windowX)(__EXTERNAL__.mouse.windowY); });
-    Import.mouseWindowPositionX = IO(function () { return __EXTERNAL__.mouse.windowX; });
-    Import.mouseWindowPositionY = IO(function () { return __EXTERNAL__.mouse.windowY; });
-    Import.mouseCanvasPosition = IO(function () { return [__EXTERNAL__.mouse.canvasX, __EXTERNAL__.mouse.canvasY]; });
-    Import.mouseCanvasPositionVector = IO(function () { return Vector2D(__EXTERNAL__.mouse.canvasX)(__EXTERNAL__.mouse.canvasY); });
-    Import.mouseCanvasPositionX = IO(function () { return __EXTERNAL__.mouse.canvasX; });
-    Import.mouseCanvasPositionY = IO(function () { return __EXTERNAL__.mouse.canvasY; });
-    Import.mouseVelocity = IO(function () { return [__EXTERNAL__.mouse.deltaX, __EXTERNAL__.mouse.deltaY]; });
-    Import.mouseVelocityVector = IO(function () { return Vector2D(__EXTERNAL__.mouse.deltaX)(__EXTERNAL__.mouse.deltaY); });
-    Import.mouseVelocityX = IO(function () { return __EXTERNAL__.mouse.deltaX; });
-    Import.mouseVelocityY = IO(function () { return __EXTERNAL__.mouse.deltaY; });
-    Import.mouseButtonLeft = IO(function () { return __EXTERNAL__.mouse.buttons[0]; });
-    Import.mouseButtonMiddle = IO(function () { return __EXTERNAL__.mouse.buttons[1]; });
-    Import.mouseButtonRight = IO(function () { return __EXTERNAL__.mouse.buttons[2]; });
-    Import.mouseButtonA = IO(function () { return __EXTERNAL__.mouse.buttons[3]; });
-    Import.mouseButtonB = IO(function () { return __EXTERNAL__.mouse.buttons[4]; });
-    Import.keyboardKey = function (key) {
-        return IO(function () { return __EXTERNAL__.keyboard[key]; });
-    };
-    Import.textMeasurement = function (text) {
-        return IO(function () {
-            var metrics = __EXTERNAL__.context.measureText(text);
-            return TextMeasurement(text)(Math.abs(metrics.actualBoundingBoxLeft) + Math.abs(metrics.actualBoundingBoxRight))(Math.abs(metrics.actualBoundingBoxAscent) + Math.abs(metrics.actualBoundingBoxDescent));
-        });
-    };
-    Import.lineWidth = IO(function () { return __EXTERNAL__.context.lineWidth; });
-    Import.lineCap = IO(function () { return bijectionLineCap.codomain(__EXTERNAL__.context.lineCap); });
-    Import.lineJoin = IO(function () { return bijectionLineJoin.codomain(__EXTERNAL__.context.lineJoin); });
-    Import.lineDashPattern = IO(function () { return List.apply(void 0, __EXTERNAL__.context.getLineDash()); });
-    Import.lineDashOffset = IO(function () { return __EXTERNAL__.context.lineDashOffset; });
-    Import.miterLimit = IO(function () { return __EXTERNAL__.context.miterLimit; });
-    Import.font = IO(function () { return __EXTERNAL__.context.font; });
-    Import.fontSize = IO(function () { return parseFloat(__EXTERNAL__.context.font); });
-    Import.fontFamily = IO(function () { return __EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" ") + 1); });
-    Import.textAlign = IO(function () { return bijectionTextAlign.codomain(__EXTERNAL__.context.textAlign); });
-    Import.textBaseline = IO(function () { return bijectionTextBaseline.codomain(__EXTERNAL__.context.textBaseline); });
-    Import.shadowBlurAmount = IO(function () { return __EXTERNAL__.context.shadowBlur; });
-    Import.shadowColor = IO(function () { return __EXTERNAL__.context.shadowColor; });
-    Import.shadowOffset = IO(function () { return [__EXTERNAL__.context.shadowOffsetX, __EXTERNAL__.context.shadowOffsetY]; });
-    Import.shadowOffsetVector = IO(function () { return Vector2D(__EXTERNAL__.context.shadowOffsetX)(__EXTERNAL__.context.shadowOffsetY); });
-    Import.shadowOffsetX = IO(function () { return __EXTERNAL__.context.shadowOffsetX; });
-    Import.shadowOffsetY = IO(function () { return __EXTERNAL__.context.shadowOffsetY; });
-    Import.isPointInEvenOddPath = function (x) { return function (y) {
-        return IO(function () { return __EXTERNAL__.context.isPointInPath(x, y, 'evenodd'); });
-    }; };
-    Import.isPointInNonZeroPath = function (x) { return function (y) {
-        return IO(function () { return __EXTERNAL__.context.isPointInPath(x, y, 'nonzero'); });
-    }; };
-    Import.isVectorInEvenOddPath = function (v) {
-        return IO(function () { return __EXTERNAL__.context.isPointInPath(v.x, v.y, 'evenodd'); });
-    };
-    Import.isVectorInNonZeroPath = function (v) {
-        return IO(function () { return __EXTERNAL__.context.isPointInPath(v.x, v.y, 'nonzero'); });
-    };
-    Import.isPointInStroke = function (x) { return function (y) {
-        return IO(function () { return __EXTERNAL__.context.isPointInStroke(x, y); });
-    }; };
-    Import.isVectorInStroke = function (v) {
-        return IO(function () { return __EXTERNAL__.context.isPointInStroke(v.x, v.y); });
-    };
-    Import.transformationMatrix = IO(function () {
-        var m = __EXTERNAL__.context.getTransform();
+    Import.timeSinceOpen = IO(() => performance.now());
+    Import.timeSince1970 = IO(() => Date.now());
+    Import.universalSeed = IO(() => __EXTERNAL__.seed);
+    Import.isWindowResized = IO(() => __EXTERNAL__.isResized);
+    Import.screenDimensions = IO(() => [screen.width, screen.height]);
+    Import.screenDimensionsVector = IO(() => Vector2D(screen.width)(screen.height));
+    Import.screenDimensionW = IO(() => screen.width);
+    Import.screenDimensionH = IO(() => screen.height);
+    Import.windowDimensions = IO(() => [innerWidth, innerHeight]);
+    Import.windowDimensionsVector = IO(() => Vector2D(innerWidth)(innerHeight));
+    Import.windowDimensionW = IO(() => innerWidth);
+    Import.windowDimensionH = IO(() => innerHeight);
+    Import.canvasDimensions = IO(() => [__EXTERNAL__.context.canvas.width, __EXTERNAL__.context.canvas.height]);
+    Import.canvasDimensionsVector = IO(() => Vector2D(__EXTERNAL__.context.canvas.width)(__EXTERNAL__.context.canvas.height));
+    Import.canvasDimensionW = IO(() => __EXTERNAL__.context.canvas.width);
+    Import.canvasDimensionH = IO(() => __EXTERNAL__.context.canvas.height);
+    Import.mouseScreenPosition = IO(() => [__EXTERNAL__.mouse.screenX, __EXTERNAL__.mouse.screenY]);
+    Import.mouseScreenPositionVector = IO(() => Vector2D(__EXTERNAL__.mouse.screenX)(__EXTERNAL__.mouse.screenY));
+    Import.mouseScreenPositionX = IO(() => __EXTERNAL__.mouse.screenX);
+    Import.mouseScreenPositionY = IO(() => __EXTERNAL__.mouse.screenY);
+    Import.mouseWindowPosition = IO(() => [__EXTERNAL__.mouse.windowX, __EXTERNAL__.mouse.windowY]);
+    Import.mouseWindowPositionVector = IO(() => Vector2D(__EXTERNAL__.mouse.windowX)(__EXTERNAL__.mouse.windowY));
+    Import.mouseWindowPositionX = IO(() => __EXTERNAL__.mouse.windowX);
+    Import.mouseWindowPositionY = IO(() => __EXTERNAL__.mouse.windowY);
+    Import.mouseCanvasPosition = IO(() => [__EXTERNAL__.mouse.canvasX, __EXTERNAL__.mouse.canvasY]);
+    Import.mouseCanvasPositionVector = IO(() => Vector2D(__EXTERNAL__.mouse.canvasX)(__EXTERNAL__.mouse.canvasY));
+    Import.mouseCanvasPositionX = IO(() => __EXTERNAL__.mouse.canvasX);
+    Import.mouseCanvasPositionY = IO(() => __EXTERNAL__.mouse.canvasY);
+    Import.mouseVelocity = IO(() => [__EXTERNAL__.mouse.deltaX, __EXTERNAL__.mouse.deltaY]);
+    Import.mouseVelocityVector = IO(() => Vector2D(__EXTERNAL__.mouse.deltaX)(__EXTERNAL__.mouse.deltaY));
+    Import.mouseVelocityX = IO(() => __EXTERNAL__.mouse.deltaX);
+    Import.mouseVelocityY = IO(() => __EXTERNAL__.mouse.deltaY);
+    Import.mouseButtonLeft = IO(() => __EXTERNAL__.mouse.buttons[0]);
+    Import.mouseButtonMiddle = IO(() => __EXTERNAL__.mouse.buttons[1]);
+    Import.mouseButtonRight = IO(() => __EXTERNAL__.mouse.buttons[2]);
+    Import.mouseButtonA = IO(() => __EXTERNAL__.mouse.buttons[3]);
+    Import.mouseButtonB = IO(() => __EXTERNAL__.mouse.buttons[4]);
+    Import.keyboardKey = (key) => IO(() => __EXTERNAL__.keyboard[key]);
+    Import.textMeasurement = (text) => IO(() => {
+        const metrics = __EXTERNAL__.context.measureText(text);
+        return TextMeasurement(text)(Math.abs(metrics.actualBoundingBoxLeft) + Math.abs(metrics.actualBoundingBoxRight))(Math.abs(metrics.actualBoundingBoxAscent) + Math.abs(metrics.actualBoundingBoxDescent));
+    });
+    Import.lineWidth = IO(() => __EXTERNAL__.context.lineWidth);
+    Import.lineCap = IO(() => bijectionLineCap.codomain(__EXTERNAL__.context.lineCap));
+    Import.lineJoin = IO(() => bijectionLineJoin.codomain(__EXTERNAL__.context.lineJoin));
+    Import.lineDashPattern = IO(() => List(...__EXTERNAL__.context.getLineDash()));
+    Import.lineDashOffset = IO(() => __EXTERNAL__.context.lineDashOffset);
+    Import.miterLimit = IO(() => __EXTERNAL__.context.miterLimit);
+    Import.font = IO(() => __EXTERNAL__.context.font);
+    Import.fontSize = IO(() => parseFloat(__EXTERNAL__.context.font));
+    Import.fontFamily = IO(() => __EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" ") + 1));
+    Import.textAlign = IO(() => bijectionTextAlign.codomain(__EXTERNAL__.context.textAlign));
+    Import.textBaseline = IO(() => bijectionTextBaseline.codomain(__EXTERNAL__.context.textBaseline));
+    Import.shadowBlurAmount = IO(() => __EXTERNAL__.context.shadowBlur);
+    Import.shadowColor = IO(() => __EXTERNAL__.context.shadowColor);
+    Import.shadowOffset = IO(() => [__EXTERNAL__.context.shadowOffsetX, __EXTERNAL__.context.shadowOffsetY]);
+    Import.shadowOffsetVector = IO(() => Vector2D(__EXTERNAL__.context.shadowOffsetX)(__EXTERNAL__.context.shadowOffsetY));
+    Import.shadowOffsetX = IO(() => __EXTERNAL__.context.shadowOffsetX);
+    Import.shadowOffsetY = IO(() => __EXTERNAL__.context.shadowOffsetY);
+    Import.isPointInEvenOddPath = (x) => (y) => IO(() => __EXTERNAL__.context.isPointInPath(x, y, 'evenodd'));
+    Import.isPointInNonZeroPath = (x) => (y) => IO(() => __EXTERNAL__.context.isPointInPath(x, y, 'nonzero'));
+    Import.isVectorInEvenOddPath = (v) => IO(() => __EXTERNAL__.context.isPointInPath(v.x, v.y, 'evenodd'));
+    Import.isVectorInNonZeroPath = (v) => IO(() => __EXTERNAL__.context.isPointInPath(v.x, v.y, 'nonzero'));
+    Import.isPointInStroke = (x) => (y) => IO(() => __EXTERNAL__.context.isPointInStroke(x, y));
+    Import.isVectorInStroke = (v) => IO(() => __EXTERNAL__.context.isPointInStroke(v.x, v.y));
+    Import.transformationMatrix = IO(() => {
+        const m = __EXTERNAL__.context.getTransform();
         return Matrix3x3(m.a)(m.c)(m.e)(m.b)(m.d)(m.f)(0)(0)(1);
     });
-    Import.alpha = IO(function () { return __EXTERNAL__.context.globalAlpha; });
-    Import.compositionOperation = IO(function () { return bijectionCompositionOperation.codomain(__EXTERNAL__.context.globalCompositeOperation); });
+    Import.alpha = IO(() => __EXTERNAL__.context.globalAlpha);
+    Import.compositionOperation = IO(() => bijectionCompositionOperation.codomain(__EXTERNAL__.context.globalCompositeOperation));
 })(Import || (Import = {}));
 var Mutate;
 (function (Mutate) {
-    var Norm;
+    let Norm;
     (function (Norm) {
-        Norm.lineWidth = function (w) {
-            return IO(function () {
-                __EXTERNAL__.context.lineWidth = w * __EXTERNAL__.context.canvas.width;
-                return null;
-            });
-        };
-        Norm.lineDashPattern = function (pattern) {
-            return IO(function () {
-                __EXTERNAL__.context.setLineDash(pattern.INFO.map(function (n) { return n * __EXTERNAL__.context.canvas.width; }));
-                return null;
-            });
-        };
-        Norm.lineDashOffset = function (offset) {
-            return IO(function () {
-                __EXTERNAL__.context.lineDashOffset = offset * __EXTERNAL__.context.canvas.width;
-                return null;
-            });
-        };
-        Norm.fontSize = function (size) {
-            return IO(function () {
-                __EXTERNAL__.context.font =
-                    size * __EXTERNAL__.context.canvas.width + "px " +
-                        ("" + __EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" ") + 1));
-                return null;
-            });
-        };
-        Norm.fillRGBA = function (r) { return function (g) { return function (b) { return function (a) {
-            return IO(function () {
-                __EXTERNAL__.context.fillStyle = "rgba(" + r * 255 + "," + g * 255 + "," + b * 255 + "," + a + ")";
-                return null;
-            });
-        }; }; }; };
-        Norm.fillVector = function (v) {
-            return IO(function () {
-                __EXTERNAL__.context.fillStyle = "rgba(" + v.x * 255 + "," + v.y * 255 + "," + v.z * 255 + "," + v.w + ")";
-                return null;
-            });
-        };
-        Norm.strokeRGBA = function (r) { return function (g) { return function (b) { return function (a) {
-            return IO(function () {
-                __EXTERNAL__.context.strokeStyle = "rgba(" + r * 255 + "," + g * 255 + "," + b * 255 + "," + a * 255 + ")";
-                return null;
-            });
-        }; }; }; };
-        Norm.strokeVector = function (v) {
-            return IO(function () {
-                __EXTERNAL__.context.strokeStyle = "rgba(" + v.x * 255 + "," + v.y * 255 + "," + v.z * 255 + "," + v.w + ")";
-                return null;
-            });
-        };
-        Norm.shadowRGBA = function (r) { return function (g) { return function (b) { return function (a) {
-            return IO(function () {
-                __EXTERNAL__.context.shadowColor = "rgba(" + r * 255 + "," + g * 255 + "," + b * 255 + "," + a + ")";
-                return null;
-            });
-        }; }; }; };
-        Norm.shadowVector = function (v) {
-            return IO(function () {
-                __EXTERNAL__.context.shadowColor = "rgba(" + v.x * 255 + "," + v.y * 255 + "," + v.z * 255 + "," + v.w + ")";
-                return null;
-            });
-        };
-        Norm.shadowOffset = function (x) { return function (y) {
-            return IO(function () {
-                __EXTERNAL__.context.shadowOffsetX = x * __EXTERNAL__.context.canvas.width;
-                __EXTERNAL__.context.shadowOffsetY = y * __EXTERNAL__.context.canvas.height;
-                return null;
-            });
-        }; };
-        Norm.shadowOffsetVector = function (v) {
-            return IO(function () {
-                __EXTERNAL__.context.shadowOffsetX = v.x * __EXTERNAL__.context.canvas.width;
-                __EXTERNAL__.context.shadowOffsetY = v.y * __EXTERNAL__.context.canvas.height;
-                return null;
-            });
-        };
-        Norm.shadowOffsetX = function (x) {
-            return IO(function () {
-                __EXTERNAL__.context.shadowOffsetX = x * __EXTERNAL__.context.canvas.width;
-                return null;
-            });
-        };
-        Norm.shadowOffsetY = function (y) {
-            return IO(function () {
-                __EXTERNAL__.context.shadowOffsetY = y * __EXTERNAL__.context.canvas.height;
-                return null;
-            });
-        };
-        Norm.transformationMatrix = function (m) {
-            return IO(function () {
-                __EXTERNAL__.context.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx * __EXTERNAL__.context.canvas.width, m.ky * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        };
-    })(Norm = Mutate.Norm || (Mutate.Norm = {}));
-    Mutate.canvasDimensions = function (w) { return function (h) {
-        return IO(function () {
-            __EXTERNAL__.context.canvas.width = w;
-            __EXTERNAL__.context.canvas.height = h;
+        Norm.lineWidth = (w) => IO(() => {
+            __EXTERNAL__.context.lineWidth = w * __EXTERNAL__.context.canvas.width;
             return null;
         });
-    }; };
-    Mutate.canvasDimensionVector = function (v) {
-        return IO(function () {
-            __EXTERNAL__.context.canvas.width = v.x;
-            __EXTERNAL__.context.canvas.height = v.y;
+        Norm.lineDashPattern = (pattern) => IO(() => {
+            __EXTERNAL__.context.setLineDash(pattern.INFO.map(n => n * __EXTERNAL__.context.canvas.width));
             return null;
         });
-    };
-    Mutate.canvasDimensionW = function (w) {
-        return IO(function () {
-            __EXTERNAL__.context.canvas.width = w;
+        Norm.lineDashOffset = (offset) => IO(() => {
+            __EXTERNAL__.context.lineDashOffset = offset * __EXTERNAL__.context.canvas.width;
             return null;
         });
-    };
-    Mutate.canvasDimensionH = function (h) {
-        return IO(function () {
-            __EXTERNAL__.context.canvas.height = h;
-            return null;
-        });
-    };
-    Mutate.lineWidth = function (w) {
-        return IO(function () {
-            __EXTERNAL__.context.lineWidth = w;
-            return null;
-        });
-    };
-    Mutate.lineCap = function (cap) {
-        return IO(function () {
-            __EXTERNAL__.context.lineCap = bijectionLineCap.domain(cap);
-            return null;
-        });
-    };
-    Mutate.lineJoin = function (joining) {
-        return IO(function () {
-            __EXTERNAL__.context.lineJoin = bijectionLineJoin.domain(joining);
-            return null;
-        });
-    };
-    Mutate.lineDashPattern = function (pattern) {
-        return IO(function () {
-            __EXTERNAL__.context.setLineDash(pattern.INFO.slice());
-            return null;
-        });
-    };
-    Mutate.lineDashOffset = function (offset) {
-        return IO(function () {
-            __EXTERNAL__.context.lineDashOffset = offset;
-            return null;
-        });
-    };
-    Mutate.miterLimit = function (limit) {
-        return IO(function () {
-            __EXTERNAL__.context.miterLimit = limit;
-            return null;
-        });
-    };
-    Mutate.font = function (fontDescription) {
-        return IO(function () {
-            __EXTERNAL__.context.font = fontDescription;
-            return null;
-        });
-    };
-    Mutate.fontSize = function (size) {
-        return IO(function () {
+        Norm.fontSize = (size) => IO(() => {
             __EXTERNAL__.context.font =
-                size + "px " + __EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" ") + 1);
+                `${size * __EXTERNAL__.context.canvas.width}px ` +
+                    `${__EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" ") + 1)}`;
             return null;
         });
-    };
-    Mutate.fontFamily = function (family) {
-        return IO(function () {
-            __EXTERNAL__.context.font = parseFloat(__EXTERNAL__.context.font) + "px " + family;
+        Norm.fillRGBA = (r) => (g) => (b) => (a) => IO(() => {
+            __EXTERNAL__.context.fillStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`;
             return null;
         });
-    };
-    Mutate.textAlign = function (align) {
-        return IO(function () {
-            __EXTERNAL__.context.textAlign = bijectionTextAlign.domain(align);
+        Norm.fillVector = (v) => IO(() => {
+            __EXTERNAL__.context.fillStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`;
             return null;
         });
-    };
-    Mutate.textBaseline = function (baseline) {
-        return IO(function () {
-            __EXTERNAL__.context.textBaseline = bijectionTextBaseline.domain(baseline);
+        Norm.strokeRGBA = (r) => (g) => (b) => (a) => IO(() => {
+            __EXTERNAL__.context.strokeStyle = `rgba(${r * 255},${g * 255},${b * 255},${a * 255})`;
             return null;
         });
-    };
-    Mutate.fillColor = function (color) {
-        return IO(function () {
-            __EXTERNAL__.context.fillStyle = color;
+        Norm.strokeVector = (v) => IO(() => {
+            __EXTERNAL__.context.strokeStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`;
             return null;
         });
-    };
-    Mutate.fillRGBA = function (r) { return function (g) { return function (b) { return function (a) {
-        return IO(function () {
-            __EXTERNAL__.context.fillStyle = "rgba(" + r + "," + g + "," + b + "," + a + ")";
+        Norm.shadowRGBA = (r) => (g) => (b) => (a) => IO(() => {
+            __EXTERNAL__.context.shadowColor = `rgba(${r * 255},${g * 255},${b * 255},${a})`;
             return null;
         });
-    }; }; }; };
-    Mutate.fillVector = function (v) {
-        return IO(function () {
-            __EXTERNAL__.context.fillStyle = "rgba(" + v.x + "," + v.y + "," + v.z + "," + v.w + ")";
+        Norm.shadowVector = (v) => IO(() => {
+            __EXTERNAL__.context.shadowColor = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`;
             return null;
         });
-    };
-    Mutate.strokeColor = function (color) {
-        return IO(function () {
-            __EXTERNAL__.context.strokeStyle = color;
+        Norm.shadowOffset = (x) => (y) => IO(() => {
+            __EXTERNAL__.context.shadowOffsetX = x * __EXTERNAL__.context.canvas.width;
+            __EXTERNAL__.context.shadowOffsetY = y * __EXTERNAL__.context.canvas.height;
             return null;
         });
-    };
-    Mutate.strokeRGBA = function (r) { return function (g) { return function (b) { return function (a) {
-        return IO(function () {
-            __EXTERNAL__.context.strokeStyle = "rgba(" + r + "," + g + "," + b + "," + a + ")";
+        Norm.shadowOffsetVector = (v) => IO(() => {
+            __EXTERNAL__.context.shadowOffsetX = v.x * __EXTERNAL__.context.canvas.width;
+            __EXTERNAL__.context.shadowOffsetY = v.y * __EXTERNAL__.context.canvas.height;
             return null;
         });
-    }; }; }; };
-    Mutate.strokeVector = function (v) {
-        return IO(function () {
-            __EXTERNAL__.context.strokeStyle = "rgba(" + v.x + "," + v.y + "," + v.z + "," + v.w + ")";
+        Norm.shadowOffsetX = (x) => IO(() => {
+            __EXTERNAL__.context.shadowOffsetX = x * __EXTERNAL__.context.canvas.width;
             return null;
         });
-    };
-    Mutate.shadowBlurAmount = function (amount) {
-        return IO(function () {
-            __EXTERNAL__.context.shadowBlur = amount;
+        Norm.shadowOffsetY = (y) => IO(() => {
+            __EXTERNAL__.context.shadowOffsetY = y * __EXTERNAL__.context.canvas.height;
             return null;
         });
-    };
-    Mutate.shadowColor = function (color) {
-        return IO(function () {
-            __EXTERNAL__.context.shadowColor = color;
+        Norm.transformationMatrix = (m) => IO(() => {
+            __EXTERNAL__.context.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx * __EXTERNAL__.context.canvas.width, m.ky * __EXTERNAL__.context.canvas.height);
             return null;
         });
-    };
-    Mutate.shadowRGBA = function (r) { return function (g) { return function (b) { return function (a) {
-        return IO(function () {
-            __EXTERNAL__.context.shadowColor = "rgba(" + r + "," + g + "," + b + "," + a + ")";
-            return null;
-        });
-    }; }; }; };
-    Mutate.shadowVector = function (v) {
-        return IO(function () {
-            __EXTERNAL__.context.shadowColor = "rgba(" + v.x + "," + v.y + "," + v.z + "," + v.w + ")";
-            return null;
-        });
-    };
-    Mutate.shadowOffset = function (x) { return function (y) {
-        return IO(function () {
-            __EXTERNAL__.context.shadowOffsetX = x;
-            __EXTERNAL__.context.shadowOffsetY = y;
-            return null;
-        });
-    }; };
-    Mutate.shadowOffsetVector = function (v) {
-        return IO(function () {
-            __EXTERNAL__.context.shadowOffsetX = v.x;
-            __EXTERNAL__.context.shadowOffsetY = v.y;
-            return null;
-        });
-    };
-    Mutate.shadowOffsetX = function (x) {
-        return IO(function () {
-            __EXTERNAL__.context.shadowOffsetX = x;
-            return null;
-        });
-    };
-    Mutate.shadowOffsetY = function (y) {
-        return IO(function () {
-            __EXTERNAL__.context.shadowOffsetY = y;
-            return null;
-        });
-    };
-    Mutate.transformationMatrix = function (m) {
-        return IO(function () {
-            __EXTERNAL__.context.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx, m.ky);
-            return null;
-        });
-    };
-    Mutate.alpha = function (opacity) {
-        return IO(function () {
-            __EXTERNAL__.context.globalAlpha = opacity;
-            return null;
-        });
-    };
-    Mutate.compositionOperation = function (composition) {
-        return IO(function () {
-            __EXTERNAL__.context.globalCompositeOperation = bijectionCompositionOperation.domain(composition);
-            return null;
-        });
-    };
+    })(Norm = Mutate.Norm || (Mutate.Norm = {}));
+    Mutate.canvasDimensions = (w) => (h) => IO(() => {
+        __EXTERNAL__.context.canvas.width = w;
+        __EXTERNAL__.context.canvas.height = h;
+        return null;
+    });
+    Mutate.canvasDimensionVector = (v) => IO(() => {
+        __EXTERNAL__.context.canvas.width = v.x;
+        __EXTERNAL__.context.canvas.height = v.y;
+        return null;
+    });
+    Mutate.canvasDimensionW = (w) => IO(() => {
+        __EXTERNAL__.context.canvas.width = w;
+        return null;
+    });
+    Mutate.canvasDimensionH = (h) => IO(() => {
+        __EXTERNAL__.context.canvas.height = h;
+        return null;
+    });
+    Mutate.lineWidth = (w) => IO(() => {
+        __EXTERNAL__.context.lineWidth = w;
+        return null;
+    });
+    Mutate.lineCap = (cap) => IO(() => {
+        __EXTERNAL__.context.lineCap = bijectionLineCap.domain(cap);
+        return null;
+    });
+    Mutate.lineJoin = (joining) => IO(() => {
+        __EXTERNAL__.context.lineJoin = bijectionLineJoin.domain(joining);
+        return null;
+    });
+    Mutate.lineDashPattern = (pattern) => IO(() => {
+        __EXTERNAL__.context.setLineDash(pattern.INFO.slice());
+        return null;
+    });
+    Mutate.lineDashOffset = (offset) => IO(() => {
+        __EXTERNAL__.context.lineDashOffset = offset;
+        return null;
+    });
+    Mutate.miterLimit = (limit) => IO(() => {
+        __EXTERNAL__.context.miterLimit = limit;
+        return null;
+    });
+    Mutate.font = (fontDescription) => IO(() => {
+        __EXTERNAL__.context.font = fontDescription;
+        return null;
+    });
+    Mutate.fontSize = (size) => IO(() => {
+        __EXTERNAL__.context.font =
+            `${size}px ${__EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" ") + 1)}`;
+        return null;
+    });
+    Mutate.fontFamily = (family) => IO(() => {
+        __EXTERNAL__.context.font = `${parseFloat(__EXTERNAL__.context.font)}px ${family}`;
+        return null;
+    });
+    Mutate.textAlign = (align) => IO(() => {
+        __EXTERNAL__.context.textAlign = bijectionTextAlign.domain(align);
+        return null;
+    });
+    Mutate.textBaseline = (baseline) => IO(() => {
+        __EXTERNAL__.context.textBaseline = bijectionTextBaseline.domain(baseline);
+        return null;
+    });
+    Mutate.fillColor = (color) => IO(() => {
+        __EXTERNAL__.context.fillStyle = color;
+        return null;
+    });
+    Mutate.fillRGBA = (r) => (g) => (b) => (a) => IO(() => {
+        __EXTERNAL__.context.fillStyle = `rgba(${r},${g},${b},${a})`;
+        return null;
+    });
+    Mutate.fillVector = (v) => IO(() => {
+        __EXTERNAL__.context.fillStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`;
+        return null;
+    });
+    Mutate.strokeColor = (color) => IO(() => {
+        __EXTERNAL__.context.strokeStyle = color;
+        return null;
+    });
+    Mutate.strokeRGBA = (r) => (g) => (b) => (a) => IO(() => {
+        __EXTERNAL__.context.strokeStyle = `rgba(${r},${g},${b},${a})`;
+        return null;
+    });
+    Mutate.strokeVector = (v) => IO(() => {
+        __EXTERNAL__.context.strokeStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`;
+        return null;
+    });
+    Mutate.shadowBlurAmount = (amount) => IO(() => {
+        __EXTERNAL__.context.shadowBlur = amount;
+        return null;
+    });
+    Mutate.shadowColor = (color) => IO(() => {
+        __EXTERNAL__.context.shadowColor = color;
+        return null;
+    });
+    Mutate.shadowRGBA = (r) => (g) => (b) => (a) => IO(() => {
+        __EXTERNAL__.context.shadowColor = `rgba(${r},${g},${b},${a})`;
+        return null;
+    });
+    Mutate.shadowVector = (v) => IO(() => {
+        __EXTERNAL__.context.shadowColor = `rgba(${v.x},${v.y},${v.z},${v.w})`;
+        return null;
+    });
+    Mutate.shadowOffset = (x) => (y) => IO(() => {
+        __EXTERNAL__.context.shadowOffsetX = x;
+        __EXTERNAL__.context.shadowOffsetY = y;
+        return null;
+    });
+    Mutate.shadowOffsetVector = (v) => IO(() => {
+        __EXTERNAL__.context.shadowOffsetX = v.x;
+        __EXTERNAL__.context.shadowOffsetY = v.y;
+        return null;
+    });
+    Mutate.shadowOffsetX = (x) => IO(() => {
+        __EXTERNAL__.context.shadowOffsetX = x;
+        return null;
+    });
+    Mutate.shadowOffsetY = (y) => IO(() => {
+        __EXTERNAL__.context.shadowOffsetY = y;
+        return null;
+    });
+    Mutate.transformationMatrix = (m) => IO(() => {
+        __EXTERNAL__.context.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx, m.ky);
+        return null;
+    });
+    Mutate.alpha = (opacity) => IO(() => {
+        __EXTERNAL__.context.globalAlpha = opacity;
+        return null;
+    });
+    Mutate.compositionOperation = (composition) => IO(() => {
+        __EXTERNAL__.context.globalCompositeOperation = bijectionCompositionOperation.domain(composition);
+        return null;
+    });
 })(Mutate || (Mutate = {}));
 var Effect;
 (function (Effect) {
-    var Norm;
+    let Norm;
     (function (Norm) {
-        Norm.drawImage = function (path) {
-            return function (cropX) { return function (cropY) {
-                return function (cropW) { return function (cropH) {
-                    return function (x) { return function (y) {
-                        return function (w) { return function (h) {
-                            return IO(function () {
-                                __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], cropX * __EXTERNAL__.image[path].width, cropY * __EXTERNAL__.image[path].height, cropW * __EXTERNAL__.image[path].width, cropH * __EXTERNAL__.image[path].height, x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
-                                return null;
-                            });
-                        }; };
-                    }; };
-                }; };
-            }; };
-        };
-        Norm.drawImageVector = function (path) {
-            return function (cropCoordinates) {
-                return function (cropDimensions) {
-                    return function (position) {
-                        return function (dimensions) {
-                            return IO(function () {
-                                __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], cropCoordinates.x * __EXTERNAL__.image[path].width, cropCoordinates.y * __EXTERNAL__.image[path].height, cropDimensions.x * __EXTERNAL__.image[path].width, cropDimensions.y * __EXTERNAL__.image[path].height, position.x * __EXTERNAL__.context.canvas.width, position.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
-                                return null;
-                            });
-                        };
-                    };
-                };
-            };
-        };
-        Norm.drawFullImage = function (path) {
-            return function (x) { return function (y) {
-                return function (w) { return function (h) {
-                    return IO(function () {
-                        __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
-                        return null;
-                    });
-                }; };
-            }; };
-        };
-        Norm.drawFullImageVector = function (path) {
-            return function (coordinates) {
-                return function (dimensions) {
-                    return IO(function () {
-                        __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
-                        return null;
-                    });
-                };
-            };
-        };
-        Norm.drawFixedImage = function (path) { return function (x) { return function (y) { return function (k) {
-            return IO(function () {
-                __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, k * __EXTERNAL__.context.canvas.width, k * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; }; }; };
-        Norm.drawFixedImageVector = function (path) { return function (coordinates) { return function (k) {
-            return IO(function () {
-                var l = k * __EXTERNAL__.context.canvas.width;
-                __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, l, l);
-                return null;
-            });
-        }; }; };
-        Norm.drawScaledImage = function (path) { return function (x) { return function (y) { return function (k) {
-            return IO(function () {
-                __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, k * __EXTERNAL__.context.canvas.width * __EXTERNAL__.image[path].width, k * __EXTERNAL__.context.canvas.height * __EXTERNAL__.image[path].height);
-                return null;
-            });
-        }; }; }; };
-        Norm.drawScaledImageVector = function (path) { return function (coordinates) { return function (k) {
-            return IO(function () {
-                __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, k * __EXTERNAL__.context.canvas.width * __EXTERNAL__.image[path].width, k * __EXTERNAL__.context.canvas.height * __EXTERNAL__.image[path].height);
-                return null;
-            });
-        }; }; };
-        Norm.clearRectangle = function (x) { return function (y) { return function (w) { return function (h) {
-            return IO(function () {
-                __EXTERNAL__.context.clearRect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; }; }; };
-        Norm.clearRectangleVector = function (coordinates) { return function (dimensions) {
-            return IO(function () {
-                __EXTERNAL__.context.clearRect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; };
-        Norm.rotate = function (angle) {
-            return IO(function () {
-                __EXTERNAL__.context.rotate(angle * TAU);
-                return null;
-            });
-        };
-        Norm.translate = function (dx) { return function (dy) {
-            return IO(function () {
-                __EXTERNAL__.context.translate(dx * __EXTERNAL__.context.canvas.width, dy * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; };
-        Norm.translateVector = function (v) {
-            return IO(function () {
-                __EXTERNAL__.context.translate(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        };
-        Norm.transformation = function (m) {
-            return IO(function () {
-                __EXTERNAL__.context.transform(m.ix, m.iy, m.jx, m.jy, m.kx * __EXTERNAL__.context.canvas.width, m.ky * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        };
-        Norm.moveTo = function (x) { return function (y) {
-            return IO(function () {
-                __EXTERNAL__.context.moveTo(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; };
-        Norm.moveToVector = function (v) {
-            return IO(function () {
-                __EXTERNAL__.context.moveTo(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        };
-        Norm.lineTo = function (x) { return function (y) {
-            return IO(function () {
-                __EXTERNAL__.context.lineTo(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; };
-        Norm.lineToVector = function (v) {
-            return IO(function () {
-                __EXTERNAL__.context.lineTo(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        };
-        Norm.bezierCurveTo = function (ix) { return function (iy) {
-            return function (jx) { return function (jy) {
-                return function (x) { return function (y) {
-                    return IO(function () {
-                        __EXTERNAL__.context.bezierCurveTo(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, jx * __EXTERNAL__.context.canvas.width, jy * __EXTERNAL__.context.canvas.height, x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
-                        return null;
-                    });
-                }; };
-            }; };
-        }; };
-        Norm.bezierCurveToVector = function (i) { return function (j) { return function (v) {
-            return IO(function () {
-                __EXTERNAL__.context.bezierCurveTo(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, j.x * __EXTERNAL__.context.canvas.width, j.y * __EXTERNAL__.context.canvas.height, v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; }; };
-        Norm.quadraticCurveTo = function (ix) { return function (iy) {
-            return function (x) { return function (y) {
-                return IO(function () {
-                    __EXTERNAL__.context.quadraticCurveTo(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
-                    return null;
-                });
-            }; };
-        }; };
-        Norm.quadraticCurveToVector = function (i) { return function (v) {
-            return IO(function () {
-                __EXTERNAL__.context.quadraticCurveTo(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; };
-        Norm.arcTo = function (ix) { return function (iy) {
-            return function (jx) { return function (jy) {
-                return function (r) {
-                    return IO(function () {
-                        __EXTERNAL__.context.arcTo(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, jx * __EXTERNAL__.context.canvas.width, jy * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width);
-                        return null;
-                    });
-                };
-            }; };
-        }; };
-        Norm.arcToVector = function (i) { return function (j) { return function (r) {
-            return IO(function () {
-                __EXTERNAL__.context.arcTo(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, j.x * __EXTERNAL__.context.canvas.width, j.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width);
-                return null;
-            });
-        }; }; };
-        Norm.rectangle = function (x) { return function (y) { return function (w) { return function (h) {
-            return IO(function () {
-                __EXTERNAL__.context.rect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; }; }; };
-        Norm.rectangleVector = function (coordinates) { return function (dimensions) {
-            return IO(function () {
-                __EXTERNAL__.context.rect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; };
-        Norm.fillRectangle = function (x) { return function (y) { return function (w) { return function (h) {
-            return IO(function () {
-                __EXTERNAL__.context.fillRect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; }; }; };
-        Norm.fillRectangleVector = function (coordinates) { return function (dimensions) {
-            return IO(function () {
-                __EXTERNAL__.context.fillRect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; };
-        Norm.strokeRectangle = function (x) { return function (y) { return function (w) { return function (h) {
-            return IO(function () {
-                __EXTERNAL__.context.strokeRect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; }; }; };
-        Norm.strokeRectangleVector = function (coordinates) { return function (dimensions) {
-            return IO(function () {
-                __EXTERNAL__.context.strokeRect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; };
-        Norm.arc = function (x) { return function (y) { return function (r) { return function (a) { return function (b) {
-            return IO(function () {
-                __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, a * TAU, b * TAU);
-                return null;
-            });
-        }; }; }; }; };
-        Norm.arcVector = function (v) { return function (r) { return function (a) { return function (b) {
-            return IO(function () {
-                __EXTERNAL__.context.arc(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, a * TAU, b * TAU);
-                return null;
-            });
-        }; }; }; };
-        Norm.circle = function (x) { return function (y) { return function (r) {
-            return IO(function () {
-                __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
-                return null;
-            });
-        }; }; };
-        Norm.circleVector = function (coordinates) { return function (r) {
-            return IO(function () {
-                __EXTERNAL__.context.arc(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
-                return null;
-            });
-        }; };
-        Norm.strokeCircle = function (x) { return function (y) { return function (r) {
-            return IO(function () {
-                __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
-                __EXTERNAL__.context.stroke();
-                return null;
-            });
-        }; }; };
-        Norm.strokeCircleVector = function (coordinates) { return function (r) {
-            return IO(function () {
-                __EXTERNAL__.context.arc(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
-                __EXTERNAL__.context.stroke();
-                return null;
-            });
-        }; };
-        Norm.fillCircle = function (x) { return function (y) { return function (r) {
-            return IO(function () {
-                __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
-                __EXTERNAL__.context.fill();
-                return null;
-            });
-        }; }; };
-        Norm.fillCircleVector = function (coordinates) { return function (r) {
-            return IO(function () {
-                __EXTERNAL__.context.arc(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
-                __EXTERNAL__.context.fill();
-                return null;
-            });
-        }; };
-        Norm.elliptic = function (x) { return function (y) {
-            return function (kx) { return function (ky) {
-                return function (a) { return function (b) {
-                    return function (r) {
-                        return IO(function () {
-                            __EXTERNAL__.context.ellipse(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, kx * __EXTERNAL__.context.canvas.width, ky * __EXTERNAL__.context.canvas.height, r * TAU, a * TAU, b * TAU);
-                            return null;
-                        });
-                    };
-                }; };
-            }; };
-        }; };
-        Norm.ellipticVector = function (coordinates) { return function (dimensions) {
-            return function (a) { return function (b) { return function (r) {
-                return IO(function () {
-                    __EXTERNAL__.context.ellipse(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height, r * TAU, a * TAU, b * TAU);
-                    return null;
-                });
-            }; }; };
-        }; };
-        Norm.ellipse = function (x) { return function (y) {
-            return function (kx) { return function (ky) {
-                return function (r) {
-                    return IO(function () {
-                        __EXTERNAL__.context.ellipse(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, kx * __EXTERNAL__.context.canvas.width, ky * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
-                        return null;
-                    });
-                };
-            }; };
-        }; };
-        Norm.ellipseVector = function (coordinates) {
-            return function (dimensions) {
-                return function (r) {
-                    return IO(function () {
-                        __EXTERNAL__.context.ellipse(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
-                        return null;
-                    });
-                };
-            };
-        };
-        Norm.strokeEllipse = function (x) { return function (y) {
-            return function (kx) { return function (ky) {
-                return function (r) {
-                    return IO(function () {
-                        __EXTERNAL__.context.ellipse(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, kx * __EXTERNAL__.context.canvas.width, ky * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
-                        __EXTERNAL__.context.stroke();
-                        return null;
-                    });
-                };
-            }; };
-        }; };
-        Norm.strokeEllipseVector = function (coordinates) {
-            return function (dimensions) {
-                return function (r) {
-                    return IO(function () {
-                        __EXTERNAL__.context.ellipse(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
-                        __EXTERNAL__.context.stroke();
-                        return null;
-                    });
-                };
-            };
-        };
-        Norm.fillEllipse = function (x) { return function (y) {
-            return function (kx) { return function (ky) {
-                return function (r) {
-                    return IO(function () {
-                        __EXTERNAL__.context.ellipse(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, kx * __EXTERNAL__.context.canvas.width, ky * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
-                        __EXTERNAL__.context.fill();
-                        return null;
-                    });
-                };
-            }; };
-        }; };
-        Norm.fillEllipseVector = function (coordinates) {
-            return function (dimensions) {
-                return function (r) {
-                    return IO(function () {
-                        __EXTERNAL__.context.ellipse(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
-                        __EXTERNAL__.context.fill();
-                        return null;
-                    });
-                };
-            };
-        };
-        Norm.strokeText = function (text) { return function (x) { return function (y) {
-            return IO(function () {
-                __EXTERNAL__.context.strokeText(text, x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; }; };
-        Norm.strokeTextVector = function (text) { return function (coordinates) {
-            return IO(function () {
-                __EXTERNAL__.context.strokeText(text, coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.width);
-                return null;
-            });
-        }; };
-        Norm.fillText = function (text) { return function (x) { return function (y) {
-            return IO(function () {
-                __EXTERNAL__.context.fillText(text, x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
-                return null;
-            });
-        }; }; };
-        Norm.fillTextVector = function (text) { return function (coordinates) {
-            return IO(function () {
-                __EXTERNAL__.context.fillText(text, coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.width);
-                return null;
-            });
-        }; };
-        Norm.area = function (ix) { return function (iy) { return function (jx) { return function (jy) {
-            return IO(function () { return (__EXTERNAL__.context.rect(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, (jx - ix) * __EXTERNAL__.context.canvas.width, (jy - iy) * __EXTERNAL__.context.canvas.height), null); });
-        }; }; }; };
-        Norm.areaVector = function (i) { return function (j) {
-            return IO(function () { return (__EXTERNAL__.context.rect(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, (j.x - i.x) * __EXTERNAL__.context.canvas.width, (j.y - i.y) * __EXTERNAL__.context.canvas.height), null); });
-        }; };
-        Norm.strokeArea = function (ix) { return function (iy) { return function (jx) { return function (jy) {
-            return IO(function () { return (__EXTERNAL__.context.strokeRect(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, (jx - ix) * __EXTERNAL__.context.canvas.width, (jy - iy) * __EXTERNAL__.context.canvas.height), null); });
-        }; }; }; };
-        Norm.strokeAreaVector = function (i) { return function (j) {
-            return IO(function () { return (__EXTERNAL__.context.strokeRect(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, (j.x - i.x) * __EXTERNAL__.context.canvas.width, (j.y - i.y) * __EXTERNAL__.context.canvas.height), null); });
-        }; };
-        Norm.fillArea = function (ix) { return function (iy) { return function (jx) { return function (jy) {
-            return IO(function () { return (__EXTERNAL__.context.fillRect(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, (jx - ix) * __EXTERNAL__.context.canvas.width, (jy - iy) * __EXTERNAL__.context.canvas.height), null); });
-        }; }; }; };
-        Norm.fillAreaVector = function (i) { return function (j) {
-            return IO(function () { return (__EXTERNAL__.context.fillRect(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, (j.x - i.x) * __EXTERNAL__.context.canvas.width, (j.y - i.y) * __EXTERNAL__.context.canvas.height), null); });
-        }; };
+        Norm.drawImage = (path) => (cropX) => (cropY) => (cropW) => (cropH) => (x) => (y) => (w) => (h) => IO(() => {
+            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], cropX * __EXTERNAL__.image[path].width, cropY * __EXTERNAL__.image[path].height, cropW * __EXTERNAL__.image[path].width, cropH * __EXTERNAL__.image[path].height, x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.drawImageVector = (path) => (cropCoordinates) => (cropDimensions) => (position) => (dimensions) => IO(() => {
+            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], cropCoordinates.x * __EXTERNAL__.image[path].width, cropCoordinates.y * __EXTERNAL__.image[path].height, cropDimensions.x * __EXTERNAL__.image[path].width, cropDimensions.y * __EXTERNAL__.image[path].height, position.x * __EXTERNAL__.context.canvas.width, position.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.drawFullImage = (path) => (x) => (y) => (w) => (h) => IO(() => {
+            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.drawFullImageVector = (path) => (coordinates) => (dimensions) => IO(() => {
+            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.drawFixedImage = (path) => (x) => (y) => (k) => IO(() => {
+            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, k * __EXTERNAL__.context.canvas.width, k * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.drawFixedImageVector = (path) => (coordinates) => (k) => IO(() => {
+            const l = k * __EXTERNAL__.context.canvas.width;
+            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, l, l);
+            return null;
+        });
+        Norm.drawScaledImage = (path) => (x) => (y) => (k) => IO(() => {
+            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, k * __EXTERNAL__.context.canvas.width * __EXTERNAL__.image[path].width, k * __EXTERNAL__.context.canvas.height * __EXTERNAL__.image[path].height);
+            return null;
+        });
+        Norm.drawScaledImageVector = (path) => (coordinates) => (k) => IO(() => {
+            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, k * __EXTERNAL__.context.canvas.width * __EXTERNAL__.image[path].width, k * __EXTERNAL__.context.canvas.height * __EXTERNAL__.image[path].height);
+            return null;
+        });
+        Norm.clearRectangle = (x) => (y) => (w) => (h) => IO(() => {
+            __EXTERNAL__.context.clearRect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.clearRectangleVector = (coordinates) => (dimensions) => IO(() => {
+            __EXTERNAL__.context.clearRect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.rotate = (angle) => IO(() => {
+            __EXTERNAL__.context.rotate(angle * TAU);
+            return null;
+        });
+        Norm.translate = (dx) => (dy) => IO(() => {
+            __EXTERNAL__.context.translate(dx * __EXTERNAL__.context.canvas.width, dy * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.translateVector = (v) => IO(() => {
+            __EXTERNAL__.context.translate(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.transformation = (m) => IO(() => {
+            __EXTERNAL__.context.transform(m.ix, m.iy, m.jx, m.jy, m.kx * __EXTERNAL__.context.canvas.width, m.ky * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.moveTo = (x) => (y) => IO(() => {
+            __EXTERNAL__.context.moveTo(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.moveToVector = (v) => IO(() => {
+            __EXTERNAL__.context.moveTo(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.lineTo = (x) => (y) => IO(() => {
+            __EXTERNAL__.context.lineTo(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.lineToVector = (v) => IO(() => {
+            __EXTERNAL__.context.lineTo(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.bezierCurveTo = (ix) => (iy) => (jx) => (jy) => (x) => (y) => IO(() => {
+            __EXTERNAL__.context.bezierCurveTo(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, jx * __EXTERNAL__.context.canvas.width, jy * __EXTERNAL__.context.canvas.height, x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.bezierCurveToVector = (i) => (j) => (v) => IO(() => {
+            __EXTERNAL__.context.bezierCurveTo(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, j.x * __EXTERNAL__.context.canvas.width, j.y * __EXTERNAL__.context.canvas.height, v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.quadraticCurveTo = (ix) => (iy) => (x) => (y) => IO(() => {
+            __EXTERNAL__.context.quadraticCurveTo(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.quadraticCurveToVector = (i) => (v) => IO(() => {
+            __EXTERNAL__.context.quadraticCurveTo(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.arcTo = (ix) => (iy) => (jx) => (jy) => (r) => IO(() => {
+            __EXTERNAL__.context.arcTo(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, jx * __EXTERNAL__.context.canvas.width, jy * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width);
+            return null;
+        });
+        Norm.arcToVector = (i) => (j) => (r) => IO(() => {
+            __EXTERNAL__.context.arcTo(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, j.x * __EXTERNAL__.context.canvas.width, j.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width);
+            return null;
+        });
+        Norm.rectangle = (x) => (y) => (w) => (h) => IO(() => {
+            __EXTERNAL__.context.rect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.rectangleVector = (coordinates) => (dimensions) => IO(() => {
+            __EXTERNAL__.context.rect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.fillRectangle = (x) => (y) => (w) => (h) => IO(() => {
+            __EXTERNAL__.context.fillRect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.fillRectangleVector = (coordinates) => (dimensions) => IO(() => {
+            __EXTERNAL__.context.fillRect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.strokeRectangle = (x) => (y) => (w) => (h) => IO(() => {
+            __EXTERNAL__.context.strokeRect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.strokeRectangleVector = (coordinates) => (dimensions) => IO(() => {
+            __EXTERNAL__.context.strokeRect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.arc = (x) => (y) => (r) => (a) => (b) => IO(() => {
+            __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, a * TAU, b * TAU);
+            return null;
+        });
+        Norm.arcVector = (v) => (r) => (a) => (b) => IO(() => {
+            __EXTERNAL__.context.arc(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, a * TAU, b * TAU);
+            return null;
+        });
+        Norm.circle = (x) => (y) => (r) => IO(() => {
+            __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+            return null;
+        });
+        Norm.circleVector = (coordinates) => (r) => IO(() => {
+            __EXTERNAL__.context.arc(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+            return null;
+        });
+        Norm.strokeCircle = (x) => (y) => (r) => IO(() => {
+            __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+            __EXTERNAL__.context.stroke();
+            return null;
+        });
+        Norm.strokeCircleVector = (coordinates) => (r) => IO(() => {
+            __EXTERNAL__.context.arc(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+            __EXTERNAL__.context.stroke();
+            return null;
+        });
+        Norm.fillCircle = (x) => (y) => (r) => IO(() => {
+            __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+            __EXTERNAL__.context.fill();
+            return null;
+        });
+        Norm.fillCircleVector = (coordinates) => (r) => IO(() => {
+            __EXTERNAL__.context.arc(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+            __EXTERNAL__.context.fill();
+            return null;
+        });
+        Norm.elliptic = (x) => (y) => (kx) => (ky) => (a) => (b) => (r) => IO(() => {
+            __EXTERNAL__.context.ellipse(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, kx * __EXTERNAL__.context.canvas.width, ky * __EXTERNAL__.context.canvas.height, r * TAU, a * TAU, b * TAU);
+            return null;
+        });
+        Norm.ellipticVector = (coordinates) => (dimensions) => (a) => (b) => (r) => IO(() => {
+            __EXTERNAL__.context.ellipse(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height, r * TAU, a * TAU, b * TAU);
+            return null;
+        });
+        Norm.ellipse = (x) => (y) => (kx) => (ky) => (r) => IO(() => {
+            __EXTERNAL__.context.ellipse(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, kx * __EXTERNAL__.context.canvas.width, ky * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+            return null;
+        });
+        Norm.ellipseVector = (coordinates) => (dimensions) => (r) => IO(() => {
+            __EXTERNAL__.context.ellipse(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+            return null;
+        });
+        Norm.strokeEllipse = (x) => (y) => (kx) => (ky) => (r) => IO(() => {
+            __EXTERNAL__.context.ellipse(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, kx * __EXTERNAL__.context.canvas.width, ky * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+            __EXTERNAL__.context.stroke();
+            return null;
+        });
+        Norm.strokeEllipseVector = (coordinates) => (dimensions) => (r) => IO(() => {
+            __EXTERNAL__.context.ellipse(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+            __EXTERNAL__.context.stroke();
+            return null;
+        });
+        Norm.fillEllipse = (x) => (y) => (kx) => (ky) => (r) => IO(() => {
+            __EXTERNAL__.context.ellipse(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, kx * __EXTERNAL__.context.canvas.width, ky * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+            __EXTERNAL__.context.fill();
+            return null;
+        });
+        Norm.fillEllipseVector = (coordinates) => (dimensions) => (r) => IO(() => {
+            __EXTERNAL__.context.ellipse(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
+            __EXTERNAL__.context.fill();
+            return null;
+        });
+        Norm.strokeText = (text) => (x) => (y) => IO(() => {
+            __EXTERNAL__.context.strokeText(text, x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.strokeTextVector = (text) => (coordinates) => IO(() => {
+            __EXTERNAL__.context.strokeText(text, coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.width);
+            return null;
+        });
+        Norm.fillText = (text) => (x) => (y) => IO(() => {
+            __EXTERNAL__.context.fillText(text, x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height);
+            return null;
+        });
+        Norm.fillTextVector = (text) => (coordinates) => IO(() => {
+            __EXTERNAL__.context.fillText(text, coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.width);
+            return null;
+        });
+        Norm.area = (ix) => (iy) => (jx) => (jy) => IO(() => (__EXTERNAL__.context.rect(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, (jx - ix) * __EXTERNAL__.context.canvas.width, (jy - iy) * __EXTERNAL__.context.canvas.height), null));
+        Norm.areaVector = (i) => (j) => IO(() => (__EXTERNAL__.context.rect(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, (j.x - i.x) * __EXTERNAL__.context.canvas.width, (j.y - i.y) * __EXTERNAL__.context.canvas.height), null));
+        Norm.strokeArea = (ix) => (iy) => (jx) => (jy) => IO(() => (__EXTERNAL__.context.strokeRect(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, (jx - ix) * __EXTERNAL__.context.canvas.width, (jy - iy) * __EXTERNAL__.context.canvas.height), null));
+        Norm.strokeAreaVector = (i) => (j) => IO(() => (__EXTERNAL__.context.strokeRect(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, (j.x - i.x) * __EXTERNAL__.context.canvas.width, (j.y - i.y) * __EXTERNAL__.context.canvas.height), null));
+        Norm.fillArea = (ix) => (iy) => (jx) => (jy) => IO(() => (__EXTERNAL__.context.fillRect(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, (jx - ix) * __EXTERNAL__.context.canvas.width, (jy - iy) * __EXTERNAL__.context.canvas.height), null));
+        Norm.fillAreaVector = (i) => (j) => IO(() => (__EXTERNAL__.context.fillRect(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, (j.x - i.x) * __EXTERNAL__.context.canvas.width, (j.y - i.y) * __EXTERNAL__.context.canvas.height), null));
     })(Norm = Effect.Norm || (Effect.Norm = {}));
-    Effect.log = function (message) {
-        return IO(function () { return (console.log(message), null); });
-    };
-    Effect.flush = IO(function () { return (console.clear(), null); });
-    Effect.queue = function (io) {
-        return IO(function () { return (io.INFO(), null); });
-    };
-    Effect.tick = IO(function () {
-        for (var k in __EXTERNAL__.keyboard)
+    Effect.log = (message) => IO(() => (console.log(message), null));
+    Effect.flush = IO(() => (console.clear(), null));
+    Effect.queue = (io) => IO(() => (io.INFO(), null));
+    Effect.tick = IO(() => {
+        for (const k in __EXTERNAL__.keyboard)
             __EXTERNAL__.keyboard[k] = relaxVertical(__EXTERNAL__.keyboard[k]);
-        for (var i in __EXTERNAL__.mouse.buttons)
+        for (const i in __EXTERNAL__.mouse.buttons)
             __EXTERNAL__.mouse.buttons[i] = relaxVertical(__EXTERNAL__.mouse.buttons[i]);
         __EXTERNAL__.mouse.scroll = Vertical.CenterY;
         __EXTERNAL__.mouse.deltaX = 0;
         __EXTERNAL__.mouse.deltaY = 0;
         return null;
     });
-    Effect.activatePointerLock = IO(function () {
-        __EXTERNAL__.context.canvas.onmousedown = function () {
+    Effect.activatePointerLock = IO(() => {
+        __EXTERNAL__.context.canvas.onmousedown = () => {
             if (!__EXTERNAL__.isPointerLocked)
                 __EXTERNAL__.context.canvas.requestPointerLock();
         };
         return null;
     });
-    Effect.deactivatePointerLock = IO(function () {
+    Effect.deactivatePointerLock = IO(() => {
         __EXTERNAL__.context.canvas.onmousedown = null;
         return null;
     });
-    Effect.loadImage = function (path) {
-        return IO(function () {
-            __EXTERNAL__.image[path] = new Image;
-            __EXTERNAL__.image[path].src = path;
-            __EXTERNAL__.image[path].onerror = function () { return THROW("Could not load image: '" + path + "'"); };
-            return null;
-        });
-    };
-    Effect.drawImage = function (path) {
-        return function (cropX) { return function (cropY) {
-            return function (cropW) { return function (cropH) {
-                return function (x) { return function (y) {
-                    return function (w) { return function (h) {
-                        return IO(function () {
-                            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], cropX, cropY, cropW, cropH, x, y, w, h);
-                            return null;
-                        });
-                    }; };
-                }; };
-            }; };
-        }; };
-    };
-    Effect.drawImageVector = function (path) {
-        return function (cropCoordinates) {
-            return function (cropDimensions) {
-                return function (position) {
-                    return function (dimensions) {
-                        return IO(function () {
-                            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], cropCoordinates.x, cropCoordinates.y, cropDimensions.x, cropDimensions.y, position.x, position.y, dimensions.x, dimensions.y);
-                            return null;
-                        });
-                    };
-                };
-            };
-        };
-    };
-    Effect.drawFullImage = function (path) {
-        return function (x) { return function (y) {
-            return function (w) { return function (h) {
-                return IO(function () { return (__EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x, y, w, h), null); });
-            }; };
-        }; };
-    };
-    Effect.drawFullImageVector = function (path) {
-        return function (coordinates) {
-            return function (dimensions) {
-                return IO(function () {
-                    __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x, coordinates.y, dimensions.x, dimensions.y);
-                    return null;
-                });
-            };
-        };
-    };
-    Effect.drawFixedImage = function (path) { return function (x) { return function (y) { return function (k) {
-        return IO(function () { return (__EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x, y, k, k), null); });
-    }; }; }; };
-    Effect.drawFixedImageVector = function (path) { return function (coordinates) { return function (k) {
-        return IO(function () { return (__EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x, coordinates.y, k, k), null); });
-    }; }; };
-    Effect.drawScaledImage = function (path) { return function (x) { return function (y) { return function (k) {
-        return IO(function () {
-            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x, y, k * __EXTERNAL__.image[path].width, k * __EXTERNAL__.image[path].height);
-            return null;
-        });
-    }; }; }; };
-    Effect.drawScaledImageVector = function (path) { return function (coordinates) { return function (k) {
-        return IO(function () {
-            __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x, coordinates.y, k * __EXTERNAL__.image[path].width, k * __EXTERNAL__.image[path].height);
-            return null;
-        });
-    }; }; };
-    Effect.loadAudio = function (path) {
-        return IO(function () {
-            __EXTERNAL__.audio[path] = new Audio(path);
-            __EXTERNAL__.audio[path].onerror = function () { return THROW("Could not load audio: '" + path + "'"); };
-            return null;
-        });
-    };
-    Effect.playAudio = function (path) {
-        return IO(function () { return ((__EXTERNAL__.audio[path] || THROW("Audio not preloaded: '" + path + "'")).play(), null); });
-    };
-    Effect.playSFX = function (path) {
-        return IO(function () { return ((__EXTERNAL__.audio[path] || THROW("Audio not preloaded: '" + path + "'")).cloneNode().play(), null); });
-    };
-    Effect.loadFont = function (path) {
-        return IO(function () {
-            document.styleSheets[0].insertRule("@font-face{font-family:\"" + path.slice(path.lastIndexOf("/") + 1, path.lastIndexOf(".")) + "\";src:url(\"" + path + "\")}");
-            return null;
-        });
-    };
-    Effect.clearRectangle = function (x) { return function (y) { return function (w) { return function (h) {
-        return IO(function () { return (__EXTERNAL__.context.clearRect(x, y, w, h), null); });
-    }; }; }; };
-    Effect.clearRectangleVector = function (coordinates) { return function (dimensions) {
-        return IO(function () { return (__EXTERNAL__.context.clearRect(coordinates.x, coordinates.y, dimensions.x, dimensions.y), null); });
-    }; };
-    Effect.clearCanvas = IO(function () {
+    Effect.loadImage = (path) => IO(() => {
+        __EXTERNAL__.image[path] = new Image;
+        __EXTERNAL__.image[path].src = path;
+        __EXTERNAL__.image[path].onerror = () => THROW(`Could not load image: '${path}'`);
+        return null;
+    });
+    Effect.drawImage = (path) => (cropX) => (cropY) => (cropW) => (cropH) => (x) => (y) => (w) => (h) => IO(() => {
+        __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], cropX, cropY, cropW, cropH, x, y, w, h);
+        return null;
+    });
+    Effect.drawImageVector = (path) => (cropCoordinates) => (cropDimensions) => (position) => (dimensions) => IO(() => {
+        __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], cropCoordinates.x, cropCoordinates.y, cropDimensions.x, cropDimensions.y, position.x, position.y, dimensions.x, dimensions.y);
+        return null;
+    });
+    Effect.drawFullImage = (path) => (x) => (y) => (w) => (h) => IO(() => (__EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x, y, w, h), null));
+    Effect.drawFullImageVector = (path) => (coordinates) => (dimensions) => IO(() => {
+        __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x, coordinates.y, dimensions.x, dimensions.y);
+        return null;
+    });
+    Effect.drawFixedImage = (path) => (x) => (y) => (k) => IO(() => (__EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x, y, k, k), null));
+    Effect.drawFixedImageVector = (path) => (coordinates) => (k) => IO(() => (__EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x, coordinates.y, k, k), null));
+    Effect.drawScaledImage = (path) => (x) => (y) => (k) => IO(() => {
+        __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], x, y, k * __EXTERNAL__.image[path].width, k * __EXTERNAL__.image[path].height);
+        return null;
+    });
+    Effect.drawScaledImageVector = (path) => (coordinates) => (k) => IO(() => {
+        __EXTERNAL__.context.drawImage(__EXTERNAL__.image[path], coordinates.x, coordinates.y, k * __EXTERNAL__.image[path].width, k * __EXTERNAL__.image[path].height);
+        return null;
+    });
+    Effect.loadAudio = (path) => IO(() => {
+        __EXTERNAL__.audio[path] = new Audio(path);
+        __EXTERNAL__.audio[path].onerror = () => THROW(`Could not load audio: '${path}'`);
+        return null;
+    });
+    Effect.playAudio = (path) => IO(() => ((__EXTERNAL__.audio[path] || THROW(`Audio not preloaded: '${path}'`)).play(), null));
+    Effect.playSFX = (path) => IO(() => ((__EXTERNAL__.audio[path] || THROW(`Audio not preloaded: '${path}'`)).cloneNode().play(), null));
+    Effect.loadFont = (path) => IO(() => {
+        document.styleSheets[0].insertRule(`@font-face{font-family:"${path.slice(path.lastIndexOf("/") + 1, path.lastIndexOf("."))}";src:url("${path}")}`);
+        return null;
+    });
+    Effect.clearRectangle = (x) => (y) => (w) => (h) => IO(() => (__EXTERNAL__.context.clearRect(x, y, w, h), null));
+    Effect.clearRectangleVector = (coordinates) => (dimensions) => IO(() => (__EXTERNAL__.context.clearRect(coordinates.x, coordinates.y, dimensions.x, dimensions.y), null));
+    Effect.clearCanvas = IO(() => {
         __EXTERNAL__.context.clearRect(0, 0, __EXTERNAL__.context.canvas.width, __EXTERNAL__.context.canvas.height);
         return null;
     });
-    Effect.fill = IO(function () { return (__EXTERNAL__.context.fill(), null); });
-    Effect.stroke = IO(function () { return (__EXTERNAL__.context.stroke(), null); });
-    Effect.save = IO(function () { return (__EXTERNAL__.context.save(), null); });
-    Effect.restore = IO(function () { return (__EXTERNAL__.context.restore(), null); });
-    Effect.clipEvenOdd = IO(function () { return (__EXTERNAL__.context.clip('evenodd'), null); });
-    Effect.clipNonZero = IO(function () { return (__EXTERNAL__.context.clip('nonzero'), null); });
-    Effect.rotate = function (angle) {
-        return IO(function () { return (__EXTERNAL__.context.rotate(angle), null); });
-    };
-    Effect.scale = function (k) {
-        return IO(function () { return (__EXTERNAL__.context.scale(k, k), null); });
-    };
-    Effect.scaleAxis = function (kx) { return function (ky) {
-        return IO(function () { return (__EXTERNAL__.context.scale(kx, ky), null); });
-    }; };
-    Effect.scaleAxisVector = function (v) {
-        return IO(function () { return (__EXTERNAL__.context.scale(v.x, v.y), null); });
-    };
-    Effect.translate = function (dx) { return function (dy) {
-        return IO(function () { return (__EXTERNAL__.context.translate(dx, dy), null); });
-    }; };
-    Effect.translateVector = function (v) {
-        return IO(function () {
-            __EXTERNAL__.context.translate(v.x, v.y);
-            return null;
-        });
-    };
-    Effect.transformation = function (m) {
-        return IO(function () {
-            __EXTERNAL__.context.transform(m.ix, m.iy, m.jx, m.jy, m.kx, m.ky);
-            return null;
-        });
-    };
-    Effect.beginPath = IO(function () { return (__EXTERNAL__.context.beginPath(), null); });
-    Effect.closePath = IO(function () { return (__EXTERNAL__.context.closePath(), null); });
-    Effect.moveTo = function (x) { return function (y) {
-        return IO(function () { return (__EXTERNAL__.context.moveTo(x, y), null); });
-    }; };
-    Effect.moveToVector = function (v) {
-        return IO(function () { return (__EXTERNAL__.context.moveTo(v.x, v.y), null); });
-    };
-    Effect.lineTo = function (x) { return function (y) {
-        return IO(function () { return (__EXTERNAL__.context.lineTo(x, y), null); });
-    }; };
-    Effect.lineToVector = function (v) {
-        return IO(function () { return (__EXTERNAL__.context.lineTo(v.x, v.y), null); });
-    };
-    Effect.bezierCurveTo = function (ix) { return function (iy) {
-        return function (jx) { return function (jy) {
-            return function (x) { return function (y) {
-                return IO(function () { return (__EXTERNAL__.context.bezierCurveTo(ix, iy, jx, jy, x, y), null); });
-            }; };
-        }; };
-    }; };
-    Effect.bezierCurveToVector = function (i) { return function (j) { return function (v) {
-        return IO(function () { return (__EXTERNAL__.context.bezierCurveTo(i.x, i.y, j.x, j.y, v.x, v.y), null); });
-    }; }; };
-    Effect.quadraticCurveTo = function (ix) { return function (iy) {
-        return function (x) { return function (y) {
-            return IO(function () { return (__EXTERNAL__.context.quadraticCurveTo(ix, iy, x, y), null); });
-        }; };
-    }; };
-    Effect.quadraticCurveToVector = function (i) { return function (v) {
-        return IO(function () { return (__EXTERNAL__.context.quadraticCurveTo(i.x, i.y, v.x, v.y), null); });
-    }; };
-    Effect.arcTo = function (ix) { return function (iy) {
-        return function (jx) { return function (jy) {
-            return function (r) {
-                return IO(function () { return (__EXTERNAL__.context.arcTo(ix, iy, jx, jy, r), null); });
-            };
-        }; };
-    }; };
-    Effect.arcToVector = function (i) { return function (j) { return function (r) {
-        return IO(function () { return (__EXTERNAL__.context.arcTo(i.x, i.y, j.x, j.y, r), null); });
-    }; }; };
-    Effect.rectangle = function (x) { return function (y) { return function (w) { return function (h) {
-        return IO(function () { return (__EXTERNAL__.context.rect(x, y, w, h), null); });
-    }; }; }; };
-    Effect.rectangleVector = function (coordinates) { return function (dimensions) {
-        return IO(function () { return (__EXTERNAL__.context.rect(coordinates.x, coordinates.y, dimensions.x, dimensions.y), null); });
-    }; };
-    Effect.fillRectangle = function (x) { return function (y) { return function (w) { return function (h) {
-        return IO(function () { return (__EXTERNAL__.context.fillRect(x, y, w, h), null); });
-    }; }; }; };
-    Effect.fillRectangleVector = function (coordinates) { return function (dimensions) {
-        return IO(function () { return (__EXTERNAL__.context.fillRect(coordinates.x, coordinates.y, dimensions.x, dimensions.y), null); });
-    }; };
-    Effect.strokeRectangle = function (x) { return function (y) { return function (w) { return function (h) {
-        return IO(function () { return (__EXTERNAL__.context.strokeRect(x, y, w, h), null); });
-    }; }; }; };
-    Effect.strokeRectangleVector = function (coordinates) { return function (dimensions) {
-        return IO(function () { return (__EXTERNAL__.context.strokeRect(coordinates.x, coordinates.y, dimensions.x, dimensions.y), null); });
-    }; };
-    Effect.arc = function (x) { return function (y) { return function (r) { return function (a) { return function (b) {
-        return IO(function () { return (__EXTERNAL__.context.arc(x, y, r, a, b), null); });
-    }; }; }; }; };
-    Effect.arcVector = function (v) { return function (r) { return function (a) { return function (b) {
-        return IO(function () { return (__EXTERNAL__.context.arc(v.x, v.y, r, a, b), null); });
-    }; }; }; };
-    Effect.circle = function (x) { return function (y) { return function (r) {
-        return IO(function () { return (__EXTERNAL__.context.arc(x, y, r, 0, TAU), null); });
-    }; }; };
-    Effect.circleVector = function (coordinates) { return function (r) {
-        return IO(function () { return (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), null); });
-    }; };
-    Effect.strokeCircle = function (x) { return function (y) { return function (r) {
-        return IO(function () { return (__EXTERNAL__.context.arc(x, y, r, 0, TAU), __EXTERNAL__.context.stroke(), null); });
-    }; }; };
-    Effect.strokeCircleVector = function (coordinates) { return function (r) {
-        return IO(function () { return (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), __EXTERNAL__.context.stroke(), null); });
-    }; };
-    Effect.fillCircle = function (x) { return function (y) { return function (r) {
-        return IO(function () { return (__EXTERNAL__.context.arc(x, y, r, 0, TAU), __EXTERNAL__.context.fill(), null); });
-    }; }; };
-    Effect.fillCircleVector = function (coordinates) { return function (r) {
-        return IO(function () { return (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), __EXTERNAL__.context.fill(), null); });
-    }; };
-    Effect.elliptic = function (x) { return function (y) {
-        return function (kx) { return function (ky) {
-            return function (a) { return function (b) {
-                return function (r) {
-                    return IO(function () { return (__EXTERNAL__.context.ellipse(x, y, kx, ky, r, a, b), null); });
-                };
-            }; };
-        }; };
-    }; };
-    Effect.ellipticVector = function (coordinates) { return function (dimensions) {
-        return function (a) { return function (b) { return function (r) {
-            return IO(function () { return (__EXTERNAL__.context.ellipse(coordinates.x, coordinates.y, dimensions.x, dimensions.y, r, a, b), null); });
-        }; }; };
-    }; };
-    Effect.ellipse = function (x) { return function (y) { return function (kx) { return function (ky) { return function (r) {
-        return IO(function () { return (__EXTERNAL__.context.ellipse(x, y, kx, ky, r, 0, TAU), null); });
-    }; }; }; }; };
-    Effect.ellipseVector = function (coordinates) { return function (dimensions) { return function (r) {
-        return IO(function () { return (__EXTERNAL__.context.ellipse(coordinates.x, coordinates.y, dimensions.x, dimensions.y, r, 0, TAU), null); });
-    }; }; };
-    Effect.strokeEllipse = function (x) { return function (y) { return function (kx) { return function (ky) { return function (r) {
-        return IO(function () { return (__EXTERNAL__.context.ellipse(x, y, kx, ky, r, 0, TAU), __EXTERNAL__.context.stroke(), null); });
-    }; }; }; }; };
-    Effect.strokeEllipseVector = function (coordinates) { return function (dimensions) { return function (r) {
-        return IO(function () {
-            __EXTERNAL__.context.ellipse(coordinates.x, coordinates.y, dimensions.x, dimensions.y, r, 0, TAU);
-            __EXTERNAL__.context.stroke();
-            return null;
-        });
-    }; }; };
-    Effect.fillEllipse = function (x) { return function (y) { return function (kx) { return function (ky) { return function (r) {
-        return IO(function () { return (__EXTERNAL__.context.ellipse(x, y, kx, ky, r, 0, TAU), __EXTERNAL__.context.fill(), null); });
-    }; }; }; }; };
-    Effect.fillEllipseVector = function (coordinates) { return function (dimensions) { return function (r) {
-        return IO(function () {
-            __EXTERNAL__.context.ellipse(coordinates.x, coordinates.y, dimensions.x, dimensions.y, r, 0, TAU);
-            __EXTERNAL__.context.fill();
-            return null;
-        });
-    }; }; };
-    Effect.strokeText = function (text) { return function (x) { return function (y) {
-        return IO(function () { return (__EXTERNAL__.context.strokeText(text, x, y), null); });
-    }; }; };
-    Effect.strokeTextVector = function (text) { return function (coordinates) {
-        return IO(function () { return (__EXTERNAL__.context.strokeText(text, coordinates.x, coordinates.y), null); });
-    }; };
-    Effect.fillText = function (text) { return function (x) { return function (y) {
-        return IO(function () { return (__EXTERNAL__.context.fillText(text, x, y), null); });
-    }; }; };
-    Effect.fillTextVector = function (text) { return function (coordinates) {
-        return IO(function () { return (__EXTERNAL__.context.fillText(text, coordinates.x, coordinates.y), null); });
-    }; };
-    Effect.area = function (ix) { return function (iy) { return function (jx) { return function (jy) {
-        return IO(function () { return (__EXTERNAL__.context.rect(ix, iy, jx - ix, jy - iy), null); });
-    }; }; }; };
-    Effect.areaVector = function (i) { return function (j) {
-        return IO(function () { return (__EXTERNAL__.context.rect(i.x, i.y, j.x - i.x, j.y - i.y), null); });
-    }; };
-    Effect.strokeArea = function (ix) { return function (iy) { return function (jx) { return function (jy) {
-        return IO(function () { return (__EXTERNAL__.context.strokeRect(ix, iy, jx - ix, jy - iy), null); });
-    }; }; }; };
-    Effect.strokeAreaVector = function (i) { return function (j) {
-        return IO(function () { return (__EXTERNAL__.context.strokeRect(i.x, i.y, j.x - i.x, j.y - i.y), null); });
-    }; };
-    Effect.fillArea = function (ix) { return function (iy) { return function (jx) { return function (jy) {
-        return IO(function () { return (__EXTERNAL__.context.fillRect(ix, iy, jx - ix, jy - iy), null); });
-    }; }; }; };
-    Effect.fillAreaVector = function (i) { return function (j) {
-        return IO(function () { return (__EXTERNAL__.context.fillRect(i.x, i.y, j.x - i.x, j.y - i.y), null); });
-    }; };
+    Effect.fill = IO(() => (__EXTERNAL__.context.fill(), null));
+    Effect.stroke = IO(() => (__EXTERNAL__.context.stroke(), null));
+    Effect.save = IO(() => (__EXTERNAL__.context.save(), null));
+    Effect.restore = IO(() => (__EXTERNAL__.context.restore(), null));
+    Effect.clipEvenOdd = IO(() => (__EXTERNAL__.context.clip('evenodd'), null));
+    Effect.clipNonZero = IO(() => (__EXTERNAL__.context.clip('nonzero'), null));
+    Effect.rotate = (angle) => IO(() => (__EXTERNAL__.context.rotate(angle), null));
+    Effect.scale = (k) => IO(() => (__EXTERNAL__.context.scale(k, k), null));
+    Effect.scaleAxis = (kx) => (ky) => IO(() => (__EXTERNAL__.context.scale(kx, ky), null));
+    Effect.scaleAxisVector = (v) => IO(() => (__EXTERNAL__.context.scale(v.x, v.y), null));
+    Effect.translate = (dx) => (dy) => IO(() => (__EXTERNAL__.context.translate(dx, dy), null));
+    Effect.translateVector = (v) => IO(() => {
+        __EXTERNAL__.context.translate(v.x, v.y);
+        return null;
+    });
+    Effect.transformation = (m) => IO(() => {
+        __EXTERNAL__.context.transform(m.ix, m.iy, m.jx, m.jy, m.kx, m.ky);
+        return null;
+    });
+    Effect.beginPath = IO(() => (__EXTERNAL__.context.beginPath(), null));
+    Effect.closePath = IO(() => (__EXTERNAL__.context.closePath(), null));
+    Effect.moveTo = (x) => (y) => IO(() => (__EXTERNAL__.context.moveTo(x, y), null));
+    Effect.moveToVector = (v) => IO(() => (__EXTERNAL__.context.moveTo(v.x, v.y), null));
+    Effect.lineTo = (x) => (y) => IO(() => (__EXTERNAL__.context.lineTo(x, y), null));
+    Effect.lineToVector = (v) => IO(() => (__EXTERNAL__.context.lineTo(v.x, v.y), null));
+    Effect.bezierCurveTo = (ix) => (iy) => (jx) => (jy) => (x) => (y) => IO(() => (__EXTERNAL__.context.bezierCurveTo(ix, iy, jx, jy, x, y), null));
+    Effect.bezierCurveToVector = (i) => (j) => (v) => IO(() => (__EXTERNAL__.context.bezierCurveTo(i.x, i.y, j.x, j.y, v.x, v.y), null));
+    Effect.quadraticCurveTo = (ix) => (iy) => (x) => (y) => IO(() => (__EXTERNAL__.context.quadraticCurveTo(ix, iy, x, y), null));
+    Effect.quadraticCurveToVector = (i) => (v) => IO(() => (__EXTERNAL__.context.quadraticCurveTo(i.x, i.y, v.x, v.y), null));
+    Effect.arcTo = (ix) => (iy) => (jx) => (jy) => (r) => IO(() => (__EXTERNAL__.context.arcTo(ix, iy, jx, jy, r), null));
+    Effect.arcToVector = (i) => (j) => (r) => IO(() => (__EXTERNAL__.context.arcTo(i.x, i.y, j.x, j.y, r), null));
+    Effect.rectangle = (x) => (y) => (w) => (h) => IO(() => (__EXTERNAL__.context.rect(x, y, w, h), null));
+    Effect.rectangleVector = (coordinates) => (dimensions) => IO(() => (__EXTERNAL__.context.rect(coordinates.x, coordinates.y, dimensions.x, dimensions.y), null));
+    Effect.fillRectangle = (x) => (y) => (w) => (h) => IO(() => (__EXTERNAL__.context.fillRect(x, y, w, h), null));
+    Effect.fillRectangleVector = (coordinates) => (dimensions) => IO(() => (__EXTERNAL__.context.fillRect(coordinates.x, coordinates.y, dimensions.x, dimensions.y), null));
+    Effect.strokeRectangle = (x) => (y) => (w) => (h) => IO(() => (__EXTERNAL__.context.strokeRect(x, y, w, h), null));
+    Effect.strokeRectangleVector = (coordinates) => (dimensions) => IO(() => (__EXTERNAL__.context.strokeRect(coordinates.x, coordinates.y, dimensions.x, dimensions.y), null));
+    Effect.arc = (x) => (y) => (r) => (a) => (b) => IO(() => (__EXTERNAL__.context.arc(x, y, r, a, b), null));
+    Effect.arcVector = (v) => (r) => (a) => (b) => IO(() => (__EXTERNAL__.context.arc(v.x, v.y, r, a, b), null));
+    Effect.circle = (x) => (y) => (r) => IO(() => (__EXTERNAL__.context.arc(x, y, r, 0, TAU), null));
+    Effect.circleVector = (coordinates) => (r) => IO(() => (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), null));
+    Effect.strokeCircle = (x) => (y) => (r) => IO(() => (__EXTERNAL__.context.arc(x, y, r, 0, TAU), __EXTERNAL__.context.stroke(), null));
+    Effect.strokeCircleVector = (coordinates) => (r) => IO(() => (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), __EXTERNAL__.context.stroke(), null));
+    Effect.fillCircle = (x) => (y) => (r) => IO(() => (__EXTERNAL__.context.arc(x, y, r, 0, TAU), __EXTERNAL__.context.fill(), null));
+    Effect.fillCircleVector = (coordinates) => (r) => IO(() => (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), __EXTERNAL__.context.fill(), null));
+    Effect.elliptic = (x) => (y) => (kx) => (ky) => (a) => (b) => (r) => IO(() => (__EXTERNAL__.context.ellipse(x, y, kx, ky, r, a, b), null));
+    Effect.ellipticVector = (coordinates) => (dimensions) => (a) => (b) => (r) => IO(() => (__EXTERNAL__.context.ellipse(coordinates.x, coordinates.y, dimensions.x, dimensions.y, r, a, b), null));
+    Effect.ellipse = (x) => (y) => (kx) => (ky) => (r) => IO(() => (__EXTERNAL__.context.ellipse(x, y, kx, ky, r, 0, TAU), null));
+    Effect.ellipseVector = (coordinates) => (dimensions) => (r) => IO(() => (__EXTERNAL__.context.ellipse(coordinates.x, coordinates.y, dimensions.x, dimensions.y, r, 0, TAU), null));
+    Effect.strokeEllipse = (x) => (y) => (kx) => (ky) => (r) => IO(() => (__EXTERNAL__.context.ellipse(x, y, kx, ky, r, 0, TAU), __EXTERNAL__.context.stroke(), null));
+    Effect.strokeEllipseVector = (coordinates) => (dimensions) => (r) => IO(() => {
+        __EXTERNAL__.context.ellipse(coordinates.x, coordinates.y, dimensions.x, dimensions.y, r, 0, TAU);
+        __EXTERNAL__.context.stroke();
+        return null;
+    });
+    Effect.fillEllipse = (x) => (y) => (kx) => (ky) => (r) => IO(() => (__EXTERNAL__.context.ellipse(x, y, kx, ky, r, 0, TAU), __EXTERNAL__.context.fill(), null));
+    Effect.fillEllipseVector = (coordinates) => (dimensions) => (r) => IO(() => {
+        __EXTERNAL__.context.ellipse(coordinates.x, coordinates.y, dimensions.x, dimensions.y, r, 0, TAU);
+        __EXTERNAL__.context.fill();
+        return null;
+    });
+    Effect.strokeText = (text) => (x) => (y) => IO(() => (__EXTERNAL__.context.strokeText(text, x, y), null));
+    Effect.strokeTextVector = (text) => (coordinates) => IO(() => (__EXTERNAL__.context.strokeText(text, coordinates.x, coordinates.y), null));
+    Effect.fillText = (text) => (x) => (y) => IO(() => (__EXTERNAL__.context.fillText(text, x, y), null));
+    Effect.fillTextVector = (text) => (coordinates) => IO(() => (__EXTERNAL__.context.fillText(text, coordinates.x, coordinates.y), null));
+    Effect.area = (ix) => (iy) => (jx) => (jy) => IO(() => (__EXTERNAL__.context.rect(ix, iy, jx - ix, jy - iy), null));
+    Effect.areaVector = (i) => (j) => IO(() => (__EXTERNAL__.context.rect(i.x, i.y, j.x - i.x, j.y - i.y), null));
+    Effect.strokeArea = (ix) => (iy) => (jx) => (jy) => IO(() => (__EXTERNAL__.context.strokeRect(ix, iy, jx - ix, jy - iy), null));
+    Effect.strokeAreaVector = (i) => (j) => IO(() => (__EXTERNAL__.context.strokeRect(i.x, i.y, j.x - i.x, j.y - i.y), null));
+    Effect.fillArea = (ix) => (iy) => (jx) => (jy) => IO(() => (__EXTERNAL__.context.fillRect(ix, iy, jx - ix, jy - iy), null));
+    Effect.fillAreaVector = (i) => (j) => IO(() => (__EXTERNAL__.context.fillRect(i.x, i.y, j.x - i.x, j.y - i.y), null));
 })(Effect || (Effect = {}));
-onload = function () {
+onload = () => {
     __EXTERNAL__.context = document.querySelector('canvas').getContext('2d');
-    onkeydown = function (event) {
+    onkeydown = event => {
         if (!event.repeat)
             __EXTERNAL__.keyboard[event.code] = Vertical.Downward;
     };
-    onkeyup = function (event) {
+    onkeyup = event => {
         __EXTERNAL__.keyboard[event.code] = Vertical.Upward;
     };
-    onmousemove = function (event) {
+    onmousemove = event => {
         __EXTERNAL__.mouse.windowX = event.x;
         __EXTERNAL__.mouse.windowY = event.y;
         __EXTERNAL__.mouse.canvasX = event.clientX - __EXTERNAL__.context.canvas.offsetLeft;
@@ -1728,25 +1227,25 @@ onload = function () {
         __EXTERNAL__.mouse.deltaX = event.movementX;
         __EXTERNAL__.mouse.deltaY = event.movementY;
     };
-    onmousedown = function (event) {
+    onmousedown = event => {
         __EXTERNAL__.mouse.buttons[event.button] = Vertical.Downward;
     };
-    onmouseup = function (event) {
+    onmouseup = event => {
         __EXTERNAL__.mouse.buttons[event.button] = Vertical.Upward;
     };
-    onwheel = function (event) {
+    onwheel = event => {
         if (event.deltaY < 0)
             __EXTERNAL__.mouse.scroll = Vertical.Up;
         else
             (event.deltaY > 0);
         __EXTERNAL__.mouse.scroll = Vertical.Down;
     };
-    onresize = function () {
+    onresize = () => {
         clearTimeout(__EXTERNAL__.resizeID);
         __EXTERNAL__.resizeID =
-            setTimeout(function () { __EXTERNAL__.isResized = true; }, 250);
+            setTimeout(() => { __EXTERNAL__.isResized = true; }, 250);
     };
-    document.onpointerlockchange = function () {
+    document.onpointerlockchange = () => {
         __EXTERNAL__.isPointerLocked = document.pointerLockElement === __EXTERNAL__.context.canvas;
     };
 };

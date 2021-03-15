@@ -255,7 +255,7 @@
 		"sort-keys"                                 : "off",
 		"sort-vars"                                 : "off",
 		"space-before-blocks"                       : "off",
-		"space-before-function-paren"               : "warn",
+		"space-before-function-paren"               : "off",
 		"space-in-parens"                           : "off",
 		"space-infix-ops"                           : "warn",
 		"space-unary-ops"                           : "off",
