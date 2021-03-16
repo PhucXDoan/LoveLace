@@ -1821,6 +1821,14 @@ const pseudoRandom : State<number, number> =
 		Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536
 	])
 
+/**` updateClock :: Clock -> Number -> Clock `*/
+const updateClock = (clock : Clock) => (present : number) : Clock =>
+	Clock(present)(present - clock.time)(clock.counter + present - clock.time)
+
+/**` resetClock :: Clock -> Clock `*/
+const resetClock = (clock : Clock) : Clock =>
+	Clock(clock.time)(clock.delta)(0)
+
 /********************************************************************************************************************************/
 
 // The Do-Notation syntax where a monad stores an empty object.

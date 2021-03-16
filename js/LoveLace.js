@@ -637,6 +637,8 @@ const pseudoRandom = State(seed => [
     (-67 * seed * seed * seed + 23 * seed * seed - 91 * seed + 73) % 65536,
     Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536
 ]);
+const updateClock = (clock) => (present) => Clock(present)(present - clock.time)(clock.counter + present - clock.time);
+const resetClock = (clock) => Clock(clock.time)(clock.delta)(0);
 const Do = {
     IO: IO(() => Object.create(null)),
     Maybe: Just(Object.create(null)),
