@@ -59,6 +59,17 @@ const AND = (x : number) => (y : number) : number => x & y
 /**` and :: Boolean -> Boolean -> Boolean `*/
 const and = (x : boolean) => (y : boolean) : boolean => x && y
 
+/**` apply :: a -> (a -> b) -> b `*/
+const apply = <a>(x : a) => <b>(f : (x : a) => b) : b => f(x)
+
+/**` approx :: Number -> Number -> Number -> Boolean `*/
+const approx = (x : number) => (y : number) => (error : number) : boolean =>
+	Math.abs(x - y) < error
+
+/**` napprox :: Number -> Number -> Number -> Boolean `*/
+const napprox = (x : number) => (y : number) => (error : number) : boolean =>
+	Math.abs(x - y) > error
+
 /**` asin :: Number -> Number `*/
 const asin = Math.asin
 
@@ -77,6 +88,9 @@ const ratan2 = (x : number) => (y : number) : number => Math.atan2(y, x)
 /**` atanh :: Number -> Number `*/
 const atanh = Math.atanh
 
+/**` BIT :: Boolean -> Number `*/
+const BIT = (x : boolean) : (0 | 1) => x ? 1 : 0
+
 /**` cbrt :: Number -> Number `*/
 const cbrt = Math.cbrt
 
@@ -91,6 +105,9 @@ const cos = Math.cos
 
 /**` cosh :: Number -> Number `*/
 const cosh = Math.cosh
+
+/**` diff :: Number -> Number -> Number `*/
+const diff = (x : number) => (y : number) : number => Math.abs(x - y)
 
 /**` div :: Number -> Number -> Number `*/
 const div = (x : number) => (y : number) : number => x / y
@@ -113,11 +130,30 @@ const floor = Math.floor
 /**` fround :: Number -> Number `*/
 const fround = Math.fround
 
+/**` fst :: (a, b) -> a `*/
+const fst = <a, b>(pair : [a, b]) : a => pair[0]
+
 /**` gt :: Number -> Number -> Boolean `*/
 const gt = (x : number) => (y : number) : boolean => x > y
 
 /**` gte :: Number -> Number -> Boolean `*/
 const gte = (x : number) => (y : number) : boolean => x >= y
+
+/**` isInsideExclusive :: Number -> Number -> Number -> Boolean `*/
+const isInsideExclusive = (n : number) => (lower : number) => (upper : number) : boolean =>
+	lower < n && n < upper
+
+/**` isInsideInclusive :: Number -> Number -> Number -> Boolean `*/
+const isInsideInclusive = (n : number) => (lower : number) => (upper : number) : boolean =>
+	lower <= n && n <= upper
+
+/**` isOutsideExclusive :: Number -> Number -> Number -> Boolean `*/
+const isOutsideExclusive = (n : number) => (lower : number) => (upper : number) : boolean =>
+	n < lower || upper < n
+
+/**` isOutsideInclusive :: Number -> Number -> Number -> Boolean `*/
+const isOutsideInclusive = (n : number) => (lower : number) => (upper : number) : boolean =>
+	n <= lower && upper <= n
 
 /**` ln :: Number -> Number `*/
 const ln = Math.log
@@ -136,6 +172,9 @@ const LSHIFT = (x : number) => (y : number) : number => x << y
 
 /**` rLSHIFT :: Number -> Number `*/
 const rLSHIFT = (y : number) => (x : number) : number => x << y
+
+/**` lerp :: Number -> Number -> Number -> Number `*/
+const lerp = (t : number) => (x : number) => (y : number) : number => x + (y - x) * t
 
 /**` lt :: Number -> Number -> Boolean `*/
 const lt = (x : number) => (y : number) : boolean => x < y
@@ -188,6 +227,10 @@ const or = (x : boolean) => (y : boolean) : boolean => x || y
 /**` nor :: Boolean -> Boolean -> Boolean `*/
 const nor = (x : boolean) => (y : boolean) : boolean => !(x || y)
 
+/**` pick :: Boolean -> (a, a) -> a `*/
+const pick = (condition : boolean) : <a>(pair : [a, a]) => a =>
+	condition ? fst : snd
+
 /**` pow :: Number -> Number -> Number `*/
 const pow = (x : number) => (y : number) : number => x ** y
 
@@ -214,6 +257,9 @@ const sin = Math.sin
 
 /**` sinh :: Number -> Number `*/
 const sinh = Math.sinh
+
+/**` snd :: (a, b) -> b `*/
+const snd = <a, b>(pair : [a, b]) : b => pair[1]
 
 /**` sqrt :: Number -> Number `*/
 const sqrt = Math.sqrt
@@ -253,19 +299,22 @@ type IO<a> =
 		readonly CONS : 'IO'
 		readonly INFO : () => a
 
-		/**` (IO).bind :: IO a -> (a -> IO b) -> IO b `*/
+		/**` (IO a).bind :: (a -> IO b) -> IO b `*/
 		readonly bind : <b>(reaction : (evaluation : a) => IO<b>) => IO<b>
 
-		/**` (IO).bindto :: IO $ -> String -> ($ -> IO a) -> IO $ `*/
+		/**` (IO $).bindto :: String -> ($ -> IO a) -> IO $ `*/
 		readonly bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => IO<b>) => IO<a & { [x in k] : b }>
 
-		/**` (IO).fmap :: IO a -> (a -> b) -> IO b `*/
+		/**` (IO a).fmap :: (a -> b) -> IO b `*/
 		readonly fmap : <b>(computation : (evaluation : a) => b) => IO<b>
 
-		/**` (IO).fmapto :: IO $ -> String -> ($ -> a) -> IO $ `*/
+		/**` (IO $).fmapto :: String -> ($ -> a) -> IO $ `*/
 		readonly fmapto : <k extends string>(name : k) => <b>(computation : ($ : a) => b) => IO<a & { [x in k] : b }>
 
-		/**` (IO).then :: IO a -> IO b -> IO b `*/
+		/**` (IO a).side :: (a -> IO b) -> IO a `*/
+		readonly side : <b>(reaction : (evaluation : a) => IO<b>) => IO<a>
+
+		/**` (IO a).then :: IO b -> IO b `*/
 		readonly then : <b>(successor : IO<b>) => IO<b>
 	}
 
@@ -282,16 +331,16 @@ type Maybe<a> =
 		readonly INFO   : a
 	}) & {
 
-		/**` (Maybe).bind :: Maybe a -> (a -> Maybe b) -> Maybe b `*/
+		/**` (Maybe a).bind :: (a -> Maybe b) -> Maybe b `*/
 		readonly bind : <b>(reaction : (evaluation : a) => Maybe<b>) => Maybe<b>
 
-		/**` (Maybe).bindto :: Maybe $ -> String -> ($ -> Maybe a) -> Maybe $ `*/
+		/**` (Maybe $).bindto :: String -> ($ -> Maybe a) -> Maybe $ `*/
 		readonly bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => Maybe<b>) => Maybe<a & { [x in k] : b }>
 
-		/**` (Maybe).fmap :: Maybe a -> (a -> b) -> Maybe b `*/
+		/**` (Maybe a).fmap :: (a -> b) -> Maybe b `*/
 		readonly fmap : <b>(computation : (evaluation : a) => b) => Maybe<b>
 
-		/**` (Maybe).fmapto :: Maybe $ -> String -> ($ -> a) -> Maybe $ `*/
+		/**` (Maybe $).fmapto :: String -> ($ -> a) -> Maybe $ `*/
 		readonly fmapto : <k extends string>(name : k) => <b>(computation : ($ : a) => b) => Maybe<a & { [x in k] : b }>
 	}
 
@@ -305,28 +354,28 @@ type State<s, a> =
 		readonly CONS : 'State'
 		readonly INFO : (inputState : s) => [s, a]
 
-		/**` (State).bind :: State s a -> (a -> State s b) -> State s b `*/
+		/**` (State s a).bind :: (a -> State s b) -> State s b `*/
 		readonly bind : <b>(reaction : (statefulComputationOutput : a) => State<s, b>) => State<s, b>
 
-		/**` (State).fmap :: State s a -> (a -> b) -> State s b `*/
+		/**` (State s a).fmap :: (a -> b) -> State s b `*/
 		readonly fmap : <b>(computation : (statefulComputationOutput : a) => b) => State<s, b>
 
-		/**` (State).bindto :: State s $ -> String -> ($ -> State s a) -> State s $ `*/
+		/**` (State s $).bindto :: String -> ($ -> State s a) -> State s $ `*/
 		readonly bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => State<s, b>) => State<s, a & { [x in k] : b }>
 
-		/**` (State).fmapto :: State s $ -> String -> ($ -> b) -> State s $ `*/
+		/**` (State s $).fmapto :: String -> ($ -> b) -> State s $ `*/
 		readonly fmapto : <k extends string>(name : k) => <b>(computation : ($ : a) => b) => State<s, a & { [x in k] : b }>
 
-		/**` (State).then :: State s a -> State s b -> State s b `*/
+		/**` (State s a).then :: State s b -> State s b `*/
 		readonly then : <b>(successor : State<s, b>) => State<s, b>
 
-		/**` (State).runState :: State s a -> s -> (s, a) `*/
+		/**` (State s a).runState :: s -> (s, a) `*/
 		readonly runState : (initialState : s) => [s, a]
 
-		/**` (State).evalState :: State s a -> s -> s `*/
+		/**` (State s a).evalState :: s -> s `*/
 		readonly evalState : (initialState : s) => s
 
-		/**` (State).execState :: State s a -> s -> a `*/
+		/**` (State s a).execState :: s -> a `*/
 		readonly execState : (initialState : s) => a
 	}
 
@@ -340,133 +389,133 @@ type List<a> =
 		readonly CONS : 'List'
 		readonly INFO : ReadonlyArray<a>
 
-		/**` (List).all :: List a -> (a -> Boolean) -> Boolean `*/
+		/**` (List a).all :: (a -> Boolean) -> Boolean `*/
 		readonly all : (predicate : (element : a) => boolean) => boolean
 
-		/**` (List).any :: List a -> (a -> Boolean) -> Boolean `*/
+		/**` (List a).any :: (a -> Boolean) -> Boolean `*/
 		readonly any : (predicate : (element : a) => boolean) => boolean
 
-		/**` (List).append :: List a -> a -> List a `*/
+		/**` (List a).append :: a -> List a `*/
 		readonly append : (element : a) => List<a>
 
-		/**` (List).at :: List a -> Number -> a `*/
+		/**` (List a).at :: Number -> a `*/
 		readonly at : (index : number) => a
 
-		/**` (List).bind :: List a -> (a -> List b) -> List b `*/
+		/**` (List a).bind :: (a -> List b) -> List b `*/
 		readonly bind : <b>(reaction : (element : a) => List<b>) => List<b>
 
-		/**` (List).bindto :: List $ -> String -> ($ -> List b) -> List $ `*/
+		/**` (List $).bindto :: String -> ($ -> List b) -> List $ `*/
 		readonly bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => List<b>) => List<a & { [x in k] : b }>
 
-		/**` (List).break :: List a -> (a -> Boolean) -> (List a, List a) `*/
+		/**` (List a).break :: (a -> Boolean) -> (List a, List a) `*/
 		readonly break : (predicate : (element : a) => boolean) => [List<a>, List<a>]
 
-		/**` (List).concat :: List a -> List a -> List a `*/
+		/**` (List a).concat :: List a -> List a `*/
 		readonly concat : (succeeding : List<a>) => List<a>
 
-		/**` (List).drop :: List a -> Number -> List a `*/
+		/**` (List a).drop :: Number -> List a `*/
 		readonly drop : (count : number) => List<a>
 
-		/**` (List).dropWhile :: List a -> (a -> Boolean) -> List a `*/
+		/**` (List a).dropWhile :: (a -> Boolean) -> List a `*/
 		readonly dropWhile : (predicate : (element : a) => boolean) => List<a>
 
-		/**` (List).elem :: List a -> a -> Boolean `*/
+		/**` (List a).elem :: a -> Boolean `*/
 		readonly elem : (match : a) => boolean
 
-		/**` (List).elemIndex :: List a -> a -> Maybe Number `*/
+		/**` (List a).elemIndex :: a -> Maybe Number `*/
 		readonly elemIndex : (match : a) => Maybe<number>
 
-		/**` (List).elemIndices :: List a -> a -> List Number `*/
+		/**` (List a).elemIndices :: a -> List Number `*/
 		readonly elemIndices : (match : a) => List<number>
 
-		/**` (List).filter :: List a -> (a -> Boolean) -> List a `*/
+		/**` (List a).filter :: (a -> Boolean) -> List a `*/
 		readonly filter : (predicate : (element : a) => boolean) => List<a>
 
-		/**` (List).find :: List a -> (a -> Boolean) -> Maybe a `*/
+		/**` (List a).find :: (a -> Boolean) -> Maybe a `*/
 		readonly find : (predicate : (element : a) => boolean) => Maybe<a>
 
-		/**` (List).findIndex :: List a -> (a -> Boolean) -> Maybe Number `*/
+		/**` (List a).findIndex :: (a -> Boolean) -> Maybe Number `*/
 		readonly findIndex : (predicate : (element : a) => boolean) => Maybe<number>
 
-		/**` (List).findIndices :: List a -> (a -> Boolean) -> List Number `*/
+		/**` (List a).findIndices :: (a -> Boolean) -> List Number `*/
 		readonly findIndices : (predicate : (element : a) => boolean) => List<number>
 
-		/**` (List).fmap :: List a -> (a -> b) -> List b `*/
+		/**` (List a).fmap :: (a -> b) -> List b `*/
 		readonly fmap : <b>(computation : (element : a) => b) => List<b>
 
-		/**` (List).fmapto :: List $ -> String -> ($ -> b) -> List $ `*/
+		/**` (List $).fmapto :: String -> ($ -> b) -> List $ `*/
 		readonly fmapto : <k extends string>(name : k) => <b>(computation : ($ : a) => b) => List<a & { [x in k] : b }>
 
-		/**` (List).foldl :: List a -> (b -> a -> b) -> b -> b `*/
+		/**` (List a).foldl :: (b -> a -> b) -> b -> b `*/
 		readonly foldl : <b>(builder : (first : b) => (second : a) => b) => (initialValue : b) => b
 
-		/**` (List).foldr :: List a -> (a -> b -> b) -> b -> b `*/
+		/**` (List a).foldr :: (a -> b -> b) -> b -> b `*/
 		readonly foldr : <b>(builder : (second : a) => (first : b) => b) => (initialValue : b) => b
 
-		/**` (List).foldl1 :: List a -> (a -> a -> a) -> a `*/
+		/**` (List a).foldl1 :: (a -> a -> a) -> a `*/
 		readonly foldl1 : (builder : (first : a) => (second : a) => a) => a
 
-		/**` (List).foldr1 :: List a -> (a -> a -> a) -> a `*/
+		/**` (List a).foldr1 :: (a -> a -> a) -> a `*/
 		readonly foldr1 : (builder : (second : a) => (first : a) => a) => a
 
-		/**` (List).head :: List a -> a `*/
+		/**` (List a).head :: a `*/
 		readonly head : a
 
-		/**` (List).init :: List a -> List a `*/
+		/**` (List a).init :: List a `*/
 		readonly init : List<a>
 
-		/**` (List).inits :: List a -> List (List a) `*/
+		/**` (List a).inits :: List (List a) `*/
 		readonly inits : List<List<a>>
 
-		/**` (List).intersperse :: List a -> a -> List a `*/
+		/**` (List a).intersperse :: a -> List a `*/
 		readonly intersperse : (delimiter : a) => List<a>
 
-		/**` (List).last :: List a -> a `*/
+		/**` (List a).last :: a `*/
 		readonly last : a
 
-		/**` (List).notElem :: List a -> a -> Boolean `*/
+		/**` (List a).notElem :: a -> Boolean `*/
 		readonly notElem : (delimiter : a) => boolean
 
-		/**` (List).prepend :: List a -> a -> List a `*/
+		/**` (List a).prepend :: a -> List a `*/
 		readonly prepend : (element : a) => List<a>
 
-		/**` (List).reverse :: List a -> List a `*/
+		/**` (List a).reverse :: List a `*/
 		readonly reverse : List<a>
 
-		/**` (List).scanl :: List a -> (b -> a -> b) -> b -> List b `*/
+		/**` (List a).scanl :: (b -> a -> b) -> b -> List b `*/
 		readonly scanl : <b>(builder : (first : b) => (second : a) => b) => (initialValue : b) => List<b>
 
-		/**` (List).scanr :: List a -> (a -> b -> b) -> b -> List b `*/
+		/**` (List a).scanr :: (a -> b -> b) -> b -> List b `*/
 		readonly scanr : <b>(builder : (second : a) => (first : b) => b) => (initialValue : b) => List<b>
 
-		/**` (List).scanl1 :: List a -> (a -> a -> a) -> List a `*/
+		/**` (List a).scanl1 :: (a -> a -> a) -> List a `*/
 		readonly scanl1 : (builder : (first : a) => (second : a) => a) => List<a>
 
-		/**` (List).scanr1 :: List a -> (a -> a -> a) -> List a `*/
+		/**` (List a).scanr1 :: (a -> a -> a) -> List a `*/
 		readonly scanr1 : (builder : (second : a) => (first : a) => a) => List<a>
 
-		/**` (List).span :: List a -> (a -> Boolean) -> (List a, List a) `*/
+		/**` (List a).span :: (a -> Boolean) -> (List a, List a) `*/
 		readonly span : (predicate : (element : a) => boolean) => [List<a>, List<a>]
 
-		/**` (List).splitAt :: List a -> Number -> (List a, List a) `*/
+		/**` (List a).splitAt :: Number -> (List a, List a) `*/
 		readonly splitAt : (index : number) => [List<a>, List<a>]
 
-		/**` (List).tail :: List a -> List a `*/
+		/**` (List a).tail :: List a `*/
 		readonly tail : List<a>
 
-		/**` (List).tails :: List a -> List (List a) `*/
+		/**` (List a).tails :: List (List a) `*/
 		readonly tails : List<List<a>>
 
-		/**` (List).take :: List a -> Number -> List a `*/
+		/**` (List a).take :: Number -> List a `*/
 		readonly take : (count : number) => List<a>
 
-		/**` (List).takeWhile :: List a -> (a -> Boolean) -> List a `*/
+		/**` (List a).takeWhile :: (a -> Boolean) -> List a `*/
 		readonly takeWhile : (predicate : (element : a) => boolean) => List<a>
 
-		/**` (List).zip :: List a -> List b -> List (a, b) `*/
+		/**` (List a).zip :: List b -> List (a, b) `*/
 		readonly zip : <b>(postfixes : List<b>) => List<[a, b]>
 
-		/**` (List).zipWith :: List a -> List b -> (a -> b -> c) -> List c `*/
+		/**` (List a).zipWith :: List b -> (a -> b -> c) -> List c `*/
 		readonly zipWith : <b>(postfixes : List<b>) => <c>(builder : (firstElement : a) => (secondElement : b) => c) => List<c>
 	}
 
@@ -479,10 +528,10 @@ type Vector2D =
 	{
 		readonly CONS : 'Vector2D'
 
-		/**` (Vector2D).x :: Vector2D -> Number `*/
+		/**` (Vector2D).x :: Number `*/
 		readonly x : number
 
-		/**` (Vector2D).y :: Vector2D -> Number `*/
+		/**` (Vector2D).y :: Number `*/
 		readonly y : number
 	}
 
@@ -495,13 +544,13 @@ type Vector3D =
 	{
 		readonly CONS : 'Vector3D'
 
-		/**` (Vector3D).x :: Vector3D -> Number `*/
+		/**` (Vector3D).x :: Number `*/
 		readonly x : number
 
-		/**` (Vector3D).y :: Vector3D -> Number `*/
+		/**` (Vector3D).y :: Number `*/
 		readonly y : number
 
-		/**` (Vector3D).z :: Vector3D -> Number `*/
+		/**` (Vector3D).z :: Number `*/
 		readonly z : number
 	}
 
@@ -514,16 +563,16 @@ type Vector4D =
 	{
 		readonly CONS : 'Vector4D'
 
-		/**` (Vector4D).x :: Vector4D -> Number `*/
+		/**` (Vector4D).x :: Number `*/
 		readonly x : number
 
-		/**` (Vector4D).y :: Vector4D -> Number `*/
+		/**` (Vector4D).y :: Number `*/
 		readonly y : number
 
-		/**` (Vector4D).z :: Vector4D -> Number `*/
+		/**` (Vector4D).z :: Number `*/
 		readonly z : number
 
-		/**` (Vector4D).w :: Vector4D -> Number `*/
+		/**` (Vector4D).w :: Number `*/
 		readonly w : number
 	}
 
@@ -536,28 +585,28 @@ type Matrix2x2 =
 	{
 		readonly CONS : 'Matrix2x2'
 
-		/**` (Matrix2x2).ix :: Matrix2x2 -> Number `*/
+		/**` (Matrix2x2).ix :: Number `*/
 		readonly ix : number
 
-		/**` (Matrix2x2).jx :: Matrix2x2 -> Number `*/
+		/**` (Matrix2x2).jx :: Number `*/
 		readonly jx : number
 
-		/**` (Matrix2x2).iy :: Matrix2x2 -> Number `*/
+		/**` (Matrix2x2).iy :: Number `*/
 		readonly iy : number
 
-		/**` (Matrix2x2).jy :: Matrix2x2 -> Number `*/
+		/**` (Matrix2x2).jy :: Number `*/
 		readonly jy : number
 
-		/**` (Matrix2x2).i :: Matrix2x2 -> Vector2D `*/
+		/**` (Matrix2x2).i :: Vector2D `*/
 		readonly i : Vector2D
 
-		/**` (Matrix2x2).j :: Matrix2x2 -> Vector2D `*/
+		/**` (Matrix2x2).j :: Vector2D `*/
 		readonly j : Vector2D
 
-		/**` (Matrix2x2).x :: Matrix2x2 -> Vector2D `*/
+		/**` (Matrix2x2).x :: Vector2D `*/
 		readonly x : Vector2D
 
-		/**` (Matrix2x2).y :: Matrix2x2 -> Vector2D `*/
+		/**` (Matrix2x2).y :: Vector2D `*/
 		readonly y : Vector2D
 	}
 
@@ -570,49 +619,49 @@ type Matrix3x3 =
 	{
 		readonly CONS : 'Matrix3x3'
 
-		/**` (Matrix3x3).ix :: Matrix3x3 -> Number `*/
+		/**` (Matrix3x3).ix :: Number `*/
 		readonly ix : number
 
-		/**` (Matrix3x3).jx :: Matrix3x3 -> Number `*/
+		/**` (Matrix3x3).jx :: Number `*/
 		readonly jx : number
 
-		/**` (Matrix3x3).kx :: Matrix3x3 -> Number `*/
+		/**` (Matrix3x3).kx :: Number `*/
 		readonly kx : number
 
-		/**` (Matrix3x3).iy :: Matrix3x3 -> Number `*/
+		/**` (Matrix3x3).iy :: Number `*/
 		readonly iy : number
 
-		/**` (Matrix3x3).jy :: Matrix3x3 -> Number `*/
+		/**` (Matrix3x3).jy :: Number `*/
 		readonly jy : number
 
-		/**` (Matrix3x3).ky :: Matrix3x3 -> Number `*/
+		/**` (Matrix3x3).ky :: Number `*/
 		readonly ky : number
 
-		/**` (Matrix3x3).iz :: Matrix3x3 -> Number `*/
+		/**` (Matrix3x3).iz :: Number `*/
 		readonly iz : number
 
-		/**` (Matrix3x3).jz :: Matrix3x3 -> Number `*/
+		/**` (Matrix3x3).jz :: Number `*/
 		readonly jz : number
 
-		/**` (Matrix3x3).kz :: Matrix3x3 -> Number `*/
+		/**` (Matrix3x3).kz :: Number `*/
 		readonly kz : number
 
-		/**` (Matrix3x3).i :: Matrix3x3 -> Vector3D `*/
+		/**` (Matrix3x3).i :: Vector3D `*/
 		readonly i : Vector3D
 
-		/**` (Matrix3x3).j :: Matrix3x3 -> Vector3D `*/
+		/**` (Matrix3x3).j :: Vector3D `*/
 		readonly j : Vector3D
 
-		/**` (Matrix3x3).k :: Matrix3x3 -> Vector3D `*/
+		/**` (Matrix3x3).k :: Vector3D `*/
 		readonly k : Vector3D
 
-		/**` (Matrix3x3).x :: Matrix3x3 -> Vector3D `*/
+		/**` (Matrix3x3).x :: Vector3D `*/
 		readonly x : Vector3D
 
-		/**` (Matrix3x3).y :: Matrix3x3 -> Vector3D `*/
+		/**` (Matrix3x3).y :: Vector3D `*/
 		readonly y : Vector3D
 
-		/**` (Matrix3x3).z :: Matrix3x3 -> Vector3D `*/
+		/**` (Matrix3x3).z :: Vector3D `*/
 		readonly z : Vector3D
 	}
 
@@ -625,76 +674,76 @@ type Matrix4x4 =
 	{
 		readonly CONS : 'Matrix4x4'
 
-		/**` (Matrix4x4).ix :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).ix :: Number `*/
 		readonly ix : number
 
-		/**` (Matrix4x4).jx :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).jx :: Number `*/
 		readonly jx : number
 
-		/**` (Matrix4x4).kx :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).kx :: Number `*/
 		readonly kx : number
 
-		/**` (Matrix4x4).lx :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).lx :: Number `*/
 		readonly lx : number
 
-		/**` (Matrix4x4).iy :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).iy :: Number `*/
 		readonly iy : number
 
-		/**` (Matrix4x4).jy :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).jy :: Number `*/
 		readonly jy : number
 
-		/**` (Matrix4x4).ky :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).ky :: Number `*/
 		readonly ky : number
 
-		/**` (Matrix4x4).ly :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).ly :: Number `*/
 		readonly ly : number
 
-		/**` (Matrix4x4).iz :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).iz :: Number `*/
 		readonly iz : number
 
-		/**` (Matrix4x4).jz :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).jz :: Number `*/
 		readonly jz : number
 
-		/**` (Matrix4x4).kz :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).kz :: Number `*/
 		readonly kz : number
 
-		/**` (Matrix4x4).lz :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).lz :: Number `*/
 		readonly lz : number
 
-		/**` (Matrix4x4).iw :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).iw :: Number `*/
 		readonly iw : number
 
-		/**` (Matrix4x4).jw :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).jw :: Number `*/
 		readonly jw : number
 
-		/**` (Matrix4x4).kw :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).kw :: Number `*/
 		readonly kw : number
 
-		/**` (Matrix4x4).lw :: Matrix4x4 -> Number `*/
+		/**` (Matrix4x4).lw :: Number `*/
 		readonly lw : number
 
-		/**` (Matrix4x4).i :: Matrix4x4 -> Vector4D `*/
+		/**` (Matrix4x4).i :: Vector4D `*/
 		readonly i : Vector4D
 
-		/**` (Matrix4x4).j :: Matrix4x4 -> Vector4D `*/
+		/**` (Matrix4x4).j :: Vector4D `*/
 		readonly j : Vector4D
 
-		/**` (Matrix4x4).k :: Matrix4x4 -> Vector4D `*/
+		/**` (Matrix4x4).k :: Vector4D `*/
 		readonly k : Vector4D
 
-		/**` (Matrix4x4).l :: Matrix4x4 -> Vector4D `*/
+		/**` (Matrix4x4).l :: Vector4D `*/
 		readonly l : Vector4D
 
-		/**` (Matrix4x4).x :: Matrix4x4 -> Vector4D `*/
+		/**` (Matrix4x4).x :: Vector4D `*/
 		readonly x : Vector4D
 
-		/**` (Matrix4x4).y :: Matrix4x4 -> Vector4D `*/
+		/**` (Matrix4x4).y :: Vector4D `*/
 		readonly y : Vector4D
 
-		/**` (Matrix4x4).z :: Matrix4x4 -> Vector4D `*/
+		/**` (Matrix4x4).z :: Vector4D `*/
 		readonly z : Vector4D
 
-		/**` (Matrix4x4).w :: Matrix4x4 -> Vector4D `*/
+		/**` (Matrix4x4).w :: Vector4D `*/
 		readonly w : Vector4D
 	}
 
@@ -707,13 +756,13 @@ type TextMeasurement =
 	{
 		readonly CONS : 'TextMeasurement'
 
-		/**` (TextMeasurement).text :: TextMeasurement -> String `*/
+		/**` (TextMeasurement).text :: String `*/
 		readonly text : string
 
-		/**` (TextMeasurement).width :: TextMeasurement -> Number `*/
+		/**` (TextMeasurement).width :: Number `*/
 		readonly width : number
 
-		/**` (TextMeasurement).height :: TextMeasurement -> Number `*/
+		/**` (TextMeasurement).height :: Number `*/
 		readonly height : number
 	}
 
@@ -726,13 +775,13 @@ type Switch<a, b> =
 	{
 		readonly CONS : 'Switch'
 
-		/**` (.case) :: Switch a b -> a -> (() -> b) -> Switch a b `*/
+		/**` (Switch a b).case :: a -> (() -> b) -> Switch a b `*/
 		readonly case : (domain : a) => (codomain : () => b) => Switch<a, b>
 
-		/**` (.else) :: Switch a b -> (() -> b) -> Switch a b `*/
+		/**` (Switch a b).else :: (() -> b) -> Switch a b `*/
 		readonly else : (codomain : () => b) => Switch<a, b>
 
-		/**` (.with) :: Switch a b -> a -> b `*/
+		/**` (Switch a b).with :: a -> b `*/
 		readonly with : (value : a) => b
 	}
 
@@ -746,33 +795,14 @@ type Bijection<a, b> =
 		readonly CONS : 'Bijection'
 		readonly INFO : ReadonlyArray<[a, b]>
 
-		/**` (.of) :: Bijection a b -> a -> b -> Bijection a b `*/
+		/**` (Bijection a b).of :: a -> b -> Bijection a b `*/
 		readonly of : (domainValue : a) => (codomainValue : b) => Bijection<a, b>
 
-		/**` (Bijection).domain :: Bijection a b -> a -> b `*/
+		/**` (Bijection a b).domain :: a -> b `*/
 		readonly domain : (domainValue   : a) => b
 
-		/**` (Bijection).codomain :: Bijection a b -> b -> a `*/
+		/**` (Bijection a b).codomain :: b -> a `*/
 		readonly codomain : (codomainValue : b) => a
-	}
-
-/** Clock data type that stores time information.
- * ```
- * data Clock = Clock Number Number Number
- * ```
- */
-type Clock =
-	{
-		readonly CONS : 'Clock'
-
-		/**` (Clock).time :: Clock -> Number `*/
-		readonly time : number
-
-		/**` (Clock).delta :: Clock -> Number `*/
-		readonly delta : number
-
-		/**` (Clock).counter :: Clock -> Number `*/
-		readonly counter : number
 	}
 
 /********************************************************************************************************************************/
@@ -794,36 +824,14 @@ const IO = <a>(sideeffect : () => a) : IO<a> =>
 				const $ = sideeffect()
 				return { ...$, [x]: f($) } as any
 			}),
+		side : f =>
+			IO(() => {
+				const x = sideeffect()
+				f(x).INFO()
+				return x
+			}),
 		then : x => IO(() => (sideeffect(), x.INFO()))
 	})
-
-{
-	/**` (IO).bind :: IO a -> (a -> IO b) -> IO b `*/
-	IO.bind = <a>(io : IO<a>) => <b>(reaction : (evaluation : a) => IO<b>) : IO<b> =>
-		io.bind(reaction)
-
-	/**` (IO).bindto :: IO $ -> String -> ($ -> IO a) -> IO $ `*/
-	IO.bindto =
-		<a>(io : IO<a>) =>
-		<k extends string>(name : k) =>
-		<b>(reaction : ($ : a) => IO<b>) : IO<a & { [x in k] : b }> =>
-		io.bindto(name)(reaction)
-
-	/**` (IO).fmap :: IO a -> (a -> b) -> IO b `*/
-	IO.fmap = <a>(io : IO<a>) => <b>(computation : (evaluation : a) => b) : IO<b> =>
-		io.fmap(computation)
-
-	/**` (IO).fmapto :: IO $ -> String -> ($ -> a) -> IO $ `*/
-	IO.fmapto =
-		<a>(io : IO<a>) =>
-		<k extends string>(name : k) =>
-		<b>(computation : ($ : a) => b) : IO<a & { [x in k] : b }> =>
-		io.fmapto(name)(computation)
-
-	/**` (IO).then :: IO a -> IO b -> IO b `*/
-	IO.then = <a>(io : IO<a>) => <b>(successor : IO<b>) : IO<b> =>
-		io.then(successor)
-}
 
 /**` Nothing :: Maybe a `*/
 const Nothing : Maybe<any> =
@@ -853,31 +861,6 @@ const Just = <a>(value : a) : Maybe<a> =>
 		fmap : f => Just(f(value)),
 		fmapto : x => f => Just({ ...value, [x]: f(value) }) as any
 	})
-
-const Maybe =
-{
-	/**` (Maybe).bind :: Maybe a -> (a -> Maybe b) -> Maybe b `*/
-	bind : <a>(maybe : Maybe<a>) => <b>(reaction : (evaluation : a) => Maybe<b>) : Maybe<b> =>
-		maybe.bind(reaction),
-
-	/**` (Maybe).bindto :: Maybe $ -> String -> ($ -> Maybe a) -> Maybe $ `*/
-	bindto:
-		<a>(maybe : Maybe<a>) =>
-		<k extends string>(name : k) =>
-		<b>(reaction : ($ : a) => Maybe<b>) : Maybe<a & { [x in k] : b }> =>
-		maybe.bindto(name)(reaction),
-
-	/**` (Maybe).fmap :: Maybe a -> (a -> b) -> Maybe b `*/
-	fmap : <a>(maybe : Maybe<a>) => <b>(computation : (evaluation : a) => b) : Maybe<b> =>
-		maybe.fmap(computation),
-
-	/**` (Maybe).fmapto :: Maybe $ -> String -> ($ -> a) -> Maybe $ `*/
-	fmapto:
-		<a>(maybe : Maybe<a>) =>
-		<k extends string>(name : k) =>
-		<b>(computation : ($ : a) => b) : Maybe<a & { [x in k] : b }> =>
-		maybe.fmapto(name)(computation)
-}
 
 /**` State :: (s -> (s, a)) -> State s a `*/
 const State = <s, a>(statefulComputation : (inputState : s) => [s, a]) : State<s, a> =>
@@ -910,34 +893,6 @@ const State = <s, a>(statefulComputation : (inputState : s) => [s, a]) : State<s
 		evalState : s => statefulComputation(s)[0],
 		execState : s => statefulComputation(s)[1]
 	})
-
-{
-	/**` (State).bind :: State s a -> (a -> State s b) -> State s b `*/
-	State.bind = <s, a>(state : State<s, a>) => <b>(reaction : (evaluation : a) => State<s, b>) : State<s, b> =>
-		state.bind(reaction)
-
-	/**` (State).bindto :: State s $ -> String -> ($ -> State s a) -> State s $ `*/
-	State.bindto =
-		<s, a>(state : State<s, a>) =>
-		<k extends string>(name : k) =>
-		<b>(reaction : ($ : a) => State<s, b>) : State<s, a & { [x in k] : b }> =>
-		state.bindto(name)(reaction)
-
-	/**` (State).fmap :: State s a -> (a -> b) -> State s b `*/
-	State.fmap = <s, a>(state : State<s, a>) => <b>(computation : (evaluation : a) => b) : State<s, b> =>
-		state.fmap(computation)
-
-	/**` (State).fmapto :: State s $ -> String -> ($ -> a) -> State s $ `*/
-	State.fmapto =
-		<s, a>(state : State<s, a>) =>
-		<k extends string>(name : k) =>
-		<b>(computation : ($ : a) => b) : State<s, a & { [x in k] : b }> =>
-		state.fmapto(name)(computation)
-
-	/**` (State).then :: State s a -> State s b -> State s b `*/
-	State.then = <s, a>(state : State<s, a>) => <b>(successor : State<s, b>) : State<s, b> =>
-		state.then(successor)
-}
 
 /**` List :: [a] -> List a `*/
 const List = <a>(...elements : ReadonlyArray<a>) : List<a> =>
@@ -1078,242 +1033,26 @@ const List = <a>(...elements : ReadonlyArray<a>) : List<a> =>
 			List(...Array(Math.min(elements.length, xs.INFO.length)).fill(null).map((_, i) => f(elements[i]!)(xs.INFO[i]!)))
 	})
 
-{
-	/**` (List).all :: List a -> (a -> Boolean) -> Boolean `*/
-	List.all = <a>(list : List<a>) => (predicate : (element : a) => boolean) : boolean =>
-		list.all(predicate)
-
-	/**` (List).any :: List a -> (a -> Boolean) -> Boolean `*/
-	List.any = <a>(list : List<a>) => (predicate : (element : a) => boolean) : boolean =>
-		list.any(predicate)
-
-	/**` (List).append :: List a -> a -> List a `*/
-	List.append = <a>(list : List<a>) => (element : a) : List<a> =>
-		list.append(element)
-
-	/**` (List).at :: List a -> Number -> a `*/
-	List.at = <a>(list : List<a>) => (index : number) : a =>
-		list.at(index)
-
-	/**` (List).bind :: List a -> (a -> List b) -> List b `*/
-	List.bind = <a>(list : List<a>) => <b>(reaction : (element : a) => List<b>) : List<b> =>
-		list.bind(reaction)
-
-	/**` (List).bindto :: List $ -> String -> ($ -> List b) -> List $ `*/
-	List.bindto =
-		<a>(list : List<a>) =>
-		<k extends string>(name : k) =>
-		<b>(reaction : ($ : a) => List<b>) : List<a & { [x in k] : b }> =>
-		list.bindto(name)(reaction)
-
-	/**` (List).break :: List a -> (a -> Boolean) -> (List a, List a) `*/
-	List.break = <a>(list : List<a>) => (predicate : (element : a) => boolean) : [List<a>, List<a>] =>
-		list.break(predicate)
-
-	/**` (List).concat :: List a -> List a -> List a `*/
-	List.concat = <a>(list : List<a>) => (succeeding : List<a>) : List<a> =>
-		list.concat(succeeding)
-
-	/**` (List).drop :: List a -> Number -> List a `*/
-	List.drop = <a>(list : List<a>) => (count : number) : List<a> =>
-		list.drop(count)
-
-	/**` (List).dropWhile :: List a -> (a -> Boolean) -> List a `*/
-	List.dropWhile = <a>(list : List<a>) => (predicate : (element : a) => boolean) : List<a> =>
-		list.dropWhile(predicate)
-
-	/**` (List).elem :: List a -> a -> Boolean `*/
-	List.elem = <a>(list : List<a>) => (match : a) : boolean =>
-		list.elem(match)
-
-	/**` (List).elemIndex :: List a -> a -> Maybe Number `*/
-	List.elemIndex = <a>(list : List<a>) => (match : a) : Maybe<number> =>
-		list.elemIndex(match)
-
-	/**` (List).elemIndices :: List a -> a -> List Number `*/
-	List.elemIndices = <a>(list : List<a>) => (match : a) : List<number> =>
-		list.elemIndices(match)
-
-	/**` (List).filter :: List a -> (a -> Boolean) -> List a `*/
-	List.filter = <a>(list : List<a>) => (predicate : (element : a) => boolean) : List<a> =>
-		list.filter(predicate)
-
-	/**` (List).find :: List a -> (a -> Boolean) -> Maybe a `*/
-	List.find = <a>(list : List<a>) => (predicate : (element : a) => boolean) : Maybe<a> =>
-		list.find(predicate)
-
-	/**` (List).findIndex :: List a -> (a -> Boolean) -> Maybe Number `*/
-	List.findIndex = <a>(list : List<a>) => (predicate : (element : a) => boolean) : Maybe<number> =>
-		list.findIndex(predicate)
-
-	/**` (List).findIndices :: List a -> (a -> Boolean) -> List Number `*/
-	List.findIndices = <a>(list : List<a>) => (predicate : (element : a) => boolean) : List<number> =>
-		list.findIndices(predicate)
-
-	/**` (List).fmap :: List a -> (a -> b) -> List b `*/
-	List.fmap = <a>(list : List<a>) => <b>(computation : (element : a) => b) : List<b> =>
-		list.fmap(computation)
-
-	/**` (List).fmapto :: List $ -> String -> ($ -> b) -> List $ `*/
-	List.fmapto =
-		<a>(list : List<a>) =>
-		<k extends string>(name : k) =>
-		<b>(computation : ($ : a) => b) : List<a & { [x in k] : b }> =>
-		list.fmapto(name)(computation)
-
-	/**` (List).foldl :: List a -> (b -> a -> b) -> b -> b `*/
-	List.foldl = <a>(list : List<a>) => <b>(builder : (first : b) => (second : a) => b) => (initialValue : b) : b =>
-		list.foldl(builder)(initialValue)
-
-	/**` (List).foldr :: List a -> (a -> b -> b) -> b -> b `*/
-	List.foldr = <a>(list : List<a>) => <b>(builder : (second : a) => (first : b) => b) => (initialValue : b) : b =>
-		list.foldr(builder)(initialValue)
-
-	/**` (List).foldl1 :: List a -> (a -> a -> a) -> a `*/
-	List.foldl1 = <a>(list : List<a>) => (builder : (first : a) => (second : a) => a) : a =>
-		list.foldl1(builder)
-
-	/**` (List).foldr1 :: List a -> (a -> a -> a) -> a `*/
-	List.foldr1 = <a>(list : List<a>) => (builder : (second : a) => (first : a) => a) : a =>
-		list.foldr1(builder)
-
-	/**` (List).head :: List a -> a `*/
-	List.head = <a>(list : List<a>) : a =>
-		list.head
-
-	/**` (List).init :: List a -> List a `*/
-	List.init = <a>(list : List<a>) : List<a> =>
-		list.init
-
-	/**` (List).inits :: List a -> List (List a) `*/
-	List.inits = <a>(list : List<a>) : List<List<a>> =>
-		list.inits
-
-	/**` (List).intersperse :: List a -> a -> List a `*/
-	List.intersperse = <a>(list : List<a>) => (delimiter : a) : List<a> =>
-		list.intersperse(delimiter)
-
-	/**` (List).last :: List a -> a `*/
-	List.last = <a>(list : List<a>) : a =>
-		list.last
-
-	/**` (List).notElem :: List a -> a -> Boolean `*/
-	List.notElem = <a>(list : List<a>) => (delimiter : a) : boolean =>
-		list.notElem(delimiter)
-
-	/**` (List).prepend :: List a -> a -> List a `*/
-	List.prepend = <a>(list : List<a>) => (element : a) : List<a> =>
-		list.prepend(element)
-
-	/**` (List).reverse :: List a -> List a `*/
-	List.reverse = <a>(list : List<a>) : List<a> =>
-		list.reverse
-
-	/**` (List).scanl :: List a -> (b -> a -> b) -> b -> List b `*/
-	List.scanl = <a>(list : List<a>) => <b>(builder : (first : b) => (second : a) => b) => (initialValue : b) : List<b> =>
-		list.scanl(builder)(initialValue)
-
-	/**` (List).scanr :: List a -> (a -> b -> b) -> b -> List b `*/
-	List.scanr = <a>(list : List<a>) => <b>(builder : (second : a) => (first : b) => b) => (initialValue : b) : List<b> =>
-		list.scanr(builder)(initialValue)
-
-	/**` (List).scanl1 :: List a -> (a -> a -> a) -> List a `*/
-	List.scanl1 = <a>(list : List<a>) => (builder : (first : a) => (second : a) => a) : List<a> =>
-		list.scanl1(builder)
-
-	/**` (List).scanr1 :: List a -> (a -> a -> a) -> List a `*/
-	List.scanr1 = <a>(list : List<a>) => (builder : (second : a) => (first : a) => a) : List<a> =>
-		list.scanr1(builder)
-
-	/**` (List).span :: List a -> (a -> Boolean) -> (List a, List a) `*/
-	List.span = <a>(list : List<a>) => (predicate : (element : a) => boolean) : [List<a>, List<a>] =>
-		list.span(predicate)
-
-	/**` (List).splitAt :: List a -> Number -> (List a, List a) `*/
-	List.splitAt = <a>(list : List<a>) => (index : number) : [List<a>, List<a>] =>
-		list.splitAt(index)
-
-	/**` (List).tail :: List a -> List a `*/
-	List.tail = <a>(list : List<a>) : List<a> =>
-		list.tail
-
-	/**` (List).tails :: List a -> List (List a) `*/
-	List.tails = <a>(list : List<a>) : List<List<a>> =>
-		list.tails
-
-	/**` (List).take :: List a -> Number -> List a `*/
-	List.take = <a>(list : List<a>) => (count : number) : List<a> =>
-		list.take(count)
-
-	/**` (List).takeWhile :: List a -> (a -> Boolean) -> List a `*/
-	List.takeWhile = <a>(list : List<a>) => (predicate : (element : a) => boolean) : List<a> =>
-		list.takeWhile(predicate)
-
-	/**` (List).zip :: List a -> List b -> List (a, b) `*/
-	List.zip = <a>(list : List<a>) => <b>(postfixes : List<b>) : List<[a, b]> =>
-		list.zip(postfixes)
-
-	/**` (List).zipWith :: List a -> List b -> (a -> b -> c) -> List c `*/
-	List.zipWith =
-		<a>(list : List<a>) =>
-		<b>(postfixes : List<b>) =>
-		<c>(builder : (firstElement : a) => (secondElement : b) => c) : List<c> =>
-		list.zipWith(postfixes)(builder)
-}
-
 /**` Vector2D :: Number -> Number -> Vector2D `*/
 const Vector2D = (x : number) => (y : number) : Vector2D =>
-	(({
+	({
 		CONS : 'Vector2D',
 		x, y
-	}))
-
-{
-	/**` (Vector2D).x :: Vector2D -> Number `*/
-	Vector2D.x = (v : Vector2D) : number => v.x
-
-	/**` (Vector2D).y :: Vector2D -> Number `*/
-	Vector2D.y = (v : Vector2D) : number => v.y
-}
+	})
 
 /**` Vector3D :: Number -> Number -> Number -> Vector3D `*/
 const Vector3D = (x : number) => (y : number) => (z : number) : Vector3D =>
-	(({
+	({
 		CONS : 'Vector3D',
 		x, y, z
-	}))
-
-{
-	/**` (Vector3D).x :: Vector3D -> Number `*/
-	Vector3D.x = (v : Vector3D) : number => v.x
-
-	/**` (Vector3D).y :: Vector3D -> Number `*/
-	Vector3D.y = (v : Vector3D) : number => v.y
-
-	/**` (Vector3D).z :: Vector3D -> Number `*/
-	Vector3D.z = (v : Vector3D) : number => v.z
-}
+	})
 
 /**` Vector4D :: Number -> Number -> Number -> Number -> Vector4D `*/
 const Vector4D = (x : number) => (y : number) => (z : number) => (w : number) : Vector4D =>
-	(({
+	({
 		CONS : 'Vector4D',
 		x, y, z, w
-	}))
-
-{
-	/**` (Vector4D).x :: Vector4D -> Number `*/
-	Vector4D.x = (v : Vector4D) : number => v.x
-
-	/**` (Vector4D).y :: Vector4D -> Number `*/
-	Vector4D.y = (v : Vector4D) : number => v.y
-
-	/**` (Vector4D).z :: Vector4D -> Number `*/
-	Vector4D.z = (v : Vector4D) : number => v.z
-
-	/**` (Vector4D).z :: Vector4D -> Number `*/
-	Vector4D.w = (v : Vector4D) : number => v.w
-}
+	})
 
 /**` Matrix2x2 :: (4 Number...) -> Matrix2x2 `*/
 const Matrix2x2 =
@@ -1326,32 +1065,6 @@ const Matrix2x2 =
 		i : Vector2D(ix)(iy), j : Vector2D(jx)(jy),
 		x : Vector2D(ix)(jx), y : Vector2D(iy)(jy)
 	})
-
-{
-	/**` (Matrix2x2).ix :: Matrix2x2 -> Number `*/
-	Matrix2x2.ix = (matrix : Matrix2x2) : number => matrix.ix
-
-	/**` (Matrix2x2).jx :: Matrix2x2 -> Number `*/
-	Matrix2x2.jx = (matrix : Matrix2x2) : number => matrix.jx
-
-	/**` (Matrix2x2).iy :: Matrix2x2 -> Number `*/
-	Matrix2x2.iy = (matrix : Matrix2x2) : number => matrix.iy
-
-	/**` (Matrix2x2).jy :: Matrix2x2 -> Number `*/
-	Matrix2x2.jy = (matrix : Matrix2x2) : number => matrix.jy
-
-	/**` (Matrix2x2).i :: Matrix2x2 -> Vector2D `*/
-	Matrix2x2.i = (matrix : Matrix2x2) : Vector2D => matrix.i
-
-	/**` (Matrix2x2).j :: Matrix2x2 -> Vector2D `*/
-	Matrix2x2.j = (matrix : Matrix2x2) : Vector2D => matrix.j
-
-	/**` (Matrix2x2).x :: Matrix2x2 -> Vector2D `*/
-	Matrix2x2.x = (matrix : Matrix2x2) : Vector2D => matrix.x
-
-	/**` (Matrix2x2).y :: Matrix2x2 -> Vector2D `*/
-	Matrix2x2.y = (matrix : Matrix2x2) : Vector2D => matrix.y
-}
 
 /**` Matrix3x3 :: (9 Number...) -> Matrix3x3 `*/
 const Matrix3x3 =
@@ -1366,53 +1079,6 @@ const Matrix3x3 =
 		i : Vector3D(ix)(iy)(iz), j : Vector3D(jx)(jy)(jz), k : Vector3D(kx)(ky)(kz),
 		x : Vector3D(ix)(jx)(kx), y : Vector3D(iy)(jy)(ky), z : Vector3D(iz)(jz)(kz)
 	})
-
-{
-	/**` (Matrix3x3).ix :: Matrix3x3 -> Number `*/
-	Matrix3x3.ix = (matrix : Matrix3x3) : number => matrix.ix
-
-	/**` (Matrix3x3).jx :: Matrix3x3 -> Number `*/
-	Matrix3x3.jx = (matrix : Matrix3x3) : number => matrix.jx
-
-	/**` (Matrix3x3).kx :: Matrix3x3 -> Number `*/
-	Matrix3x3.kx = (matrix : Matrix3x3) : number => matrix.kx
-
-	/**` (Matrix3x3).iy :: Matrix3x3 -> Number `*/
-	Matrix3x3.iy = (matrix : Matrix3x3) : number => matrix.iy
-
-	/**` (Matrix3x3).jy :: Matrix3x3 -> Number `*/
-	Matrix3x3.jy = (matrix : Matrix3x3) : number => matrix.jy
-
-	/**` (Matrix3x3).ky :: Matrix3x3 -> Number `*/
-	Matrix3x3.ky = (matrix : Matrix3x3) : number => matrix.ky
-
-	/**` (Matrix3x3).iz :: Matrix3x3 -> Number `*/
-	Matrix3x3.iz = (matrix : Matrix3x3) : number => matrix.iz
-
-	/**` (Matrix3x3).jz :: Matrix3x3 -> Number `*/
-	Matrix3x3.jz = (matrix : Matrix3x3) : number => matrix.jz
-
-	/**` (Matrix3x3).kz :: Matrix3x3 -> Number `*/
-	Matrix3x3.kz = (matrix : Matrix3x3) : number => matrix.kz
-
-	/**` (Matrix3x3).i :: Matrix3x3 -> Vector3D `*/
-	Matrix3x3.i = (matrix : Matrix3x3) : Vector3D => matrix.i
-
-	/**` (Matrix3x3).j :: Matrix3x3 -> Vector3D `*/
-	Matrix3x3.j = (matrix : Matrix3x3) : Vector3D => matrix.j
-
-	/**` (Matrix3x3).k :: Matrix3x3 -> Vector3D `*/
-	Matrix3x3.k = (matrix : Matrix3x3) : Vector3D => matrix.k
-
-	/**` (Matrix3x3).x :: Matrix3x3 -> Vector3D `*/
-	Matrix3x3.x = (matrix : Matrix3x3) : Vector3D => matrix.x
-
-	/**` (Matrix3x3).y :: Matrix3x3 -> Vector3D `*/
-	Matrix3x3.y = (matrix : Matrix3x3) : Vector3D => matrix.y
-
-	/**` (Matrix3x3).z :: Matrix3x3 -> Vector3D `*/
-	Matrix3x3.z = (matrix : Matrix3x3) : Vector3D => matrix.z
-}
 
 /**` Matrix4x4 :: (16 Number...) -> Matrix4x4 `*/
 const Matrix4x4 =
@@ -1430,97 +1096,12 @@ const Matrix4x4 =
 		x : Vector4D(ix)(jx)(kx)(lx), y : Vector4D(iy)(jy)(ky)(ly), z : Vector4D(iz)(jz)(kz)(lz), w : Vector4D(iw)(jw)(kw)(lw)
 	})
 
-{
-	/**` (Matrix4x4).ix :: Matrix4x4 -> Number `*/
-	Matrix4x4.ix = (matrix : Matrix4x4) : number => matrix.ix
-
-	/**` (Matrix4x4).jx :: Matrix4x4 -> Number `*/
-	Matrix4x4.jx = (matrix : Matrix4x4) : number => matrix.jx
-
-	/**` (Matrix4x4).kx :: Matrix4x4 -> Number `*/
-	Matrix4x4.kx = (matrix : Matrix4x4) : number => matrix.kx
-
-	/**` (Matrix4x4).lx :: Matrix4x4 -> Number `*/
-	Matrix4x4.lx = (matrix : Matrix4x4) : number => matrix.lx
-
-	/**` (Matrix4x4).iy :: Matrix4x4 -> Number `*/
-	Matrix4x4.iy = (matrix : Matrix4x4) : number => matrix.iy
-
-	/**` (Matrix4x4).jy :: Matrix4x4 -> Number `*/
-	Matrix4x4.jy = (matrix : Matrix4x4) : number => matrix.jy
-
-	/**` (Matrix4x4).ky :: Matrix4x4 -> Number `*/
-	Matrix4x4.ky = (matrix : Matrix4x4) : number => matrix.ky
-
-	/**` (Matrix4x4).ly :: Matrix4x4 -> Number `*/
-	Matrix4x4.ly = (matrix : Matrix4x4) : number => matrix.ly
-
-	/**` (Matrix4x4).iz :: Matrix4x4 -> Number `*/
-	Matrix4x4.iz = (matrix : Matrix4x4) : number => matrix.iz
-
-	/**` (Matrix4x4).jz :: Matrix4x4 -> Number `*/
-	Matrix4x4.jz = (matrix : Matrix4x4) : number => matrix.jz
-
-	/**` (Matrix4x4).kz :: Matrix4x4 -> Number `*/
-	Matrix4x4.kz = (matrix : Matrix4x4) : number => matrix.kz
-
-	/**` (Matrix4x4).lz :: Matrix4x4 -> Number `*/
-	Matrix4x4.lz = (matrix : Matrix4x4) : number => matrix.lz
-
-	/**` (Matrix4x4).iw :: Matrix4x4 -> Number `*/
-	Matrix4x4.iw = (matrix : Matrix4x4) : number => matrix.iw
-
-	/**` (Matrix4x4).jw :: Matrix4x4 -> Number `*/
-	Matrix4x4.jw = (matrix : Matrix4x4) : number => matrix.jw
-
-	/**` (Matrix4x4).kw :: Matrix4x4 -> Number `*/
-	Matrix4x4.kw = (matrix : Matrix4x4) : number => matrix.kw
-
-	/**` (Matrix4x4).lw :: Matrix4x4 -> Number `*/
-	Matrix4x4.lw = (matrix : Matrix4x4) : number => matrix.lw
-
-	/**` (Matrix4x4).i :: Matrix4x4 -> Vector4D `*/
-	Matrix4x4.i = (matrix : Matrix4x4) : Vector4D => matrix.i
-
-	/**` (Matrix4x4).j :: Matrix4x4 -> Vector4D `*/
-	Matrix4x4.j = (matrix : Matrix4x4) : Vector4D => matrix.j
-
-	/**` (Matrix4x4).k :: Matrix4x4 -> Vector4D `*/
-	Matrix4x4.k = (matrix : Matrix4x4) : Vector4D => matrix.k
-
-	/**` (Matrix4x4).l :: Matrix4x4 -> Vector4D `*/
-	Matrix4x4.l = (matrix : Matrix4x4) : Vector4D => matrix.l
-
-	/**` (Matrix4x4).x :: Matrix4x4 -> Vector4D `*/
-	Matrix4x4.x = (matrix : Matrix4x4) : Vector4D => matrix.x
-
-	/**` (Matrix4x4).y :: Matrix4x4 -> Vector4D `*/
-	Matrix4x4.y = (matrix : Matrix4x4) : Vector4D => matrix.y
-
-	/**` (Matrix4x4).z :: Matrix4x4 -> Vector4D `*/
-	Matrix4x4.z = (matrix : Matrix4x4) : Vector4D => matrix.z
-
-	/**` (Matrix4x4).w :: Matrix4x4 -> Vector4D `*/
-	Matrix4x4.w = (matrix : Matrix4x4) : Vector4D => matrix.w
-}
-
 /**` TextMeasurement :: String -> Number -> Number -> TextMeasurement `*/
 const TextMeasurement = (text : string) => (width : number) => (height : number) : TextMeasurement =>
-	(({
+	({
 		CONS : 'TextMeasurement',
 		text, width, height
-	}))
-
-{
-	/**` (TextMeasurement).text :: TextMeasurement -> String `*/
-	TextMeasurement.text = (measurement : TextMeasurement) : string => measurement.text
-
-	/**` (TextMeasurement).width :: TextMeasurement -> Number `*/
-	TextMeasurement.width = (measurement : TextMeasurement) : number => measurement.width
-
-	/**` (TextMeasurement).height :: TextMeasurement -> Number `*/
-	TextMeasurement.height = (measurement : TextMeasurement) : number => measurement.height
-}
+	})
 
 /**` Switch.case :: a -> (() -> b) -> Switch a b `*/
 const Switch = <a, b>(f : (x : a) => b | undefined) : Switch<a, b> =>
@@ -1568,31 +1149,6 @@ const Bijection = <a, b>(pairs : ReadonlyArray<[a, b]>) : Bijection<a, b> =>
 
 Bijection.of = <a>(domainValue : a) => <b>(codomainValue : b) : Bijection<a, b> =>
 	Bijection([[domainValue, codomainValue]])
-
-{
-	/**` (Bijection).domain :: Bijection a b -> a -> b `*/
-	Bijection.domain = <a, b>(bijection : Bijection<a, b>) => (domain : a) : b =>
-		bijection.domain(domain)
-
-	/**` (Bijection).codomain :: Bijection a b -> b -> a `*/
-	Bijection.codomain = <a, b>(bijection : Bijection<a, b>) => (codomain : b) : a =>
-		bijection.codomain(codomain)
-}
-
-/**` Clock :: Number -> Number -> Number -> Clock `*/
-const Clock = (time : number) => (delta : number) => (counter : number) : Clock =>
-	(({ CONS : 'Clock', time, delta, counter }))
-
-{
-	/**` (Clock).time :: Clock -> Number `*/
-	Clock.time = (clock : Clock) : number => clock.time
-
-	/**` (Clock).delta :: Clock -> Number `*/
-	Clock.delta = (clock : Clock) : number => clock.delta
-
-	/**` (Clock).counter :: Clock -> Number `*/
-	Clock.counter = (clock : Clock) : number => clock.counter
-}
 
 /********************************************************************************************************************************/
 
@@ -1821,13 +1377,12 @@ const pseudoRandom : State<number, number> =
 		Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536
 	])
 
-/**` updateClock :: Clock -> Number -> Clock `*/
-const updateClock = (clock : Clock) => (present : number) : Clock =>
-	Clock(present)(present - clock.time)(clock.counter + present - clock.time)
+/**` when :: Boolean -> IO a -> IO () `*/
+const when = (condition : boolean) => <a>(io : IO<a>) : IO<null> =>
+	(condition ? io.fmap : IO)(() => null)
 
-/**` resetClock :: Clock -> Clock `*/
-const resetClock = (clock : Clock) : Clock =>
-	Clock(clock.time)(clock.delta)(0)
+/**` nil :: IO () `*/
+const nil : IO<null> = IO(() => null)
 
 /********************************************************************************************************************************/
 
@@ -3312,8 +2867,8 @@ namespace Effect
 		IO(() => (console.clear(), null))
 
 	/**` Effect.queue :: IO a -> IO () `*/
-	export const queue = (io : IO<any>) : IO<null> =>
-		IO(() => (io.INFO(), null))
+	export const queue = <a>(io : IO<a>) : IO<null> =>
+		IO(() => (requestAnimationFrame(() => io.INFO()), null))
 
 	/**` Effect.tick :: IO () `*/
 	export const tick : IO<null> =
@@ -3325,6 +2880,7 @@ namespace Effect
 			__EXTERNAL__.mouse.scroll = Vertical.CenterY
 			__EXTERNAL__.mouse.deltaX = 0
 			__EXTERNAL__.mouse.deltaY = 0
+			__EXTERNAL__.isResized    = false
 			return null
 		})
 
@@ -3731,7 +3287,7 @@ namespace Effect
 
 onload = () =>
 {
-	__EXTERNAL__.context = (document.querySelector('canvas') as any).getContext('2d')
+	__EXTERNAL__.context = document.querySelector('canvas')!.getContext('2d')!
 
 	onkeydown = event =>
 	{

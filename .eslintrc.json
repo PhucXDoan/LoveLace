@@ -15,7 +15,7 @@
 		"@typescript-eslint/no-redeclare"           : "off",
 		"@typescript-eslint/no-shadow"              : ["error", { "allow": ["_"] }],
 		"@typescript-eslint/semi"                   : ["error", "never"],
-		"@typescript-eslint/member-delimiter-style" : ["error", { "multiline": { "delimiter": "none" } }],
+		"@typescript-eslint/member-delimiter-style" : ["error", { "singleline": { "delimiter": "comma" }, "multiline": { "delimiter": "none" } }],
 		"accessor-pairs"                            : "off",
 		"array-bracket-newline"                     : "off",
 		"max-len"                                   : ["error", { "code": 130 }],

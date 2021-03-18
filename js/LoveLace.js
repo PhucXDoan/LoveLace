@@ -17,17 +17,22 @@ const acosh = Math.acosh;
 const add = (x) => (y) => x + y;
 const AND = (x) => (y) => x & y;
 const and = (x) => (y) => x && y;
+const apply = (x) => (f) => f(x);
+const approx = (x) => (y) => (error) => Math.abs(x - y) < error;
+const napprox = (x) => (y) => (error) => Math.abs(x - y) > error;
 const asin = Math.asin;
 const asinh = Math.asinh;
 const atan = Math.atan;
 const atan2 = (y) => (x) => Math.atan2(y, x);
 const ratan2 = (x) => (y) => Math.atan2(y, x);
 const atanh = Math.atanh;
+const BIT = (x) => x ? 1 : 0;
 const cbrt = Math.cbrt;
 const ceil = Math.ceil;
 const CLZ32 = Math.clz32;
 const cos = Math.cos;
 const cosh = Math.cosh;
+const diff = (x) => (y) => Math.abs(x - y);
 const div = (x) => (y) => x / y;
 const rdiv = (y) => (x) => x / y;
 const eq = (x) => (y) => x === y;
@@ -35,14 +40,20 @@ const exp = Math.exp;
 const expm1 = Math.expm1;
 const floor = Math.floor;
 const fround = Math.fround;
+const fst = (pair) => pair[0];
 const gt = (x) => (y) => x > y;
 const gte = (x) => (y) => x >= y;
+const isInsideExclusive = (n) => (lower) => (upper) => lower < n && n < upper;
+const isInsideInclusive = (n) => (lower) => (upper) => lower <= n && n <= upper;
+const isOutsideExclusive = (n) => (lower) => (upper) => n < lower || upper < n;
+const isOutsideInclusive = (n) => (lower) => (upper) => n <= lower && upper <= n;
 const ln = Math.log;
 const log10 = Math.log10;
 const lnp1 = Math.log1p;
 const log2 = Math.log2;
 const LSHIFT = (x) => (y) => x << y;
 const rLSHIFT = (y) => (x) => x << y;
+const lerp = (t) => (x) => (y) => x + (y - x) * t;
 const lt = (x) => (y) => x < y;
 const lte = (x) => (y) => x <= y;
 const max = (x) => (y) => Math.max(x, y);
@@ -60,6 +71,7 @@ const not = (x) => !x;
 const OR = (x) => (y) => x | y;
 const or = (x) => (y) => x || y;
 const nor = (x) => (y) => !(x || y);
+const pick = (condition) => condition ? fst : snd;
 const pow = (x) => (y) => Math.pow(x, y);
 const rpow = (y) => (x) => Math.pow(x, y);
 const pythagoras = (x) => (y) => Math.sqrt(x * x + y * y);
@@ -69,6 +81,7 @@ const rRSHIFT = (y) => (x) => x >> y;
 const sign = Math.sign;
 const sin = Math.sin;
 const sinh = Math.sinh;
+const snd = (pair) => pair[1];
 const sqrt = Math.sqrt;
 const sub = (x) => (y) => x - y;
 const rsub = (y) => (x) => x - y;
@@ -92,17 +105,13 @@ const IO = (sideeffect) => ({
         const $ = sideeffect();
         return Object.assign(Object.assign({}, $), { [x]: f($) });
     }),
+    side: f => IO(() => {
+        const x = sideeffect();
+        f(x).INFO();
+        return x;
+    }),
     then: x => IO(() => (sideeffect(), x.INFO()))
 });
-{
-    IO.bind = (io) => (reaction) => io.bind(reaction);
-    IO.bindto =
-        (io) => (name) => (reaction) => io.bindto(name)(reaction);
-    IO.fmap = (io) => (computation) => io.fmap(computation);
-    IO.fmapto =
-        (io) => (name) => (computation) => io.fmapto(name)(computation);
-    IO.then = (io) => (successor) => io.then(successor);
-}
 const Nothing = {
     CONS: 'Nothing',
     bind: _ => Nothing,
@@ -124,12 +133,6 @@ const Just = (value) => ({
     fmap: f => Just(f(value)),
     fmapto: x => f => Just(Object.assign(Object.assign({}, value), { [x]: f(value) }))
 });
-const Maybe = {
-    bind: (maybe) => (reaction) => maybe.bind(reaction),
-    bindto: (maybe) => (name) => (reaction) => maybe.bindto(name)(reaction),
-    fmap: (maybe) => (computation) => maybe.fmap(computation),
-    fmapto: (maybe) => (name) => (computation) => maybe.fmapto(name)(computation)
-};
 const State = (statefulComputation) => ({
     CONS: 'State',
     INFO: statefulComputation,
@@ -155,15 +158,6 @@ const State = (statefulComputation) => ({
     evalState: s => statefulComputation(s)[0],
     execState: s => statefulComputation(s)[1]
 });
-{
-    State.bind = (state) => (reaction) => state.bind(reaction);
-    State.bindto =
-        (state) => (name) => (reaction) => state.bindto(name)(reaction);
-    State.fmap = (state) => (computation) => state.fmap(computation);
-    State.fmapto =
-        (state) => (name) => (computation) => state.fmapto(name)(computation);
-    State.then = (state) => (successor) => state.then(successor);
-}
 const List = (...elements) => ({
     CONS: 'List',
     INFO: elements,
@@ -278,81 +272,18 @@ const List = (...elements) => ({
     zip: xs => List(...Array(Math.min(elements.length, xs.INFO.length)).fill(null).map((_, i) => [elements[i], xs.INFO[i]])),
     zipWith: xs => f => List(...Array(Math.min(elements.length, xs.INFO.length)).fill(null).map((_, i) => f(elements[i])(xs.INFO[i])))
 });
-{
-    List.all = (list) => (predicate) => list.all(predicate);
-    List.any = (list) => (predicate) => list.any(predicate);
-    List.append = (list) => (element) => list.append(element);
-    List.at = (list) => (index) => list.at(index);
-    List.bind = (list) => (reaction) => list.bind(reaction);
-    List.bindto =
-        (list) => (name) => (reaction) => list.bindto(name)(reaction);
-    List.break = (list) => (predicate) => list.break(predicate);
-    List.concat = (list) => (succeeding) => list.concat(succeeding);
-    List.drop = (list) => (count) => list.drop(count);
-    List.dropWhile = (list) => (predicate) => list.dropWhile(predicate);
-    List.elem = (list) => (match) => list.elem(match);
-    List.elemIndex = (list) => (match) => list.elemIndex(match);
-    List.elemIndices = (list) => (match) => list.elemIndices(match);
-    List.filter = (list) => (predicate) => list.filter(predicate);
-    List.find = (list) => (predicate) => list.find(predicate);
-    List.findIndex = (list) => (predicate) => list.findIndex(predicate);
-    List.findIndices = (list) => (predicate) => list.findIndices(predicate);
-    List.fmap = (list) => (computation) => list.fmap(computation);
-    List.fmapto =
-        (list) => (name) => (computation) => list.fmapto(name)(computation);
-    List.foldl = (list) => (builder) => (initialValue) => list.foldl(builder)(initialValue);
-    List.foldr = (list) => (builder) => (initialValue) => list.foldr(builder)(initialValue);
-    List.foldl1 = (list) => (builder) => list.foldl1(builder);
-    List.foldr1 = (list) => (builder) => list.foldr1(builder);
-    List.head = (list) => list.head;
-    List.init = (list) => list.init;
-    List.inits = (list) => list.inits;
-    List.intersperse = (list) => (delimiter) => list.intersperse(delimiter);
-    List.last = (list) => list.last;
-    List.notElem = (list) => (delimiter) => list.notElem(delimiter);
-    List.prepend = (list) => (element) => list.prepend(element);
-    List.reverse = (list) => list.reverse;
-    List.scanl = (list) => (builder) => (initialValue) => list.scanl(builder)(initialValue);
-    List.scanr = (list) => (builder) => (initialValue) => list.scanr(builder)(initialValue);
-    List.scanl1 = (list) => (builder) => list.scanl1(builder);
-    List.scanr1 = (list) => (builder) => list.scanr1(builder);
-    List.span = (list) => (predicate) => list.span(predicate);
-    List.splitAt = (list) => (index) => list.splitAt(index);
-    List.tail = (list) => list.tail;
-    List.tails = (list) => list.tails;
-    List.take = (list) => (count) => list.take(count);
-    List.takeWhile = (list) => (predicate) => list.takeWhile(predicate);
-    List.zip = (list) => (postfixes) => list.zip(postfixes);
-    List.zipWith =
-        (list) => (postfixes) => (builder) => list.zipWith(postfixes)(builder);
-}
-const Vector2D = (x) => (y) => (({
+const Vector2D = (x) => (y) => ({
     CONS: 'Vector2D',
     x, y
-}));
-{
-    Vector2D.x = (v) => v.x;
-    Vector2D.y = (v) => v.y;
-}
-const Vector3D = (x) => (y) => (z) => (({
+});
+const Vector3D = (x) => (y) => (z) => ({
     CONS: 'Vector3D',
     x, y, z
-}));
-{
-    Vector3D.x = (v) => v.x;
-    Vector3D.y = (v) => v.y;
-    Vector3D.z = (v) => v.z;
-}
-const Vector4D = (x) => (y) => (z) => (w) => (({
+});
+const Vector4D = (x) => (y) => (z) => (w) => ({
     CONS: 'Vector4D',
     x, y, z, w
-}));
-{
-    Vector4D.x = (v) => v.x;
-    Vector4D.y = (v) => v.y;
-    Vector4D.z = (v) => v.z;
-    Vector4D.w = (v) => v.w;
-}
+});
 const Matrix2x2 = (ix) => (jx) => (iy) => (jy) => ({
     CONS: 'Matrix2x2',
     ix, jx,
@@ -360,16 +291,6 @@ const Matrix2x2 = (ix) => (jx) => (iy) => (jy) => ({
     i: Vector2D(ix)(iy), j: Vector2D(jx)(jy),
     x: Vector2D(ix)(jx), y: Vector2D(iy)(jy)
 });
-{
-    Matrix2x2.ix = (matrix) => matrix.ix;
-    Matrix2x2.jx = (matrix) => matrix.jx;
-    Matrix2x2.iy = (matrix) => matrix.iy;
-    Matrix2x2.jy = (matrix) => matrix.jy;
-    Matrix2x2.i = (matrix) => matrix.i;
-    Matrix2x2.j = (matrix) => matrix.j;
-    Matrix2x2.x = (matrix) => matrix.x;
-    Matrix2x2.y = (matrix) => matrix.y;
-}
 const Matrix3x3 = (ix) => (jx) => (kx) => (iy) => (jy) => (ky) => (iz) => (jz) => (kz) => ({
     CONS: 'Matrix3x3',
     ix, jx, kx,
@@ -378,23 +299,6 @@ const Matrix3x3 = (ix) => (jx) => (kx) => (iy) => (jy) => (ky) => (iz) => (jz) =
     i: Vector3D(ix)(iy)(iz), j: Vector3D(jx)(jy)(jz), k: Vector3D(kx)(ky)(kz),
     x: Vector3D(ix)(jx)(kx), y: Vector3D(iy)(jy)(ky), z: Vector3D(iz)(jz)(kz)
 });
-{
-    Matrix3x3.ix = (matrix) => matrix.ix;
-    Matrix3x3.jx = (matrix) => matrix.jx;
-    Matrix3x3.kx = (matrix) => matrix.kx;
-    Matrix3x3.iy = (matrix) => matrix.iy;
-    Matrix3x3.jy = (matrix) => matrix.jy;
-    Matrix3x3.ky = (matrix) => matrix.ky;
-    Matrix3x3.iz = (matrix) => matrix.iz;
-    Matrix3x3.jz = (matrix) => matrix.jz;
-    Matrix3x3.kz = (matrix) => matrix.kz;
-    Matrix3x3.i = (matrix) => matrix.i;
-    Matrix3x3.j = (matrix) => matrix.j;
-    Matrix3x3.k = (matrix) => matrix.k;
-    Matrix3x3.x = (matrix) => matrix.x;
-    Matrix3x3.y = (matrix) => matrix.y;
-    Matrix3x3.z = (matrix) => matrix.z;
-}
 const Matrix4x4 = (ix) => (jx) => (kx) => (lx) => (iy) => (jy) => (ky) => (ly) => (iz) => (jz) => (kz) => (lz) => (iw) => (jw) => (kw) => (lw) => ({
     CONS: 'Matrix4x4',
     ix, jx, kx, lx,
@@ -404,41 +308,10 @@ const Matrix4x4 = (ix) => (jx) => (kx) => (lx) => (iy) => (jy) => (ky) => (ly) =
     i: Vector4D(ix)(iy)(iz)(iw), j: Vector4D(jx)(jy)(jz)(jw), k: Vector4D(kx)(ky)(kz)(kw), l: Vector4D(lx)(ly)(lz)(lw),
     x: Vector4D(ix)(jx)(kx)(lx), y: Vector4D(iy)(jy)(ky)(ly), z: Vector4D(iz)(jz)(kz)(lz), w: Vector4D(iw)(jw)(kw)(lw)
 });
-{
-    Matrix4x4.ix = (matrix) => matrix.ix;
-    Matrix4x4.jx = (matrix) => matrix.jx;
-    Matrix4x4.kx = (matrix) => matrix.kx;
-    Matrix4x4.lx = (matrix) => matrix.lx;
-    Matrix4x4.iy = (matrix) => matrix.iy;
-    Matrix4x4.jy = (matrix) => matrix.jy;
-    Matrix4x4.ky = (matrix) => matrix.ky;
-    Matrix4x4.ly = (matrix) => matrix.ly;
-    Matrix4x4.iz = (matrix) => matrix.iz;
-    Matrix4x4.jz = (matrix) => matrix.jz;
-    Matrix4x4.kz = (matrix) => matrix.kz;
-    Matrix4x4.lz = (matrix) => matrix.lz;
-    Matrix4x4.iw = (matrix) => matrix.iw;
-    Matrix4x4.jw = (matrix) => matrix.jw;
-    Matrix4x4.kw = (matrix) => matrix.kw;
-    Matrix4x4.lw = (matrix) => matrix.lw;
-    Matrix4x4.i = (matrix) => matrix.i;
-    Matrix4x4.j = (matrix) => matrix.j;
-    Matrix4x4.k = (matrix) => matrix.k;
-    Matrix4x4.l = (matrix) => matrix.l;
-    Matrix4x4.x = (matrix) => matrix.x;
-    Matrix4x4.y = (matrix) => matrix.y;
-    Matrix4x4.z = (matrix) => matrix.z;
-    Matrix4x4.w = (matrix) => matrix.w;
-}
-const TextMeasurement = (text) => (width) => (height) => (({
+const TextMeasurement = (text) => (width) => (height) => ({
     CONS: 'TextMeasurement',
     text, width, height
-}));
-{
-    TextMeasurement.text = (measurement) => measurement.text;
-    TextMeasurement.width = (measurement) => measurement.width;
-    TextMeasurement.height = (measurement) => measurement.height;
-}
+});
 const Switch = (f) => ({
     CONS: 'Switch',
     case: x => y => Switch(z => {
@@ -475,16 +348,6 @@ const Bijection = (pairs) => ({
     }
 });
 Bijection.of = (domainValue) => (codomainValue) => Bijection([[domainValue, codomainValue]]);
-{
-    Bijection.domain = (bijection) => (domain) => bijection.domain(domain);
-    Bijection.codomain = (bijection) => (codomain) => bijection.codomain(codomain);
-}
-const Clock = (time) => (delta) => (counter) => (({ CONS: 'Clock', time, delta, counter }));
-{
-    Clock.time = (clock) => clock.time;
-    Clock.delta = (clock) => clock.delta;
-    Clock.counter = (clock) => clock.counter;
-}
 var Horizontal;
 (function (Horizontal) {
     Horizontal["Leftward"] = "Leftward :: Horizontal";
@@ -637,8 +500,8 @@ const pseudoRandom = State(seed => [
     (-67 * seed * seed * seed + 23 * seed * seed - 91 * seed + 73) % 65536,
     Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536
 ]);
-const updateClock = (clock) => (present) => Clock(present)(present - clock.time)(clock.counter + present - clock.time);
-const resetClock = (clock) => Clock(clock.time)(clock.delta)(0);
+const when = (condition) => (io) => (condition ? io.fmap : IO)(() => null);
+const nil = IO(() => null);
 const Do = {
     IO: IO(() => Object.create(null)),
     Maybe: Just(Object.create(null)),
@@ -1219,7 +1082,7 @@ var Effect;
     })(Norm = Effect.Norm || (Effect.Norm = {}));
     Effect.log = (message) => IO(() => (console.log(message), null));
     Effect.flush = IO(() => (console.clear(), null));
-    Effect.queue = (io) => IO(() => (io.INFO(), null));
+    Effect.queue = (io) => IO(() => (requestAnimationFrame(() => io.INFO()), null));
     Effect.tick = IO(() => {
         for (const k in __EXTERNAL__.keyboard)
             __EXTERNAL__.keyboard[k] = relaxVertical(__EXTERNAL__.keyboard[k]);
@@ -1228,6 +1091,7 @@ var Effect;
         __EXTERNAL__.mouse.scroll = Vertical.CenterY;
         __EXTERNAL__.mouse.deltaX = 0;
         __EXTERNAL__.mouse.deltaY = 0;
+        __EXTERNAL__.isResized = false;
         return null;
     });
     Effect.activatePointerLock = IO(() => {
