@@ -2,6 +2,7 @@
 const THROW = (message) => { throw new Error(message); };
 const THROWTYPE = (message) => { throw new TypeError(message); };
 const THROWRANGE = (message) => { throw new RangeError(message); };
+const never = undefined;
 const E = 2.718281828459045;
 const LN2 = 0.6931471805599453;
 const LN10 = 2.302585092994046;
@@ -27,6 +28,7 @@ const atan2 = (y) => (x) => Math.atan2(y, x);
 const ratan2 = (x) => (y) => Math.atan2(y, x);
 const atanh = Math.atanh;
 const BIT = (x) => x ? 1 : 0;
+const rboth = (pair) => (f) => [f(pair[0]), f(pair[1])];
 const cbrt = Math.cbrt;
 const ceil = Math.ceil;
 const CLZ32 = Math.clz32;
@@ -36,6 +38,7 @@ const diff = (x) => (y) => Math.abs(x - y);
 const div = (x) => (y) => x / y;
 const rdiv = (y) => (x) => x / y;
 const eq = (x) => (y) => x === y;
+const even = (x) => x % 2 === 0;
 const exp = Math.exp;
 const expm1 = Math.expm1;
 const floor = Math.floor;
@@ -68,6 +71,7 @@ const neq = (x) => (y) => x !== y;
 const NOR = (x) => (y) => ~(x | y);
 const NOT = (x) => ~x;
 const not = (x) => !x;
+const odd = (x) => Math.abs(x) % 2 === 1;
 const OR = (x) => (y) => x | y;
 const or = (x) => (y) => x || y;
 const nor = (x) => (y) => !(x || y);
@@ -87,7 +91,11 @@ const sub = (x) => (y) => x - y;
 const rsub = (y) => (x) => x - y;
 const tan = Math.tan;
 const tanh = Math.tanh;
+const toHexColor = (decimal) => decimal >= 0 && decimal <= 16777215 && Number.isInteger(decimal)
+    ? `#${decimal.toString(16).padStart(6, '0')}`
+    : THROWTYPE(`'toHexColor' requires a positive integer number below 0xffffff (16777215); received '${decimal}' instead`);
 const trunc = Math.trunc;
+const qtrunc = (x) => ~~x;
 const URSHIFT = (x) => (y) => x >>> y;
 const rURSHIFT = (y) => (x) => x >>> y;
 const XOR = (x) => (y) => x ^ y;
@@ -226,6 +234,13 @@ const List = (...elements) => ({
             ? elements[0]
             : THROWRANGE(`Cannot get 'head' of an empty 'List'`);
     },
+    ifilter: f => List(...elements.filter((x, i) => f(i)(x))),
+    imap: f => List(...elements.map((x, i) => f(i)(x))),
+    get indexed() {
+        return List(...elements.map((x, i) => [i, x]));
+    },
+    indexFilter: f => List(...elements.filter((_, i) => f(i))),
+    indexMap: f => List(...elements.map((_, i) => f(i))),
     get init() {
         return List(...elements.slice(0, -1));
     },
@@ -500,8 +515,18 @@ const pseudoRandom = State(seed => [
     (-67 * seed * seed * seed + 23 * seed * seed - 91 * seed + 73) % 65536,
     Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536
 ]);
+const returnIO = (x) => IO(() => x);
 const when = (condition) => (io) => (condition ? io.fmap : IO)(() => null);
 const nil = IO(() => null);
+const sequenceIOs = (ios) => IO(() => List(...ios.INFO.map(io => io.INFO())));
+const executeIOs = (ios) => IO(() => {
+    for (const io of ios.INFO)
+        io.INFO();
+    return null;
+});
+const replicate = (count) => (element) => count >= 0 && Number.isInteger(count)
+    ? List(...Array(count).fill(element))
+    : THROWTYPE(`'replicate' must take in a positive, integral number; instead recieved '${count}'`);
 const Do = {
     IO: IO(() => Object.create(null)),
     Maybe: Just(Object.create(null)),
@@ -898,11 +923,11 @@ var Effect;
             return null;
         });
         Norm.clearRectangle = (x) => (y) => (w) => (h) => IO(() => {
-            __EXTERNAL__.context.clearRect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+            __EXTERNAL__.context.clearRect(x * __EXTERNAL__.context.canvas.width - 0.5, y * __EXTERNAL__.context.canvas.height - 0.5, w * __EXTERNAL__.context.canvas.width + 1, h * __EXTERNAL__.context.canvas.height + 1);
             return null;
         });
         Norm.clearRectangleVector = (coordinates) => (dimensions) => IO(() => {
-            __EXTERNAL__.context.clearRect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+            __EXTERNAL__.context.clearRect(coordinates.x * __EXTERNAL__.context.canvas.width - 0.5, coordinates.y * __EXTERNAL__.context.canvas.height - 0.5, dimensions.x * __EXTERNAL__.context.canvas.width + 1, dimensions.y * __EXTERNAL__.context.canvas.height + 1);
             return null;
         });
         Norm.rotate = (angle) => IO(() => {
@@ -962,27 +987,27 @@ var Effect;
             return null;
         });
         Norm.rectangle = (x) => (y) => (w) => (h) => IO(() => {
-            __EXTERNAL__.context.rect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+            __EXTERNAL__.context.rect(x * __EXTERNAL__.context.canvas.width - 0.5, y * __EXTERNAL__.context.canvas.height - 0.5, w * __EXTERNAL__.context.canvas.width + 1, h * __EXTERNAL__.context.canvas.height + 1);
             return null;
         });
         Norm.rectangleVector = (coordinates) => (dimensions) => IO(() => {
-            __EXTERNAL__.context.rect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+            __EXTERNAL__.context.rect(coordinates.x * __EXTERNAL__.context.canvas.width - 0.5, coordinates.y * __EXTERNAL__.context.canvas.height - 0.5, dimensions.x * __EXTERNAL__.context.canvas.width + 1, dimensions.y * __EXTERNAL__.context.canvas.height + 1);
             return null;
         });
         Norm.fillRectangle = (x) => (y) => (w) => (h) => IO(() => {
-            __EXTERNAL__.context.fillRect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+            __EXTERNAL__.context.fillRect(x * __EXTERNAL__.context.canvas.width - 0.5, y * __EXTERNAL__.context.canvas.height - 0.5, w * __EXTERNAL__.context.canvas.width + 1, h * __EXTERNAL__.context.canvas.height + 1);
             return null;
         });
         Norm.fillRectangleVector = (coordinates) => (dimensions) => IO(() => {
-            __EXTERNAL__.context.fillRect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+            __EXTERNAL__.context.fillRect(coordinates.x * __EXTERNAL__.context.canvas.width - 0.5, coordinates.y * __EXTERNAL__.context.canvas.height - 0.5, dimensions.x * __EXTERNAL__.context.canvas.width + 1, dimensions.y * __EXTERNAL__.context.canvas.height + 1);
             return null;
         });
         Norm.strokeRectangle = (x) => (y) => (w) => (h) => IO(() => {
-            __EXTERNAL__.context.strokeRect(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height);
+            __EXTERNAL__.context.strokeRect(x * __EXTERNAL__.context.canvas.width - 0.5, y * __EXTERNAL__.context.canvas.height - 0.5, w * __EXTERNAL__.context.canvas.width + 1, h * __EXTERNAL__.context.canvas.height + 1);
             return null;
         });
         Norm.strokeRectangleVector = (coordinates) => (dimensions) => IO(() => {
-            __EXTERNAL__.context.strokeRect(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, dimensions.x * __EXTERNAL__.context.canvas.width, dimensions.y * __EXTERNAL__.context.canvas.height);
+            __EXTERNAL__.context.strokeRect(coordinates.x * __EXTERNAL__.context.canvas.width - 0.5, coordinates.y * __EXTERNAL__.context.canvas.height - 0.5, dimensions.x * __EXTERNAL__.context.canvas.width + 1, dimensions.y * __EXTERNAL__.context.canvas.height + 1);
             return null;
         });
         Norm.arc = (x) => (y) => (r) => (a) => (b) => IO(() => {
@@ -1073,12 +1098,12 @@ var Effect;
             __EXTERNAL__.context.fillText(text, coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.width);
             return null;
         });
-        Norm.area = (ix) => (iy) => (jx) => (jy) => IO(() => (__EXTERNAL__.context.rect(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, (jx - ix) * __EXTERNAL__.context.canvas.width, (jy - iy) * __EXTERNAL__.context.canvas.height), null));
-        Norm.areaVector = (i) => (j) => IO(() => (__EXTERNAL__.context.rect(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, (j.x - i.x) * __EXTERNAL__.context.canvas.width, (j.y - i.y) * __EXTERNAL__.context.canvas.height), null));
-        Norm.strokeArea = (ix) => (iy) => (jx) => (jy) => IO(() => (__EXTERNAL__.context.strokeRect(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, (jx - ix) * __EXTERNAL__.context.canvas.width, (jy - iy) * __EXTERNAL__.context.canvas.height), null));
-        Norm.strokeAreaVector = (i) => (j) => IO(() => (__EXTERNAL__.context.strokeRect(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, (j.x - i.x) * __EXTERNAL__.context.canvas.width, (j.y - i.y) * __EXTERNAL__.context.canvas.height), null));
-        Norm.fillArea = (ix) => (iy) => (jx) => (jy) => IO(() => (__EXTERNAL__.context.fillRect(ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height, (jx - ix) * __EXTERNAL__.context.canvas.width, (jy - iy) * __EXTERNAL__.context.canvas.height), null));
-        Norm.fillAreaVector = (i) => (j) => IO(() => (__EXTERNAL__.context.fillRect(i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height, (j.x - i.x) * __EXTERNAL__.context.canvas.width, (j.y - i.y) * __EXTERNAL__.context.canvas.height), null));
+        Norm.area = (ix) => (iy) => (jx) => (jy) => IO(() => (__EXTERNAL__.context.rect(ix * __EXTERNAL__.context.canvas.width - 0.5, iy * __EXTERNAL__.context.canvas.height - 0.5, (jx - ix) * __EXTERNAL__.context.canvas.width + 1, (jy - iy) * __EXTERNAL__.context.canvas.height + 1), null));
+        Norm.areaVector = (i) => (j) => IO(() => (__EXTERNAL__.context.rect(i.x * __EXTERNAL__.context.canvas.width - 0.5, i.y * __EXTERNAL__.context.canvas.height - 0.5, (j.x - i.x) * __EXTERNAL__.context.canvas.width + 1, (j.y - i.y) * __EXTERNAL__.context.canvas.height + 1), null));
+        Norm.strokeArea = (ix) => (iy) => (jx) => (jy) => IO(() => (__EXTERNAL__.context.strokeRect(ix * __EXTERNAL__.context.canvas.width - 0.5, iy * __EXTERNAL__.context.canvas.height - 0.5, (jx - ix) * __EXTERNAL__.context.canvas.width + 1, (jy - iy) * __EXTERNAL__.context.canvas.height + 1), null));
+        Norm.strokeAreaVector = (i) => (j) => IO(() => (__EXTERNAL__.context.strokeRect(i.x * __EXTERNAL__.context.canvas.width - 0.5, i.y * __EXTERNAL__.context.canvas.height - 0.5, (j.x - i.x) * __EXTERNAL__.context.canvas.width + 1, (j.y - i.y) * __EXTERNAL__.context.canvas.height + 1), null));
+        Norm.fillArea = (ix) => (iy) => (jx) => (jy) => IO(() => (__EXTERNAL__.context.fillRect(ix * __EXTERNAL__.context.canvas.width - 0.5, iy * __EXTERNAL__.context.canvas.height - 0.5, (jx - ix) * __EXTERNAL__.context.canvas.width + 1, (jy - iy) * __EXTERNAL__.context.canvas.height + 1), null));
+        Norm.fillAreaVector = (i) => (j) => IO(() => (__EXTERNAL__.context.fillRect(i.x * __EXTERNAL__.context.canvas.width - 0.5, i.y * __EXTERNAL__.context.canvas.height - 0.5, (j.x - i.x) * __EXTERNAL__.context.canvas.width + 1, (j.y - i.y) * __EXTERNAL__.context.canvas.height + 1), null));
     })(Norm = Effect.Norm || (Effect.Norm = {}));
     Effect.log = (message) => IO(() => (console.log(message), null));
     Effect.flush = IO(() => (console.clear(), null));

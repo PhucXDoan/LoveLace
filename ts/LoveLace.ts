@@ -1,16 +1,19 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-/** Throws am error via a function call. */
+// -- Throws am error via a function call.
 const THROW = (message : string) =>
 	{ throw new Error(message) }
 
-/** Throws a type error via a function call. */
+// -- Throws a type error via a function call.
 const THROWTYPE = (message : string) =>
 	{ throw new TypeError(message) }
 
-/** Throws a range error via a function call. */
+// -- Throws a range error via a function call.
 const THROWRANGE = (message : string) =>
 	{ throw new RangeError(message) }
+
+// -- Used at the end of pattern matching if it is exhuastive.
+const never = undefined as never
 
 /********************************************************************************************************************************/
 
@@ -91,6 +94,10 @@ const atanh = Math.atanh
 /**` BIT :: Boolean -> Number `*/
 const BIT = (x : boolean) : (0 | 1) => x ? 1 : 0
 
+/**` rboth :: (a -> b) -> (a, a) -> (b, b) `*/
+const rboth = <a>(pair : [a, a]) => <b>(f : (x : a) => b) : [b, b] =>
+	[f(pair[0]), f(pair[1])]
+
 /**` cbrt :: Number -> Number `*/
 const cbrt = Math.cbrt
 
@@ -117,6 +124,9 @@ const rdiv = (y : number) => (x : number) : number => x / y
 
 /**` eq :: a -> a -> Boolean `*/
 const eq = <a>(x : a) => (y : a) : boolean => x === y
+
+/**` even :: Number -> Boolean `*/
+const even = (x : number) : boolean => x % 2 === 0
 
 /**` exp :: Number -> Number `*/
 const exp = Math.exp
@@ -218,6 +228,9 @@ const NOT = (x : number) : number => ~x
 /**` not :: Boolean -> Boolean `*/
 const not = (x : boolean) : boolean => !x
 
+/**` odd :: Number -> Boolean `*/
+const odd = (x : number) : boolean => Math.abs(x) % 2 === 1
+
 /**` OR :: Number -> Number -> Number `*/
 const OR = (x : number) => (y : number) : number => x | y
 
@@ -276,8 +289,17 @@ const tan = Math.tan
 /**` tanh :: Number -> Number `*/
 const tanh = Math.tanh
 
+/**` toHexColor :: Number -> String `*/
+const toHexColor = (decimal : number) : string =>
+	decimal >= 0 && decimal <= 16777215 && Number.isInteger(decimal)
+		? `#${decimal.toString(16).padStart(6, '0')}`
+		: THROWTYPE(`'toHexColor' requires a positive integer number below 0xffffff (16777215); received '${decimal}' instead`)
+
 /**` trunc :: Number -> Number `*/
 const trunc = Math.trunc
+
+/**` qtrunc :: Number -> Number `*/
+const qtrunc = (x : number) : number => ~~x
 
 /**` URSHIFT :: Number -> Number `*/
 const URSHIFT = (x : number) => (y : number) : number => x >>> y
@@ -460,6 +482,21 @@ type List<a> =
 
 		/**` (List a).head :: a `*/
 		readonly head : a
+
+		/**` (List a).ifilter :: (Number -> a -> Boolean) -> List a `*/
+		readonly ifilter : (predicate : (index : number) => (element : a) => boolean) => List<a>
+
+		/**` (List a).imap :: (Number -> a -> b) -> List b `*/
+		readonly imap : <b>(computation : (index : number) => (element : a) => b) => List<b>
+
+		/**` (List a).indexed :: List (Number, a) `*/
+		readonly indexed : List<[number, a]>
+
+		/**` (List a).indexFilter :: (Number -> Boolean) -> List a `*/
+		readonly indexFilter : (predicate : (index : number) => boolean) => List<a>
+
+		/**` (List a).indexMap :: (Number -> b) -> List b `*/
+		readonly indexMap : <b>(computation : (index : number) => b) => List<b>
 
 		/**` (List a).init :: List a `*/
 		readonly init : List<a>
@@ -799,7 +836,7 @@ type Bijection<a, b> =
 		readonly of : (domainValue : a) => (codomainValue : b) => Bijection<a, b>
 
 		/**` (Bijection a b).domain :: a -> b `*/
-		readonly domain : (domainValue   : a) => b
+		readonly domain : (domainValue : a) => b
 
 		/**` (Bijection a b).codomain :: b -> a `*/
 		readonly codomain : (codomainValue : b) => a
@@ -973,6 +1010,14 @@ const List = <a>(...elements : ReadonlyArray<a>) : List<a> =>
 				? elements[0] as a
 				: THROWRANGE(`Cannot get 'head' of an empty 'List'`)
 		},
+		ifilter : f => List(...elements.filter((x, i) => f(i)(x))),
+		imap : f => List(...elements.map((x, i) => f(i)(x))),
+		get indexed()
+		{
+			return List(...elements.map((x, i) => [i, x] as any))
+		},
+		indexFilter : f => List(...elements.filter((_, i) => f(i))),
+		indexMap : f => List(...elements.map((_, i) => f(i))),
 		get init()
 		{
 			return List(...elements.slice(0, -1))
@@ -1377,6 +1422,9 @@ const pseudoRandom : State<number, number> =
 		Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536
 	])
 
+/**` returnIO :: a -> IO a `*/
+const returnIO = <a>(x : a) : IO<a> => IO(() => x)
+
 /**` when :: Boolean -> IO a -> IO () `*/
 const when = (condition : boolean) => <a>(io : IO<a>) : IO<null> =>
 	(condition ? io.fmap : IO)(() => null)
@@ -1384,15 +1432,32 @@ const when = (condition : boolean) => <a>(io : IO<a>) : IO<null> =>
 /**` nil :: IO () `*/
 const nil : IO<null> = IO(() => null)
 
+/**` sequenceIOs :: List (IO a) -> IO (List a) `*/
+const sequenceIOs = <a>(ios : List<IO<a>>) : IO<List<a>> =>
+	IO(() => List(...ios.INFO.map(io => io.INFO())))
+
+/**` executeIOs :: List (IO a) -> IO () `*/
+const executeIOs = <a>(ios : List<IO<a>>) : IO<null> =>
+	IO(() => {
+		for (const io of ios.INFO) io.INFO()
+		return null
+	})
+
+/**` replicate :: Number -> a -> List a `*/
+const replicate = (count : number) => <a>(element : a) : List<a> =>
+	count >= 0 && Number.isInteger(count)
+		? List(...Array(count).fill(element))
+		: THROWTYPE(`'replicate' must take in a positive, integral number; instead recieved '${count}'`)
+
 /********************************************************************************************************************************/
 
 // The Do-Notation syntax where a monad stores an empty object.
 const Do =
 	{
-		IO    : IO    <{}>      (() => Object.create(null)),
-		Maybe : Just  <{}>      (Object.create(null)),
-		State : State <any, {}> ((s : any) => [s, Object.create(null)]),
-		List  : List  <{}>      (Object.create(null))
+		IO    : IO<{}>(() => Object.create(null)),
+		Maybe : Just<{}>(Object.create(null)),
+		State : State<any, {}>((s : any) => [s, Object.create(null)]),
+		List  : List<{}>(Object.create(null))
 	} as const
 
 /********************************************************************************************************************************/
@@ -1917,42 +1982,42 @@ namespace Mutate
 				return null
 			})
 
-		/**` Mutate.Norm.fillRGBA :: Number -> Number -> Number -> Number -> IO ()  `*/
+		/**` Mutate.Norm.fillRGBA :: Number -> Number -> Number -> Number -> IO () `*/
 		export const fillRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.fillStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`
 				return null
 			})
 
-		/**` Mutate.Norm.fillVector :: Vector4D -> IO ()  `*/
+		/**` Mutate.Norm.fillVector :: Vector4D -> IO () `*/
 		export const fillVector = (v : Vector4D) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.fillStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`
 				return null
 			})
 
-		/**` Mutate.Norm.strokeRGBA :: Number -> Number -> Number -> Number -> IO ()  `*/
+		/**` Mutate.Norm.strokeRGBA :: Number -> Number -> Number -> Number -> IO () `*/
 		export const strokeRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.strokeStyle = `rgba(${r * 255},${g * 255},${b * 255},${a * 255})`
 				return null
 			})
 
-		/**` Mutate.Norm.strokeVector :: Vector4D -> IO ()  `*/
+		/**` Mutate.Norm.strokeVector :: Vector4D -> IO () `*/
 		export const strokeVector = (v : Vector4D) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.strokeStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`
 				return null
 			})
 
-		/**` Mutate.Norm.shadowRGBA :: Number -> Number -> Number -> Number -> IO ()  `*/
+		/**` Mutate.Norm.shadowRGBA :: Number -> Number -> Number -> Number -> IO () `*/
 		export const shadowRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.shadowColor = `rgba(${r * 255},${g * 255},${b * 255},${a})`
 				return null
 			})
 
-		/**` Mutate.Norm.shadowVector :: Vector4D -> IO ()  `*/
+		/**` Mutate.Norm.shadowVector :: Vector4D -> IO () `*/
 		export const shadowVector = (v : Vector4D) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.shadowColor = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`
@@ -2088,91 +2153,91 @@ namespace Mutate
 			return null
 		})
 
-	/**` Mutate.fontFamily :: String -> IO ()  `*/
+	/**` Mutate.fontFamily :: String -> IO () `*/
 	export const fontFamily = (family : string) : IO<null> =>
 		IO(() => {
 			__EXTERNAL__.context.font = `${parseFloat(__EXTERNAL__.context.font)}px ${family}`
 			return null
 		})
 
-	/**` Mutate.textAlign :: TextAlign -> IO ()  `*/
+	/**` Mutate.textAlign :: TextAlign -> IO () `*/
 	export const textAlign = (align : TextAlign) : IO<null> =>
 		IO(() => {
 			__EXTERNAL__.context.textAlign = bijectionTextAlign.domain(align)
 			return null
 		})
 
-	/**` Mutate.textBaseline :: TextBaseline -> IO ()  `*/
+	/**` Mutate.textBaseline :: TextBaseline -> IO () `*/
 	export const textBaseline = (baseline : TextBaseline) : IO<null> =>
 		IO(() => {
 			__EXTERNAL__.context.textBaseline = bijectionTextBaseline.domain(baseline)
 			return null
 		})
 
-	/**` Mutate.fillColor :: String -> IO ()  `*/
+	/**` Mutate.fillColor :: String -> IO () `*/
 	export const fillColor = (color : string) : IO<null> =>
 		IO(() => {
 			__EXTERNAL__.context.fillStyle = color
 			return null
 		})
 
-	/**` Mutate.fillRGBA :: Number -> Number -> Number -> Number -> IO ()  `*/
+	/**` Mutate.fillRGBA :: Number -> Number -> Number -> Number -> IO () `*/
 	export const fillRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO<null> =>
 		IO(() => {
 			__EXTERNAL__.context.fillStyle = `rgba(${r},${g},${b},${a})`
 			return null
 		})
 
-	/**` Mutate.fillVector :: Vector4D -> IO ()  `*/
+	/**` Mutate.fillVector :: Vector4D -> IO () `*/
 	export const fillVector = (v : Vector4D) : IO<null> =>
 		IO(() => {
 			__EXTERNAL__.context.fillStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`
 			return null
 		})
 
-	/**` Mutate.strokeColor :: String -> IO ()  `*/
+	/**` Mutate.strokeColor :: String -> IO () `*/
 	export const strokeColor = (color : string) : IO<null> =>
 		IO(() => {
 			__EXTERNAL__.context.strokeStyle = color
 			return null
 		})
 
-	/**` Mutate.strokeRGBA :: Number -> Number -> Number -> Number -> IO ()  `*/
+	/**` Mutate.strokeRGBA :: Number -> Number -> Number -> Number -> IO () `*/
 	export const strokeRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO<null> =>
 		IO(() => {
 			__EXTERNAL__.context.strokeStyle = `rgba(${r},${g},${b},${a})`
 			return null
 		})
 
-	/**` Mutate.strokeVector :: Vector4D -> IO ()  `*/
+	/**` Mutate.strokeVector :: Vector4D -> IO () `*/
 	export const strokeVector = (v : Vector4D) : IO<null> =>
 		IO(() => {
 			__EXTERNAL__.context.strokeStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`
 			return null
 		})
 
-	/**` Mutate.shadowBlurAmount :: Number -> IO ()  `*/
+	/**` Mutate.shadowBlurAmount :: Number -> IO () `*/
 	export const shadowBlurAmount = (amount : number) : IO<null> =>
 		IO(() => {
 			__EXTERNAL__.context.shadowBlur = amount
 			return null
 		})
 
-	/**` Mutate.shadowColor :: String -> IO ()  `*/
+	/**` Mutate.shadowColor :: String -> IO () `*/
 	export const shadowColor = (color : string) : IO<null> =>
 		IO(() => {
 			__EXTERNAL__.context.shadowColor = color
 			return null
 		})
 
-	/**` Mutate.shadowRGBA :: Number -> Number -> Number -> Number -> IO ()  `*/
+	/**` Mutate.shadowRGBA :: Number -> Number -> Number -> Number -> IO () `*/
 	export const shadowRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO<null> =>
 		IO(() => {
 			__EXTERNAL__.context.shadowColor = `rgba(${r},${g},${b},${a})`
 			return null
 		})
 
-	/**` Mutate.shadowVector :: Vector4D -> IO ()  `*/
+	/**` Mutate.shadowVector :: Vector4D -> IO () `*/
 	export const shadowVector = (v : Vector4D) : IO<null> =>
 		IO(() => {
 			__EXTERNAL__.context.shadowColor = `rgba(${v.x},${v.y},${v.z},${v.w})`
@@ -2352,8 +2417,8 @@ namespace Effect
 		export const clearRectangle = (x : number) => (y : number) => (w : number) => (h : number) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.clearRect(
-					x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height,
-					w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height
+					x * __EXTERNAL__.context.canvas.width - 0.5, y * __EXTERNAL__.context.canvas.height - 0.5,
+					w * __EXTERNAL__.context.canvas.width + 1, h * __EXTERNAL__.context.canvas.height + 1
 				)
 				return null
 			})
@@ -2362,8 +2427,8 @@ namespace Effect
 		export const clearRectangleVector = (coordinates : Vector2D) => (dimensions : Vector2D) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.clearRect(
-					coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height,
-					dimensions.x  * __EXTERNAL__.context.canvas.width, dimensions.y  * __EXTERNAL__.context.canvas.height
+					coordinates.x * __EXTERNAL__.context.canvas.width - 0.5, coordinates.y * __EXTERNAL__.context.canvas.height - 0.5,
+					dimensions.x * __EXTERNAL__.context.canvas.width + 1, dimensions.y * __EXTERNAL__.context.canvas.height + 1
 				)
 				return null
 			})
@@ -2505,8 +2570,8 @@ namespace Effect
 		export const rectangle = (x : number) => (y : number) => (w : number) => (h : number) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.rect(
-					x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height,
-					w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height
+					x * __EXTERNAL__.context.canvas.width - 0.5, y * __EXTERNAL__.context.canvas.height - 0.5,
+					w * __EXTERNAL__.context.canvas.width + 1, h * __EXTERNAL__.context.canvas.height + 1
 				)
 				return null
 			})
@@ -2515,8 +2580,8 @@ namespace Effect
 		export const rectangleVector = (coordinates : Vector2D) => (dimensions : Vector2D) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.rect(
-					coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height,
-					dimensions.x  * __EXTERNAL__.context.canvas.width, dimensions.y  * __EXTERNAL__.context.canvas.height
+					coordinates.x * __EXTERNAL__.context.canvas.width - 0.5, coordinates.y * __EXTERNAL__.context.canvas.height - 0.5,
+					dimensions.x  * __EXTERNAL__.context.canvas.width + 1, dimensions.y  * __EXTERNAL__.context.canvas.height + 1
 				)
 				return null
 			})
@@ -2525,8 +2590,8 @@ namespace Effect
 		export const fillRectangle = (x : number) => (y : number) => (w : number) => (h : number) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.fillRect(
-					x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height,
-					w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height
+					x * __EXTERNAL__.context.canvas.width - 0.5, y * __EXTERNAL__.context.canvas.height - 0.5,
+					w * __EXTERNAL__.context.canvas.width + 1, h * __EXTERNAL__.context.canvas.height + 1
 				)
 				return null
 			})
@@ -2535,8 +2600,8 @@ namespace Effect
 		export const fillRectangleVector = (coordinates : Vector2D) => (dimensions : Vector2D) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.fillRect(
-					coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height,
-					dimensions.x  * __EXTERNAL__.context.canvas.width, dimensions.y  * __EXTERNAL__.context.canvas.height
+					coordinates.x * __EXTERNAL__.context.canvas.width - 0.5, coordinates.y * __EXTERNAL__.context.canvas.height - 0.5,
+					dimensions.x  * __EXTERNAL__.context.canvas.width + 1, dimensions.y  * __EXTERNAL__.context.canvas.height + 1
 				)
 				return null
 			})
@@ -2545,8 +2610,8 @@ namespace Effect
 		export const strokeRectangle = (x : number) => (y : number) => (w : number) => (h : number) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.strokeRect(
-					x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height,
-					w * __EXTERNAL__.context.canvas.width, h * __EXTERNAL__.context.canvas.height
+					x * __EXTERNAL__.context.canvas.width - 0.5, y * __EXTERNAL__.context.canvas.height - 0.5,
+					w * __EXTERNAL__.context.canvas.width + 1, h * __EXTERNAL__.context.canvas.height + 1
 				)
 				return null
 			})
@@ -2555,8 +2620,8 @@ namespace Effect
 		export const strokeRectangleVector = (coordinates : Vector2D) => (dimensions : Vector2D) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.strokeRect(
-					coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height,
-					dimensions.x  * __EXTERNAL__.context.canvas.width, dimensions.y  * __EXTERNAL__.context.canvas.height
+					coordinates.x * __EXTERNAL__.context.canvas.width - 0.5, coordinates.y * __EXTERNAL__.context.canvas.height - 0.5,
+					dimensions.x  * __EXTERNAL__.context.canvas.width + 1, dimensions.y  * __EXTERNAL__.context.canvas.height + 1
 				)
 				return null
 			})
@@ -2667,7 +2732,7 @@ namespace Effect
 		/**` Effect.Norm.ellipticVector :: Vector2D -> Vector2D -> Number -> Number -> Number -> IO () `*/
 		export const ellipticVector =
 			(coordinates : Vector2D) => (dimensions : Vector2D) =>
-			(a : number) => (b : number) => (r  : number) : IO<null> =>
+			(a : number) => (b : number) => (r : number) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.ellipse(
 					coordinates.x * __EXTERNAL__.context.canvas.width,
@@ -2807,8 +2872,8 @@ namespace Effect
 		export const area = (ix : number) => (iy : number) => (jx : number) => (jy : number) : IO<null> =>
 			IO(() => (
 				__EXTERNAL__.context.rect(
-					ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height,
-					(jx - ix) * __EXTERNAL__.context.canvas.width, (jy - iy) * __EXTERNAL__.context.canvas.height
+					ix * __EXTERNAL__.context.canvas.width - 0.5, iy * __EXTERNAL__.context.canvas.height - 0.5,
+					(jx - ix) * __EXTERNAL__.context.canvas.width + 1, (jy - iy) * __EXTERNAL__.context.canvas.height + 1
 				), null
 			))
 
@@ -2816,8 +2881,8 @@ namespace Effect
 		export const areaVector = (i : Vector2D) => (j : Vector2D) : IO<null> =>
 			IO(() => (
 				__EXTERNAL__.context.rect(
-					i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height,
-					(j.x - i.x) * __EXTERNAL__.context.canvas.width, (j.y - i.y) * __EXTERNAL__.context.canvas.height
+					i.x * __EXTERNAL__.context.canvas.width - 0.5, i.y * __EXTERNAL__.context.canvas.height - 0.5,
+					(j.x - i.x) * __EXTERNAL__.context.canvas.width + 1, (j.y - i.y) * __EXTERNAL__.context.canvas.height + 1
 				), null
 			))
 
@@ -2825,8 +2890,8 @@ namespace Effect
 		export const strokeArea = (ix : number) => (iy : number) => (jx : number) => (jy : number) : IO<null> =>
 			IO(() => (
 				__EXTERNAL__.context.strokeRect(
-					ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height,
-					(jx - ix) * __EXTERNAL__.context.canvas.width, (jy - iy) * __EXTERNAL__.context.canvas.height
+					ix * __EXTERNAL__.context.canvas.width - 0.5, iy * __EXTERNAL__.context.canvas.height - 0.5,
+					(jx - ix) * __EXTERNAL__.context.canvas.width + 1, (jy - iy) * __EXTERNAL__.context.canvas.height + 1
 				), null
 			))
 
@@ -2834,8 +2899,8 @@ namespace Effect
 		export const strokeAreaVector = (i : Vector2D) => (j : Vector2D) : IO<null> =>
 			IO(() => (
 				__EXTERNAL__.context.strokeRect(
-					i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height,
-					(j.x - i.x) * __EXTERNAL__.context.canvas.width, (j.y - i.y) * __EXTERNAL__.context.canvas.height
+					i.x * __EXTERNAL__.context.canvas.width - 0.5, i.y * __EXTERNAL__.context.canvas.height - 0.5,
+					(j.x - i.x) * __EXTERNAL__.context.canvas.width + 1, (j.y - i.y) * __EXTERNAL__.context.canvas.height + 1
 				), null
 			))
 
@@ -2843,8 +2908,8 @@ namespace Effect
 		export const fillArea = (ix : number) => (iy : number) => (jx : number) => (jy : number) : IO<null> =>
 			IO(() => (
 				__EXTERNAL__.context.fillRect(
-					ix * __EXTERNAL__.context.canvas.width, iy * __EXTERNAL__.context.canvas.height,
-					(jx - ix) * __EXTERNAL__.context.canvas.width, (jy - iy) * __EXTERNAL__.context.canvas.height
+					ix * __EXTERNAL__.context.canvas.width - 0.5, iy * __EXTERNAL__.context.canvas.height - 0.5,
+					(jx - ix) * __EXTERNAL__.context.canvas.width + 1, (jy - iy) * __EXTERNAL__.context.canvas.height + 1
 				), null
 			))
 
@@ -2852,8 +2917,8 @@ namespace Effect
 		export const fillAreaVector = (i : Vector2D) => (j : Vector2D) : IO<null> =>
 			IO(() => (
 				__EXTERNAL__.context.fillRect(
-					i.x * __EXTERNAL__.context.canvas.width, i.y * __EXTERNAL__.context.canvas.height,
-					(j.x - i.x) * __EXTERNAL__.context.canvas.width, (j.y - i.y) * __EXTERNAL__.context.canvas.height
+					i.x * __EXTERNAL__.context.canvas.width - 0.5, i.y * __EXTERNAL__.context.canvas.height - 0.5,
+					(j.x - i.x) * __EXTERNAL__.context.canvas.width + 1, (j.y - i.y) * __EXTERNAL__.context.canvas.height + 1
 				), null
 			))
 	}
@@ -3342,3 +3407,5 @@ onload = () =>
 		__EXTERNAL__.isPointerLocked = document.pointerLockElement === __EXTERNAL__.context.canvas
 	}
 }
+
+/********************************************************************************************************************************/
