@@ -44,8 +44,11 @@ const expm1 = Math.expm1;
 const floor = Math.floor;
 const fround = Math.fround;
 const fst = (pair) => pair[0];
+const greater = (x) => (y) => y > x;
+const greaterEqual = (x) => (y) => y >= x;
 const gt = (x) => (y) => x > y;
 const gte = (x) => (y) => x >= y;
+const id = (x) => x;
 const isInsideExclusive = (n) => (lower) => (upper) => lower < n && n < upper;
 const isInsideInclusive = (n) => (lower) => (upper) => lower <= n && n <= upper;
 const isOutsideExclusive = (n) => (lower) => (upper) => n < lower || upper < n;
@@ -57,6 +60,8 @@ const log2 = Math.log2;
 const LSHIFT = (x) => (y) => x << y;
 const rLSHIFT = (y) => (x) => x << y;
 const lerp = (t) => (x) => (y) => x + (y - x) * t;
+const less = (x) => (y) => y < x;
+const lessEqual = (x) => (y) => y <= x;
 const lt = (x) => (y) => x < y;
 const lte = (x) => (y) => x <= y;
 const max = (x) => (y) => Math.max(x, y);
@@ -93,16 +98,32 @@ const tan = Math.tan;
 const tanh = Math.tanh;
 const toHexColor = (decimal) => decimal >= 0 && decimal <= 16777215 && Number.isInteger(decimal)
     ? `#${decimal.toString(16).padStart(6, '0')}`
-    : THROWTYPE(`'toHexColor' requires a positive integer number below 0xffffff (16777215); received '${decimal}' instead`);
+    : THROWTYPE(`'toHexColor' requires a non-negative integer below '0xffffff' ('16777215'); received '${decimal}' instead`);
 const trunc = Math.trunc;
 const qtrunc = (x) => ~~x;
 const URSHIFT = (x) => (y) => x >>> y;
 const rURSHIFT = (y) => (x) => x >>> y;
 const XOR = (x) => (y) => x ^ y;
 const xor = (x) => (y) => x !== y;
+Boolean.prototype.eq = function (x) { return this === x; };
+Boolean.prototype.pipe = function (f) { return f(this); };
+Number.prototype.eq = function (x) { return this === x; };
+Number.prototype.pipe = function (f) { return f(this); };
+String.prototype.eq = function (x) { return this === x; };
+String.prototype.pipe = function (f) { return f(this); };
 const IO = (sideeffect) => ({
     CONS: 'IO',
     INFO: sideeffect,
+    get pipe() { return (f) => f(this); },
+    then: x => IO(() => (sideeffect(), x.INFO())),
+    side: x => IO(() => {
+        const y = sideeffect();
+        return x.INFO(), y;
+    }),
+    also: x => IO(() => {
+        const y = sideeffect();
+        return x(y).INFO(), y;
+    }),
     bind: f => IO(() => f(sideeffect()).INFO()),
     bindto: x => f => IO(() => {
         const $ = sideeffect();
@@ -113,23 +134,31 @@ const IO = (sideeffect) => ({
         const $ = sideeffect();
         return Object.assign(Object.assign({}, $), { [x]: f($) });
     }),
-    side: f => IO(() => {
-        const x = sideeffect();
-        f(x).INFO();
-        return x;
-    }),
-    then: x => IO(() => (sideeffect(), x.INFO()))
+    cast: x => IO(() => (sideeffect(), x))
+});
+const idle = IO(() => null);
+const when = (condition) => (io) => condition ? io.fmap(_ => null) : idle;
+const sequenceIOs = (ios) => IO(() => ios.fmap(io => io.INFO()));
+const executeIOs = (ios) => IO(() => {
+    while (ios.CONS === 'Cons')
+        ios.INFO.head.INFO(), ios = ios.INFO.tail;
+    return null;
 });
 const Nothing = {
     CONS: 'Nothing',
+    eq: x => x === Nothing,
+    pipe: f => f(Nothing),
     bind: _ => Nothing,
     bindto: _ => _ => Nothing,
     fmap: _ => Nothing,
-    fmapto: _ => _ => Nothing
+    fmapto: _ => _ => Nothing,
+    cast: _ => Nothing
 };
 const Just = (value) => ({
     CONS: 'Just',
     INFO: value,
+    eq: x => x.CONS === 'Just' && x.INFO.eq(value),
+    get pipe() { return (f) => f(this); },
     bind: f => {
         const x = f(value);
         return x.CONS === 'Nothing' ? Nothing : x;
@@ -139,183 +168,586 @@ const Just = (value) => ({
         return y.CONS === 'Nothing' ? Nothing : Just(Object.assign(Object.assign({}, value), { [x]: y.INFO }));
     },
     fmap: f => Just(f(value)),
-    fmapto: x => f => Just(Object.assign(Object.assign({}, value), { [x]: f(value) }))
+    fmapto: x => f => Just(Object.assign(Object.assign({}, value), { [x]: f(value) })),
+    cast: x => Just(x)
 });
 const State = (statefulComputation) => ({
     CONS: 'State',
     INFO: statefulComputation,
+    get pipe() { return (f) => f(this); },
+    then: s => State(x => s.INFO(statefulComputation(x)[0])),
+    side: s => State(x => {
+        const y = statefulComputation(x);
+        return [s.INFO(y[0])[0], y[1]];
+    }),
+    also: f => State(x => {
+        const y = statefulComputation(x);
+        return [f(y[1]).INFO(y[0])[0], y[1]];
+    }),
     bind: f => State(x => {
         const [y, z] = statefulComputation(x);
         return f(z).INFO(y);
-    }),
-    fmap: f => State(x => {
-        const [y, z] = statefulComputation(x);
-        return [y, f(z)];
     }),
     bindto: k => f => State(x => {
         const [y, $] = statefulComputation(x);
         const [z, w] = f($).INFO(y);
         return [z, Object.assign(Object.assign({}, $), { [k]: w })];
     }),
+    fmap: f => State(x => {
+        const [y, z] = statefulComputation(x);
+        return [y, f(z)];
+    }),
     fmapto: k => f => State(x => {
         const [y, $] = statefulComputation(x);
         return [y, Object.assign(Object.assign({}, $), { [k]: f($) })];
     }),
-    then: s => State(x => s.INFO(statefulComputation(x)[0])),
-    runState: s => statefulComputation(s),
-    evalState: s => statefulComputation(s)[0],
-    execState: s => statefulComputation(s)[1]
+    cast: x => State(y => [statefulComputation(y)[0], x])
 });
-const List = (...elements) => ({
-    CONS: 'List',
-    INFO: elements,
-    all: f => elements.every(x => f(x)),
-    any: f => elements.some(x => f(x)),
-    append: x => List(...elements, x),
-    at: i => i < elements.length && i >= 0
-        ? elements[i]
-        : THROWRANGE(`Cannot retrive element at index '${i}' in 'List' of length '${elements.length}'`),
-    bind: f => List(...elements.flatMap(x => f(x).INFO)),
-    bindto: k => f => List(...elements.flatMap($ => f($).INFO.map(x => (Object.assign(Object.assign({}, $), { [k]: x }))))),
-    break: f => {
-        const i = elements.findIndex(x => f(x));
-        return ~i
-            ? [List(...elements.slice(0, i)), List(...elements.slice(i))]
-            : [List(...elements), List()];
-    },
-    concat: xs => List(...elements, ...xs.INFO),
-    drop: x => List(...elements.slice(Math.max(0, x))),
-    dropWhile: f => {
-        const i = elements.findIndex(x => !f(x));
-        return List(...(~i ? elements.slice(i) : []));
-    },
-    elem: x => elements.includes(x),
-    elemIndex: x => {
-        const i = elements.indexOf(x);
-        return ~i ? Just(i) : Nothing;
-    },
-    elemIndices: x => {
-        const is = [];
-        elements.forEach((y, i) => {
-            if (x === y)
-                is.push(i);
-        });
-        return List(...is);
-    },
-    filter: f => List(...elements.filter(x => f(x))),
-    find: f => {
-        const x = elements.find(y => f(y));
-        return x === undefined ? Nothing : Just(x);
-    },
-    findIndex: f => {
-        const i = elements.findIndex(y => f(y));
-        return ~i ? Just(i) : Nothing;
-    },
-    findIndices: f => {
-        const is = [];
-        elements.forEach((y, i) => {
-            if (f(y))
-                is.push(i);
-        });
-        return List(...is);
-    },
-    fmap: f => List(...elements.map(x => f(x))),
-    fmapto: k => f => List(...elements.map($ => (Object.assign(Object.assign({}, $), { [k]: f($) })))),
-    foldl: f => x => elements.reduce((y, z) => f(y)(z), x),
-    foldr: f => x => elements.reduceRight((y, z) => f(z)(y), x),
-    foldl1: f => elements.length
-        ? elements.reduce((y, z) => f(y)(z))
-        : THROWRANGE(`Cannot 'foldl1' on an empty 'List'`),
-    foldr1: f => elements.length
-        ? elements.reduceRight((y, z) => f(z)(y))
-        : THROWRANGE(`Cannot 'foldr1' on an empty 'List'`),
-    get head() {
-        return elements.length
-            ? elements[0]
-            : THROWRANGE(`Cannot get 'head' of an empty 'List'`);
-    },
-    ifilter: f => List(...elements.filter((x, i) => f(i)(x))),
-    imap: f => List(...elements.map((x, i) => f(i)(x))),
-    get indexed() {
-        return List(...elements.map((x, i) => [i, x]));
-    },
-    indexFilter: f => List(...elements.filter((_, i) => f(i))),
-    indexMap: f => List(...elements.map((_, i) => f(i))),
-    get init() {
-        return List(...elements.slice(0, -1));
-    },
-    get inits() {
-        return List(...Array(elements.length + 1).fill(null).map((_, i) => List(...elements.slice(0, i))));
-    },
-    intersperse: x => List(...Array(Math.max(0, elements.length * 2 - 1)).fill(null).map((_, i) => i % 2 ? x : elements[i / 2])),
-    get last() {
-        return elements.length
-            ? elements[elements.length - 1]
-            : THROWRANGE(`Cannot get 'last' of an empty 'List'`);
-    },
-    notElem: x => !elements.includes(x),
-    prepend: x => List(x, ...elements),
-    get reverse() {
-        return List(...elements.slice().reverse());
-    },
-    scanl: f => x => List(...elements.reduce((y, z) => y.concat(f(y[y.length - 1])(z)), [x])),
-    scanr: f => x => List(...elements.reduceRight((y, z) => [f(z)(y[0])].concat(y), [x])),
-    scanl1: f => List(...elements.slice(1).reduce((x, y) => x.concat(f(x[x.length - 1])(y)), [elements[0]])),
-    scanr1: f => List(...elements.slice(0, -1).reduceRight((x, y) => [f(y)(x[0])].concat(x), [elements[elements.length - 1]])),
-    span: f => {
-        const i = elements.findIndex(x => !f(x));
-        return ~i
-            ? [List(...elements.slice(0, i)), List(...elements.slice(i))]
-            : [List(), List(...elements)];
-    },
-    splitAt: i => [List(...elements.slice(0, Math.max(0, i))), List(...elements.slice(Math.max(0, i)))],
-    get tail() {
-        return elements.length
-            ? List(...elements.slice(1))
-            : THROWRANGE(`Cannot get 'tail' of an empty 'List'`);
-    },
-    get tails() {
-        return List(...Array(elements.length + 1).fill(null).map((_, i) => List(...elements.slice(i))));
-    },
-    take: x => List(...elements.slice(0, Math.max(0, x))),
-    takeWhile: f => {
-        const i = elements.findIndex(x => !f(x));
-        return ~i
-            ? List(...elements.slice(0, i))
-            : List(...elements);
-    },
-    zip: xs => List(...Array(Math.min(elements.length, xs.INFO.length)).fill(null).map((_, i) => [elements[i], xs.INFO[i]])),
-    zipWith: xs => f => List(...Array(Math.min(elements.length, xs.INFO.length)).fill(null).map((_, i) => f(elements[i])(xs.INFO[i])))
-});
+const pseudoRandom = State(seed => [
+    (-67 * seed * seed * seed + 23 * seed * seed - 91 * seed + 73) % 65536,
+    Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536
+]);
+const Nil = (() => {
+    const self = {
+        CONS: 'Nil',
+        INFO: {
+            CACHE: {
+                len: 0,
+                reverse: undefined
+            },
+            len: 0,
+            reverse: undefined,
+            get head() { return THROWRANGE(`'head' cannot be used on 'Nil' (an empty 'List')`); },
+            get tail() { return THROWRANGE(`'tail' cannot be used on 'Nil' (an empty 'List')`); },
+            get last() { return THROWRANGE(`'last' cannot be used on 'Nil' (an empty 'List')`); },
+            get init() { return THROWRANGE(`'init' cannot be used on 'Nil' (an empty 'List')`); }
+        },
+        eq: xs => xs === Nil,
+        pipe: f => f(Nil),
+        plus: id,
+        bind: _ => Nil,
+        bindto: _ => _ => Nil,
+        fmap: _ => Nil,
+        fmapto: _ => _ => Nil,
+        cast: _ => Nil
+    };
+    return self.INFO.reverse = self.INFO.CACHE.reverse = self;
+})();
+const Cons = (lazyFirst) => (lazyRest) => {
+    const self = {
+        CONS: 'Cons',
+        INFO: {
+            CACHE: {},
+            get head() { var _a; var _b; return (_a = (_b = this.CACHE).head) !== null && _a !== void 0 ? _a : (_b.head = lazyFirst()); },
+            get tail() { var _a; var _b; return (_a = (_b = this.CACHE).tail) !== null && _a !== void 0 ? _a : (_b.tail = lazyRest()); },
+            get last() {
+                var _a;
+                var _b;
+                return (_a = (_b = this.CACHE).last) !== null && _a !== void 0 ? _a : (_b.last = (() => {
+                    if (this.CACHE.reverse)
+                        return this.CACHE.reverse.INFO.head;
+                    let xs = self;
+                    if (this.CACHE.len)
+                        while (xs.INFO.tail.CONS === 'Cons')
+                            xs = xs.INFO.tail;
+                    else {
+                        let i = 1;
+                        while (xs.INFO.tail.CONS === 'Cons')
+                            xs = xs.INFO.tail, ++i;
+                        this.CACHE.len = i;
+                    }
+                    return xs.INFO.head;
+                })());
+            },
+            get init() {
+                var _a;
+                var _b;
+                return (_a = (_b = this.CACHE).init) !== null && _a !== void 0 ? _a : (_b.init = this.tail.CONS === 'Cons'
+                    ? Cons(() => this.head)(() => this.tail.INFO.tail.CONS === 'Cons' ? this.tail.INFO.init : Nil)
+                    : Nil);
+            },
+            get len() {
+                var _a;
+                var _b;
+                return (_a = (_b = this.CACHE).len) !== null && _a !== void 0 ? _a : (_b.len = (() => {
+                    let i = 1, xs = this.tail;
+                    while (xs.CONS === 'Cons')
+                        ++i, xs = xs.INFO.tail;
+                    return i;
+                })());
+            },
+            get reverse() {
+                var _a;
+                var _b;
+                return (_a = (_b = this.CACHE).reverse) !== null && _a !== void 0 ? _a : (_b.reverse = (() => {
+                    let xs = singleton(this.head), ys = this.tail;
+                    if (this.CACHE.len)
+                        while (ys.CONS === 'Cons')
+                            xs = prepend(ys.INFO.head)(xs), ys = ys.INFO.tail;
+                    else {
+                        let i = 1;
+                        while (ys.CONS === 'Cons')
+                            xs = prepend(ys.INFO.head)(xs), ys = ys.INFO.tail, ++i;
+                        this.CACHE.len = xs.INFO.CACHE.len = i;
+                    }
+                    xs.INFO.CACHE.last = this.head;
+                    xs.INFO.CACHE.reverse = self;
+                    return xs;
+                })());
+            }
+        },
+        eq: xs => {
+            if (self === xs)
+                return true;
+            let ys = self, i = 0;
+            while (xs.CONS === 'Cons' && ys.CONS === 'Cons') {
+                if (i >= 256)
+                    THROWRANGE(`(.eq) checked the max amount of elements ('256') in a possible 'List'`);
+                if (!xs.INFO.head.eq(ys.INFO.head))
+                    return false;
+                xs = xs.INFO.tail, ys = ys.INFO.tail, ++i;
+            }
+            return xs.CONS === ys.CONS;
+        },
+        pipe: f => f(self),
+        plus: xs => xs.CONS === 'Cons' ? Cons(() => self.INFO.head)(() => self.INFO.tail.plus(xs)) : self,
+        bind: f => concat(self.fmap(f)),
+        bindto: k => f => self.bind($ => f($).fmap(x => (Object.assign(Object.assign({}, $), { [k]: x })))),
+        fmap: f => Cons(() => f(self.INFO.head))(() => self.INFO.tail.fmap(f)),
+        fmapto: k => f => self.fmap($ => (Object.assign(Object.assign({}, $), { [k]: f($) }))),
+        cast: x => {
+            if (self.INFO.CACHE.len)
+                return replicate(self.INFO.CACHE.len)(x);
+            const xs = Cons(() => x)(() => self.INFO.tail.cast(x));
+            xs.INFO.CACHE.head = xs.INFO.CACHE.last = x;
+            return xs.INFO.CACHE.reverse = xs;
+        }
+    };
+    return self;
+};
+const List = (...xs) => {
+    let ys = Nil;
+    for (let i = xs.length - 1; ~i; --i)
+        ys = prepend(xs[i])(ys);
+    ys.INFO.CACHE.len = xs.length;
+    return ys;
+};
+const all = (predicate) => (xs) => !any((x) => !predicate(x))(xs);
+const any = (predicate) => (xs) => {
+    while (xs.CONS === 'Cons')
+        if (predicate(xs.INFO.head))
+            return true;
+        else
+            xs = xs.INFO.tail;
+    return false;
+};
+const append = (element) => (xs) => xs.CONS === 'Nil' ? singleton(element) :
+    Cons(() => xs.INFO.head)(() => append(element)(xs.INFO.tail));
+const array = (xs) => {
+    const ys = [];
+    for (let i = 256; i && xs.CONS === 'Cons'; ys.push(xs.INFO.head), xs = xs.INFO.tail)
+        if (!--i)
+            console.warn(`'array' reached the max lengthed array of 'List' ('256') which could suggest infinity.`);
+    return ys;
+};
+const at = (index) => (xs) => {
+    if (index < 0)
+        THROWRANGE(`'at' only accepts non-negatives as an index; received '${index}' as an input`);
+    if (xs.INFO.CACHE.len <= index)
+        THROWRANGE(`'at' cannot get element at index '${index}' in 'List' of length '${xs.INFO.len}'`);
+    let i = index;
+    while (xs.CONS === 'Cons')
+        if (--i < 0)
+            return xs.INFO.head;
+        else
+            xs = xs.INFO.tail;
+    return THROWRANGE(`'at' cannot get element at index '${index}' in 'List' `);
+};
+const concat = (xxs) => xxs.CONS === 'Nil' ? Nil :
+    xxs.INFO.head.CONS === 'Nil' ? concat(xxs.INFO.tail) :
+        Cons(() => xxs.INFO.head.INFO.head)(() => xxs.INFO.head.INFO.tail.plus(concat(xxs.INFO.tail)));
+const countBy = (delta) => (start) => Cons(() => start)(() => countBy(delta)(start + delta));
+const countDownFrom = (start) => Cons(() => start)(() => countDownFrom(start - 1));
+const countUpFrom = (start) => Cons(() => start)(() => countUpFrom(start + 1));
+const cycle = (xs) => {
+    const self = {
+        CONS: 'Cons',
+        INFO: {
+            CACHE: {},
+            head: xs.INFO.head,
+            tail: undefined,
+            init: undefined,
+            get last() { return THROWRANGE(`'last' cannot be used on infinite 'List's from 'cycle'`); },
+            get len() { return THROWRANGE(`'len' cannot be used on infinite 'List's from 'cycle'`); },
+            get reverse() { return THROWRANGE(`'reverse' cannot be used on infinite 'List's from 'cycle'`); }
+        },
+        eq: ys => {
+            if (self === ys)
+                return true;
+            let zs = self, i = 0;
+            while (ys.CONS === 'Cons' && zs.CONS === 'Cons') {
+                if (i >= 256)
+                    THROWRANGE(`(.eq) checked the max amount of elements ('256') in a infinite 'List' from 'cycle'`);
+                if (!ys.INFO.head.eq(zs.INFO.head))
+                    return false;
+                ys = ys.INFO.tail, zs = zs.INFO.tail, ++i;
+            }
+            return ys.CONS === zs.CONS;
+        },
+        pipe: f => f(self),
+        plus: _ => self,
+        bind: f => cycle(xs.bind(f)),
+        bindto: _ => THROWTYPE(`'.bindto' should only be used on monads coming from 'Do', not 'repeat'`),
+        fmap: f => cycle(xs.fmap(f)),
+        fmapto: _ => THROWTYPE(`'.fmapto' should only be used on monads coming from 'Do', not 'repeat'`),
+        cast: repeat
+    };
+    self.INFO.tail = xs.INFO.tail.plus(self);
+    self.INFO.init = self;
+    return self;
+};
+const drop = (amount) => (xs) => {
+    if (xs.INFO.CACHE.len <= amount)
+        return Nil;
+    while (xs.CONS === 'Cons' && amount >= 1)
+        xs = xs.INFO.tail, --amount;
+    return xs;
+};
+const dropWhile = (predicate) => (xs) => {
+    while (xs.CONS === 'Cons')
+        if (predicate(xs.INFO.head))
+            xs = xs.INFO.tail;
+        else
+            break;
+    return xs;
+};
+const elem = (value) => (xs) => {
+    while (xs.CONS === 'Cons')
+        if (xs.INFO.head === value)
+            return true;
+        else
+            xs = xs.INFO.tail;
+    return false;
+};
+const elemIndex = (value) => (xs) => {
+    for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs.INFO.tail)
+        if (xs.INFO.head === value)
+            return Just(i);
+    return Nothing;
+};
+const elemIndices = (value) => (xs) => xs.CONS === 'Nil' ? Nil :
+    xs.INFO.head === value
+        ? Cons(() => 0)(() => elemIndices(value)(xs.INFO.tail).fmap(x => x + 1))
+        : elemIndices(value)(xs.INFO.tail).fmap(x => x + 1);
+const filter = (predicate) => (xs) => xs.CONS === 'Nil' ? Nil :
+    predicate(xs.INFO.head)
+        ? Cons(() => xs.INFO.head)(() => filter(predicate)(xs.INFO.tail))
+        : filter(predicate)(xs.INFO.tail);
+const findIndex = (predicate) => (xs) => {
+    for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs.INFO.tail)
+        if (predicate(xs.INFO.head))
+            return Just(i);
+    return Nothing;
+};
+const findIndices = (predicate) => (xs) => xs.CONS === 'Nil' ? Nil :
+    predicate(xs.INFO.head)
+        ? Cons(() => 0)(() => findIndices(predicate)(xs.INFO.tail).fmap(x => x + 1))
+        : findIndices(predicate)(xs.INFO.tail).fmap(x => x + 1);
+const foldl = (operation) => (initial) => (xs) => {
+    if (xs.INFO.CACHE.len)
+        while (xs.CONS === 'Cons')
+            initial = operation(initial)(xs.INFO.head), xs = xs.INFO.tail;
+    else {
+        let i = 0, ys = xs;
+        while (ys.CONS === 'Cons')
+            initial = operation(initial)(ys.INFO.head), ys = ys.INFO.tail, ++i;
+        xs.INFO.CACHE.len = i;
+    }
+    return initial;
+};
+const foldl1 = (operation) => (xs) => xs.CONS === 'Nil' ? THROWRANGE(`'foldl1' cannot be used on 'Nil' (an empty 'List')`) :
+    foldl(operation)(xs.INFO.head)(xs.INFO.tail);
+const foldr = (operation) => (initial) => (xs) => foldl(x => y => operation(y)(x))(initial)(xs.INFO.reverse);
+const foldr1 = (operation) => (xs) => xs.CONS === 'Nil' ? THROWRANGE(`'foldr1' cannot be used on 'Nil' (an empty 'List')`) :
+    foldl(x => y => operation(y)(x))(xs.INFO.reverse.INFO.head)(xs.INFO.reverse.INFO.tail);
+const head = (xs) => xs.INFO.head;
+const init = (xs) => xs.INFO.init;
+const inits = (xs) => xs.CONS === 'Nil' ? singleton(Nil) :
+    Cons(() => Nil)(() => inits(xs.INFO.tail).fmap(prepend(xs.INFO.head)));
+const isEmpty = (xs) => xs.CONS === 'Nil';
+const iterate = (endomorphism) => (initial) => Cons(() => initial)(() => iterate(endomorphism)(endomorphism(initial)));
+const intersperse = (delimiter) => (xs) => xs.bind(x => List(delimiter, x)).INFO.tail;
+const last = (xs) => xs.INFO.last;
+const len = (xs) => xs.INFO.len;
+const map = (morphism) => (xs) => xs.fmap(morphism);
+const partition = (predicate) => (xs) => [filter(predicate)(xs), filter((x) => !predicate(x))(xs)];
+const prepend = (element) => (xs) => xs.CONS === 'Nil' ? singleton(element) :
+    (() => {
+        const self = {
+            CONS: 'Cons',
+            INFO: {
+                CACHE: {
+                    head: element,
+                    tail: xs
+                },
+                head: element,
+                tail: xs,
+                get len() { var _a; var _b; return (_a = (_b = this.CACHE).len) !== null && _a !== void 0 ? _a : (_b.len = xs.INFO.len + 1); },
+                get last() { var _a; var _b; return (_a = (_b = this.CACHE).last) !== null && _a !== void 0 ? _a : (_b.last = xs.CONS === 'Cons' ? xs.INFO.last : element); },
+                get init() { var _a; var _b; return (_a = (_b = this.CACHE).init) !== null && _a !== void 0 ? _a : (_b.init = xs.CONS === 'Cons' ? xs.INFO.init : Nil); },
+                get reverse() {
+                    var _a;
+                    var _b;
+                    return (_a = (_b = this.CACHE).reverse) !== null && _a !== void 0 ? _a : (_b.reverse = xs.CONS === 'Cons'
+                        ? append(element)(xs.INFO.reverse)
+                        : self);
+                }
+            },
+            eq: ys => {
+                if (self === ys)
+                    return true;
+                let zs = self;
+                while (ys.CONS === 'Cons' && zs.CONS === 'Cons') {
+                    if (!ys.INFO.head.eq(zs.INFO.head))
+                        return false;
+                    ys = ys.INFO.tail, zs = zs.INFO.tail;
+                }
+                return true;
+            },
+            pipe: f => f(self),
+            plus: ys => ys.CONS === 'Cons' ? Cons(() => self.INFO.head)(() => self.INFO.tail.plus(ys)) : self,
+            bind: f => concat(self.fmap(f)),
+            bindto: k => f => self.bind($ => f($).fmap(x => (Object.assign(Object.assign({}, $), { [k]: x })))),
+            fmap: f => Cons(() => f(self.INFO.head))(() => self.INFO.tail.fmap(f)),
+            fmapto: k => f => self.fmap($ => (Object.assign(Object.assign({}, $), { [k]: f($) }))),
+            cast: x => {
+                if (self.INFO.CACHE.len)
+                    return replicate(self.INFO.CACHE.len)(x);
+                const ys = Cons(() => x)(() => xs.cast(x));
+                ys.INFO.CACHE.head = ys.INFO.CACHE.last = x;
+                return ys.INFO.CACHE.reverse = ys;
+            }
+        };
+        return self;
+    })();
+const repeat = (value) => {
+    const self = {
+        CONS: 'Cons',
+        INFO: {
+            CACHE: {
+                head: value
+            },
+            head: value,
+            tail: undefined,
+            init: undefined,
+            get last() { return THROWRANGE(`'last' cannot be used on infinite 'List's from 'repeat'`); },
+            get len() { return THROWRANGE(`'len' cannot be used on infinite 'List's from 'repeat'`); },
+            get reverse() { return THROWRANGE(`'reverse' cannot be used on infinite 'List's from 'repeat'`); }
+        },
+        eq: xs => {
+            if (self === xs)
+                return true;
+            let ys = self, i = 0;
+            while (xs.CONS === 'Cons' && ys.CONS === 'Cons') {
+                if (i >= 256)
+                    THROWRANGE(`(.eq) checked the max amount of elements ('256') in a infinite 'List' from 'repeat'`);
+                if (!xs.INFO.head.eq(ys.INFO.head))
+                    return false;
+                xs = xs.INFO.tail, ys = ys.INFO.tail, ++i;
+            }
+            return xs.CONS === ys.CONS;
+        },
+        pipe: f => f(self),
+        plus: _ => self,
+        bind: f => concat(repeat(f(value))),
+        bindto: _ => THROWTYPE(`'.bindto' should only be used on monads coming from 'Do', not 'repeat'`),
+        fmap: f => repeat(f(value)),
+        fmapto: _ => THROWTYPE(`'.fmapto' should only be used on monads coming from 'Do', not 'repeat'`),
+        cast: repeat
+    };
+    return self.INFO.tail = self.INFO.init = self;
+};
+const replicate = (amount) => (value) => amount < 1 ? Nil :
+    Cons(() => value)(() => replicate(amount - 1)(value));
+const reverse = (xs) => xs.INFO.reverse;
+const scanl = (operation) => (initial) => (xs) => xs.CONS === 'Nil' ? singleton(initial) :
+    Cons(() => initial)(() => scanl(operation)(operation(initial)(xs.INFO.head))(xs.INFO.tail));
+const scanl1 = (operation) => (xs) => xs.CONS === 'Nil' ? Nil :
+    scanl(operation)(xs.INFO.head)(xs.INFO.tail);
+const scanr = (operation) => (initial) => (xs) => {
+    xs = xs.INFO.reverse;
+    let ys = singleton(initial);
+    if (xs.INFO.CACHE.len)
+        while (xs.CONS === 'Cons')
+            ys = prepend(operation(xs.INFO.head)(ys.INFO.head))(ys), xs = xs.INFO.tail;
+    else {
+        let i = 1;
+        while (xs.CONS === 'Cons')
+            ys = prepend(operation(xs.INFO.head)(ys.INFO.head))(ys), xs = xs.INFO.tail, ++i;
+        ys.INFO.CACHE.len = i;
+    }
+    return ys;
+};
+const scanr1 = (operation) => (xs) => {
+    if (xs.CONS === 'Nil')
+        return Nil;
+    xs = xs.INFO.reverse;
+    let ys = singleton(xs.INFO.head);
+    xs = xs.INFO.tail;
+    while (xs.CONS === 'Cons')
+        ys = prepend(operation(xs.INFO.head)(ys.INFO.head))(ys), xs = xs.INFO.tail;
+    return ys;
+};
+const singleton = (value) => {
+    const self = {
+        CONS: 'Cons',
+        INFO: {
+            CACHE: {
+                head: value,
+                tail: Nil,
+                last: value,
+                init: Nil,
+                len: 1,
+                reverse: undefined
+            },
+            head: value,
+            tail: Nil,
+            last: value,
+            init: Nil,
+            len: 1,
+            reverse: undefined
+        },
+        eq: xs => {
+            if (self === xs)
+                return true;
+            if (xs.CONS === 'Nil' || xs.INFO.tail.CONS === 'Cons')
+                return false;
+            return xs.INFO.head.eq(value);
+        },
+        pipe: f => f(self),
+        plus: xs => xs.CONS === 'Cons' ? prepend(value)(xs) : self,
+        bind: f => f(value),
+        bindto: _ => THROWTYPE(`'.bindto' should be used in monads coming from 'Do', not 'singleton'`),
+        fmap: f => singleton(f(value)),
+        fmapto: _ => THROWTYPE(`'.fmapto' should be used in monads coming from 'Do', not 'singleton'`),
+        cast: singleton
+    };
+    self.INFO.reverse = self.INFO.CACHE.reverse = self;
+    return self;
+};
+const span = (predicate) => (xs) => [takeWhile(predicate)(xs), dropWhile(predicate)(xs)];
+const splitAt = (index) => (xs) => [take(index)(xs), drop(index)(xs)];
+const string = (str) => str
+    ? (() => {
+        const self = {
+            CONS: 'Cons',
+            INFO: {
+                CACHE: {
+                    head: str[0],
+                    last: str.slice(-1),
+                    len: str.length
+                },
+                head: str[0],
+                last: str.slice(-1),
+                len: str.length,
+                get tail() { var _a; var _b; return (_a = (_b = this.CACHE).tail) !== null && _a !== void 0 ? _a : (_b.tail = string(str.slice(1))); },
+                get init() { var _a; var _b; return (_a = (_b = this.CACHE).init) !== null && _a !== void 0 ? _a : (_b.init = string(str.slice(0, str.length - 1))); },
+                get reverse() { var _a; var _b; return (_a = (_b = this.CACHE).reverse) !== null && _a !== void 0 ? _a : (_b.reverse = string(str.split("").reverse().join(""))); }
+            },
+            eq: xs => {
+                if (self === xs)
+                    return true;
+                let ys = self, i = 0;
+                while (xs.CONS === 'Cons' && ys.CONS === 'Cons') {
+                    if (i >= 256)
+                        THROWRANGE(`(.eq) checked the max amount of characters ('256') in a possible infinite 'List'`);
+                    if (!xs.INFO.head.eq(ys.INFO.head))
+                        return false;
+                    xs = xs.INFO.tail, ys = ys.INFO.tail, ++i;
+                }
+                return xs.CONS === ys.CONS;
+            },
+            get pipe() { return (f) => f(this); },
+            plus(xs) { return xs.CONS === 'Cons' ? Cons(() => this.INFO.head)(() => this.INFO.tail.plus(xs)) : Nil; },
+            bind(f) { return concat(this.fmap(f)); },
+            fmap(f) { return List(...str.split("").map(x => f(x))); },
+            bindto: _ => THROWTYPE(`'.bindto' should be used in monads coming from 'Do', not 'string'`),
+            fmapto: _ => THROWTYPE(`'.fmapto' should be used in monads coming from 'Do', not 'string'`),
+            cast: x => replicate(str.length)(x)
+        };
+        return self;
+    })()
+    : Nil;
+const tail = (xs) => xs.INFO.tail;
+const tails = (xs) => xs.CONS === 'Nil' ? singleton(Nil) :
+    Cons(() => xs)(() => tails(xs.INFO.tail));
+const take = (amount) => (xs) => amount < 1 ? Nil :
+    xs.INFO.CACHE.len <= amount ? xs :
+        Cons(() => xs.INFO.head)(() => take(amount - 1)(xs.INFO.tail));
+const takeWhile = (predicate) => (xs) => xs.CONS === 'Nil' ? xs :
+    predicate(xs.INFO.head)
+        ? Cons(() => xs.INFO.head)(() => takeWhile(predicate)(xs.INFO.tail))
+        : Nil;
+const unstring = (xs) => {
+    let s = "";
+    for (let i = 256; i && xs.CONS === 'Cons'; s += xs.INFO.head, xs = xs.INFO.tail)
+        if (!--i)
+            console.warn(`'unstring' reached the max lengthed string of 'List' ('256') which could suggest infinity.`);
+    return s;
+};
+const unzip = (xs) => [xs.fmap(x => x[0]), xs.fmap(x => x[1])];
+const zip = (xs) => (ys) => xs.CONS === 'Nil' || ys.CONS === 'Nil' ? Nil :
+    Cons(() => [xs.INFO.head, ys.INFO.head])(() => zip(xs.INFO.tail)(ys.INFO.tail));
+const zipWith = (zipper) => (xs) => (ys) => xs.CONS === 'Nil' || ys.CONS === 'Nil' ? Nil :
+    Cons(() => zipper(xs.INFO.head)(ys.INFO.head))(() => zipWith(zipper)(xs.INFO.tail)(ys.INFO.tail));
 const Vector2D = (x) => (y) => ({
     CONS: 'Vector2D',
+    eq: v => v.x === x && v.y === y,
+    get pipe() { return (f) => f(this); },
     x, y
 });
 const Vector3D = (x) => (y) => (z) => ({
     CONS: 'Vector3D',
+    eq: v => v.x === x && v.y === y && v.z === z,
+    get pipe() { return (f) => f(this); },
     x, y, z
 });
 const Vector4D = (x) => (y) => (z) => (w) => ({
     CONS: 'Vector4D',
+    eq: v => v.x === x && v.y === y && v.z === z && v.w === w,
+    get pipe() { return (f) => f(this); },
     x, y, z, w
 });
 const Matrix2x2 = (ix) => (jx) => (iy) => (jy) => ({
     CONS: 'Matrix2x2',
+    eq: m => m.ix === ix && m.jx === jx && m.iy === iy && m.jy === jy,
+    get pipe() { return (f) => f(this); },
     ix, jx,
     iy, jy,
     i: Vector2D(ix)(iy), j: Vector2D(jx)(jy),
     x: Vector2D(ix)(jx), y: Vector2D(iy)(jy)
 });
+const Matrix2D = (i) => (j) => Matrix2x2(i.x)(j.x)(i.y)(j.y);
 const Matrix3x3 = (ix) => (jx) => (kx) => (iy) => (jy) => (ky) => (iz) => (jz) => (kz) => ({
     CONS: 'Matrix3x3',
+    eq: m => m.ix === ix && m.jx === jx && m.kx === kx &&
+        m.iy === iy && m.jy === jy && m.ky === ky &&
+        m.iz === iz && m.jz === jz && m.kz === kz,
+    get pipe() { return (f) => f(this); },
     ix, jx, kx,
     iy, jy, ky,
     iz, jz, kz,
     i: Vector3D(ix)(iy)(iz), j: Vector3D(jx)(jy)(jz), k: Vector3D(kx)(ky)(kz),
     x: Vector3D(ix)(jx)(kx), y: Vector3D(iy)(jy)(ky), z: Vector3D(iz)(jz)(kz)
 });
+const Matrix3D = (i) => (j) => (k) => Matrix3x3(i.x)(j.x)(k.x)(i.y)(j.y)(k.y)(i.z)(j.z)(k.z);
 const Matrix4x4 = (ix) => (jx) => (kx) => (lx) => (iy) => (jy) => (ky) => (ly) => (iz) => (jz) => (kz) => (lz) => (iw) => (jw) => (kw) => (lw) => ({
     CONS: 'Matrix4x4',
+    eq: m => m.ix === ix && m.jx === jx && m.kx === kx && m.lx === lx &&
+        m.iy === iy && m.jy === jy && m.ky === ky && m.ly === ly &&
+        m.iz === iz && m.jz === jz && m.kz === kz && m.lz === lz &&
+        m.iw === iw && m.jw === jw && m.kw === kw && m.lw === lw,
+    get pipe() { return (f) => f(this); },
     ix, jx, kx, lx,
     iy, jy, ky, ly,
     iz, jz, kz, lz,
@@ -323,6 +755,7 @@ const Matrix4x4 = (ix) => (jx) => (kx) => (lx) => (iy) => (jy) => (ky) => (ly) =
     i: Vector4D(ix)(iy)(iz)(iw), j: Vector4D(jx)(jy)(jz)(jw), k: Vector4D(kx)(ky)(kz)(kw), l: Vector4D(lx)(ly)(lz)(lw),
     x: Vector4D(ix)(jx)(kx)(lx), y: Vector4D(iy)(jy)(ky)(ly), z: Vector4D(iz)(jz)(kz)(lz), w: Vector4D(iw)(jw)(kw)(lw)
 });
+const Matrix4D = (i) => (j) => (k) => (l) => Matrix4x4(i.x)(j.x)(k.x)(l.x)(i.y)(j.y)(k.y)(l.y)(i.z)(j.z)(k.z)(l.z)(i.w)(j.w)(k.w)(l.w);
 const TextMeasurement = (text) => (width) => (height) => ({
     CONS: 'TextMeasurement',
     text, width, height
@@ -363,6 +796,12 @@ const Bijection = (pairs) => ({
     }
 });
 Bijection.of = (domainValue) => (codomainValue) => Bijection([[domainValue, codomainValue]]);
+const unit = {
+    IO: (output) => IO(() => output),
+    Maybe: Just,
+    State: (output) => State(_ => [null, output]),
+    List: (element) => Cons(() => element)(() => Nil)
+};
 var Horizontal;
 (function (Horizontal) {
     Horizontal["Leftward"] = "Leftward :: Horizontal";
@@ -508,30 +947,11 @@ const bijectionCompositionOperation = Bijection
     .of(CompositionOperation.Saturation)('saturation')
     .of(CompositionOperation.Color)('color')
     .of(CompositionOperation.Luminosity)('luminosity');
-const Matrix2D = (i) => (j) => Matrix2x2(i.x)(j.x)(i.y)(j.y);
-const Matrix3D = (i) => (j) => (k) => Matrix3x3(i.x)(j.x)(k.x)(i.y)(j.y)(k.y)(i.z)(j.z)(k.z);
-const Matrix4D = (i) => (j) => (k) => (l) => Matrix4x4(i.x)(j.x)(k.x)(l.x)(i.y)(j.y)(k.y)(l.y)(i.z)(j.z)(k.z)(l.z)(i.w)(j.w)(k.w)(l.w);
-const pseudoRandom = State(seed => [
-    (-67 * seed * seed * seed + 23 * seed * seed - 91 * seed + 73) % 65536,
-    Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536
-]);
-const returnIO = (x) => IO(() => x);
-const when = (condition) => (io) => (condition ? io.fmap : IO)(() => null);
-const nil = IO(() => null);
-const sequenceIOs = (ios) => IO(() => List(...ios.INFO.map(io => io.INFO())));
-const executeIOs = (ios) => IO(() => {
-    for (const io of ios.INFO)
-        io.INFO();
-    return null;
-});
-const replicate = (count) => (element) => count >= 0 && Number.isInteger(count)
-    ? List(...Array(count).fill(element))
-    : THROWTYPE(`'replicate' must take in a positive, integral number; instead recieved '${count}'`);
 const Do = {
     IO: IO(() => Object.create(null)),
     Maybe: Just(Object.create(null)),
     State: State((s) => [s, Object.create(null)]),
-    List: List(Object.create(null))
+    List: singleton(Object.create(null))
 };
 const __KEYBOARD_KEYS_ARRAY__ = [
     'AltLeft', 'AltRight', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Backquote',
@@ -686,48 +1106,24 @@ var Mutate;
 (function (Mutate) {
     let Norm;
     (function (Norm) {
-        Norm.lineWidth = (w) => IO(() => {
-            __EXTERNAL__.context.lineWidth = w * __EXTERNAL__.context.canvas.width;
-            return null;
-        });
+        Norm.lineWidth = (w) => IO(() => (__EXTERNAL__.context.lineWidth = w * __EXTERNAL__.context.canvas.width, null));
         Norm.lineDashPattern = (pattern) => IO(() => {
-            __EXTERNAL__.context.setLineDash(pattern.INFO.map(n => n * __EXTERNAL__.context.canvas.width));
+            __EXTERNAL__.context.setLineDash(array(pattern.fmap(n => n * __EXTERNAL__.context.canvas.width)));
             return null;
         });
-        Norm.lineDashOffset = (offset) => IO(() => {
-            __EXTERNAL__.context.lineDashOffset = offset * __EXTERNAL__.context.canvas.width;
-            return null;
-        });
+        Norm.lineDashOffset = (offset) => IO(() => (__EXTERNAL__.context.lineDashOffset = offset * __EXTERNAL__.context.canvas.width, null));
         Norm.fontSize = (size) => IO(() => {
             __EXTERNAL__.context.font =
-                `${size * __EXTERNAL__.context.canvas.width}px ` +
-                    `${__EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" ") + 1)}`;
+                `${size * __EXTERNAL__.context.canvas.width}px` +
+                    `${__EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" "))}`;
             return null;
         });
-        Norm.fillRGBA = (r) => (g) => (b) => (a) => IO(() => {
-            __EXTERNAL__.context.fillStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`;
-            return null;
-        });
-        Norm.fillVector = (v) => IO(() => {
-            __EXTERNAL__.context.fillStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`;
-            return null;
-        });
-        Norm.strokeRGBA = (r) => (g) => (b) => (a) => IO(() => {
-            __EXTERNAL__.context.strokeStyle = `rgba(${r * 255},${g * 255},${b * 255},${a * 255})`;
-            return null;
-        });
-        Norm.strokeVector = (v) => IO(() => {
-            __EXTERNAL__.context.strokeStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`;
-            return null;
-        });
-        Norm.shadowRGBA = (r) => (g) => (b) => (a) => IO(() => {
-            __EXTERNAL__.context.shadowColor = `rgba(${r * 255},${g * 255},${b * 255},${a})`;
-            return null;
-        });
-        Norm.shadowVector = (v) => IO(() => {
-            __EXTERNAL__.context.shadowColor = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`;
-            return null;
-        });
+        Norm.fillRGBA = (r) => (g) => (b) => (a) => IO(() => (__EXTERNAL__.context.fillStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null));
+        Norm.fillVector = (v) => IO(() => (__EXTERNAL__.context.fillStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null));
+        Norm.strokeRGBA = (r) => (g) => (b) => (a) => IO(() => (__EXTERNAL__.context.strokeStyle = `rgba(${r * 255},${g * 255},${b * 255},${a * 255})`, null));
+        Norm.strokeVector = (v) => IO(() => (__EXTERNAL__.context.strokeStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null));
+        Norm.shadowRGBA = (r) => (g) => (b) => (a) => IO(() => (__EXTERNAL__.context.shadowColor = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null));
+        Norm.shadowVector = (v) => IO(() => (__EXTERNAL__.context.shadowColor = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null));
         Norm.shadowOffset = (x) => (y) => IO(() => {
             __EXTERNAL__.context.shadowOffsetX = x * __EXTERNAL__.context.canvas.width;
             __EXTERNAL__.context.shadowOffsetY = y * __EXTERNAL__.context.canvas.height;
@@ -738,14 +1134,8 @@ var Mutate;
             __EXTERNAL__.context.shadowOffsetY = v.y * __EXTERNAL__.context.canvas.height;
             return null;
         });
-        Norm.shadowOffsetX = (x) => IO(() => {
-            __EXTERNAL__.context.shadowOffsetX = x * __EXTERNAL__.context.canvas.width;
-            return null;
-        });
-        Norm.shadowOffsetY = (y) => IO(() => {
-            __EXTERNAL__.context.shadowOffsetY = y * __EXTERNAL__.context.canvas.height;
-            return null;
-        });
+        Norm.shadowOffsetX = (x) => IO(() => (__EXTERNAL__.context.shadowOffsetX = x * __EXTERNAL__.context.canvas.width, null));
+        Norm.shadowOffsetY = (y) => IO(() => (__EXTERNAL__.context.shadowOffsetY = y * __EXTERNAL__.context.canvas.height, null));
         Norm.transformationMatrix = (m) => IO(() => {
             __EXTERNAL__.context.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx * __EXTERNAL__.context.canvas.width, m.ky * __EXTERNAL__.context.canvas.height);
             return null;
@@ -761,42 +1151,15 @@ var Mutate;
         __EXTERNAL__.context.canvas.height = v.y;
         return null;
     });
-    Mutate.canvasDimensionW = (w) => IO(() => {
-        __EXTERNAL__.context.canvas.width = w;
-        return null;
-    });
-    Mutate.canvasDimensionH = (h) => IO(() => {
-        __EXTERNAL__.context.canvas.height = h;
-        return null;
-    });
-    Mutate.lineWidth = (w) => IO(() => {
-        __EXTERNAL__.context.lineWidth = w;
-        return null;
-    });
-    Mutate.lineCap = (cap) => IO(() => {
-        __EXTERNAL__.context.lineCap = bijectionLineCap.domain(cap);
-        return null;
-    });
-    Mutate.lineJoin = (joining) => IO(() => {
-        __EXTERNAL__.context.lineJoin = bijectionLineJoin.domain(joining);
-        return null;
-    });
-    Mutate.lineDashPattern = (pattern) => IO(() => {
-        __EXTERNAL__.context.setLineDash(pattern.INFO.slice());
-        return null;
-    });
-    Mutate.lineDashOffset = (offset) => IO(() => {
-        __EXTERNAL__.context.lineDashOffset = offset;
-        return null;
-    });
-    Mutate.miterLimit = (limit) => IO(() => {
-        __EXTERNAL__.context.miterLimit = limit;
-        return null;
-    });
-    Mutate.font = (fontDescription) => IO(() => {
-        __EXTERNAL__.context.font = fontDescription;
-        return null;
-    });
+    Mutate.canvasDimensionW = (w) => IO(() => (__EXTERNAL__.context.canvas.width = w, null));
+    Mutate.canvasDimensionH = (h) => IO(() => (__EXTERNAL__.context.canvas.height = h, null));
+    Mutate.lineWidth = (w) => IO(() => (__EXTERNAL__.context.lineWidth = w, null));
+    Mutate.lineCap = (cap) => IO(() => (__EXTERNAL__.context.lineCap = bijectionLineCap.domain(cap), null));
+    Mutate.lineJoin = (joining) => IO(() => (__EXTERNAL__.context.lineJoin = bijectionLineJoin.domain(joining), null));
+    Mutate.lineDashPattern = (pattern) => IO(() => (__EXTERNAL__.context.setLineDash(array(pattern)), null));
+    Mutate.lineDashOffset = (offset) => IO(() => (__EXTERNAL__.context.lineDashOffset = offset, null));
+    Mutate.miterLimit = (limit) => IO(() => (__EXTERNAL__.context.miterLimit = limit, null));
+    Mutate.font = (fontDescription) => IO(() => (__EXTERNAL__.context.font = fontDescription, null));
     Mutate.fontSize = (size) => IO(() => {
         __EXTERNAL__.context.font =
             `${size}px ${__EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" ") + 1)}`;
@@ -806,54 +1169,18 @@ var Mutate;
         __EXTERNAL__.context.font = `${parseFloat(__EXTERNAL__.context.font)}px ${family}`;
         return null;
     });
-    Mutate.textAlign = (align) => IO(() => {
-        __EXTERNAL__.context.textAlign = bijectionTextAlign.domain(align);
-        return null;
-    });
-    Mutate.textBaseline = (baseline) => IO(() => {
-        __EXTERNAL__.context.textBaseline = bijectionTextBaseline.domain(baseline);
-        return null;
-    });
-    Mutate.fillColor = (color) => IO(() => {
-        __EXTERNAL__.context.fillStyle = color;
-        return null;
-    });
-    Mutate.fillRGBA = (r) => (g) => (b) => (a) => IO(() => {
-        __EXTERNAL__.context.fillStyle = `rgba(${r},${g},${b},${a})`;
-        return null;
-    });
-    Mutate.fillVector = (v) => IO(() => {
-        __EXTERNAL__.context.fillStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`;
-        return null;
-    });
-    Mutate.strokeColor = (color) => IO(() => {
-        __EXTERNAL__.context.strokeStyle = color;
-        return null;
-    });
-    Mutate.strokeRGBA = (r) => (g) => (b) => (a) => IO(() => {
-        __EXTERNAL__.context.strokeStyle = `rgba(${r},${g},${b},${a})`;
-        return null;
-    });
-    Mutate.strokeVector = (v) => IO(() => {
-        __EXTERNAL__.context.strokeStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`;
-        return null;
-    });
-    Mutate.shadowBlurAmount = (amount) => IO(() => {
-        __EXTERNAL__.context.shadowBlur = amount;
-        return null;
-    });
-    Mutate.shadowColor = (color) => IO(() => {
-        __EXTERNAL__.context.shadowColor = color;
-        return null;
-    });
-    Mutate.shadowRGBA = (r) => (g) => (b) => (a) => IO(() => {
-        __EXTERNAL__.context.shadowColor = `rgba(${r},${g},${b},${a})`;
-        return null;
-    });
-    Mutate.shadowVector = (v) => IO(() => {
-        __EXTERNAL__.context.shadowColor = `rgba(${v.x},${v.y},${v.z},${v.w})`;
-        return null;
-    });
+    Mutate.textAlign = (align) => IO(() => (__EXTERNAL__.context.textAlign = bijectionTextAlign.domain(align), null));
+    Mutate.textBaseline = (baseline) => IO(() => (__EXTERNAL__.context.textBaseline = bijectionTextBaseline.domain(baseline), null));
+    Mutate.fillColor = (color) => IO(() => (__EXTERNAL__.context.fillStyle = color, null));
+    Mutate.fillRGBA = (r) => (g) => (b) => (a) => IO(() => (__EXTERNAL__.context.fillStyle = `rgba(${r},${g},${b},${a})`, null));
+    Mutate.fillVector = (v) => IO(() => (__EXTERNAL__.context.fillStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`, null));
+    Mutate.strokeColor = (color) => IO(() => (__EXTERNAL__.context.strokeStyle = color, null));
+    Mutate.strokeRGBA = (r) => (g) => (b) => (a) => IO(() => (__EXTERNAL__.context.strokeStyle = `rgba(${r},${g},${b},${a})`, null));
+    Mutate.strokeVector = (v) => IO(() => (__EXTERNAL__.context.strokeStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`, null));
+    Mutate.shadowBlurAmount = (amount) => IO(() => (__EXTERNAL__.context.shadowBlur = amount, null));
+    Mutate.shadowColor = (color) => IO(() => (__EXTERNAL__.context.shadowColor = color, null));
+    Mutate.shadowRGBA = (r) => (g) => (b) => (a) => IO(() => (__EXTERNAL__.context.shadowColor = `rgba(${r},${g},${b},${a})`, null));
+    Mutate.shadowVector = (v) => IO(() => (__EXTERNAL__.context.shadowColor = `rgba(${v.x},${v.y},${v.z},${v.w})`, null));
     Mutate.shadowOffset = (x) => (y) => IO(() => {
         __EXTERNAL__.context.shadowOffsetX = x;
         __EXTERNAL__.context.shadowOffsetY = y;
@@ -864,22 +1191,10 @@ var Mutate;
         __EXTERNAL__.context.shadowOffsetY = v.y;
         return null;
     });
-    Mutate.shadowOffsetX = (x) => IO(() => {
-        __EXTERNAL__.context.shadowOffsetX = x;
-        return null;
-    });
-    Mutate.shadowOffsetY = (y) => IO(() => {
-        __EXTERNAL__.context.shadowOffsetY = y;
-        return null;
-    });
-    Mutate.transformationMatrix = (m) => IO(() => {
-        __EXTERNAL__.context.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx, m.ky);
-        return null;
-    });
-    Mutate.alpha = (opacity) => IO(() => {
-        __EXTERNAL__.context.globalAlpha = opacity;
-        return null;
-    });
+    Mutate.shadowOffsetX = (x) => IO(() => (__EXTERNAL__.context.shadowOffsetX = x, null));
+    Mutate.shadowOffsetY = (y) => IO(() => (__EXTERNAL__.context.shadowOffsetY = y, null));
+    Mutate.transformationMatrix = (m) => IO(() => (__EXTERNAL__.context.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx, m.ky), null));
+    Mutate.alpha = (opacity) => IO(() => (__EXTERNAL__.context.globalAlpha = opacity, null));
     Mutate.compositionOperation = (composition) => IO(() => {
         __EXTERNAL__.context.globalCompositeOperation = bijectionCompositionOperation.domain(composition);
         return null;

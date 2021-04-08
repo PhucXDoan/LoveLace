@@ -219,7 +219,7 @@
 		"no-var"                                    : "error",
 		"no-void"                                   : "error",
 		"no-warning-comments"                       : "off",
-		"no-whitespace-before-property"             : "warn",
+		"no-whitespace-before-property"             : "off",
 		"no-with"                                   : "error",
 		"nonblock-statement-body-position"          : ["warn", "any"],
 		"object-curly-newline"                      : "off",

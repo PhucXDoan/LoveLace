@@ -1,4 +1,36 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-return-assign                  */
+/* eslint-disable no-plusplus                       */
+/* eslint-disable no-param-reassign                 */
+/* eslint-disable no-console                        */
+/* eslint-disable no-multi-assign                   */
+
+/********************************************************************************************************************************/
+
+/*
+class Eq e where
+	(.eq) :: e -> e -> Boolean
+
+class Pipeable p where
+	(.pipe) :: p -> (p -> a) -> a
+
+class Chainable c where
+	then :: c a -> c b -> c b
+	side :: c a -> c b -> c a
+	also :: c a -> (a -> c b) -> c a
+
+class Monoid m where
+	(.plus) :: m a -> m a -> m a
+
+class Monad m where
+	(.bind)   :: m a -> (a -> m b) -> m b
+	(.bindto) :: m $ -> String -> ($ -> m a) -> m $
+	(.fmap)   :: m a -> (a -> b) -> m b
+	(.fmapto) :: m $ -> String -> ($ -> a) -> m $
+	(.cast)   :: m a -> b -> m b
+*/
+
+/********************************************************************************************************************************/
 
 // -- Throws am error via a function call.
 const THROW = (message : string) =>
@@ -143,11 +175,20 @@ const fround = Math.fround
 /**` fst :: (a, b) -> a `*/
 const fst = <a, b>(pair : [a, b]) : a => pair[0]
 
+/**` greater :: Number -> Number -> Boolean `*/
+const greater = (x : number) => (y : number) : boolean => y > x
+
+/**` greaterEqual :: Number -> Number -> Boolean `*/
+const greaterEqual = (x : number) => (y : number) : boolean => y >= x
+
 /**` gt :: Number -> Number -> Boolean `*/
 const gt = (x : number) => (y : number) : boolean => x > y
 
 /**` gte :: Number -> Number -> Boolean `*/
 const gte = (x : number) => (y : number) : boolean => x >= y
+
+/**` id :: a -> a `*/
+const id = <a>(x : a) : a => x
 
 /**` isInsideExclusive :: Number -> Number -> Number -> Boolean `*/
 const isInsideExclusive = (n : number) => (lower : number) => (upper : number) : boolean =>
@@ -185,6 +226,12 @@ const rLSHIFT = (y : number) => (x : number) : number => x << y
 
 /**` lerp :: Number -> Number -> Number -> Number `*/
 const lerp = (t : number) => (x : number) => (y : number) : number => x + (y - x) * t
+
+/**` less :: Number -> Number -> Boolean `*/
+const less = (x : number) => (y : number) : boolean => y < x
+
+/**` lessEqual :: Number -> Number -> Boolean `*/
+const lessEqual = (x : number) => (y : number) : boolean => y <= x
 
 /**` lt :: Number -> Number -> Boolean `*/
 const lt = (x : number) => (y : number) : boolean => x < y
@@ -293,7 +340,7 @@ const tanh = Math.tanh
 const toHexColor = (decimal : number) : string =>
 	decimal >= 0 && decimal <= 16777215 && Number.isInteger(decimal)
 		? `#${decimal.toString(16).padStart(6, '0')}`
-		: THROWTYPE(`'toHexColor' requires a positive integer number below 0xffffff (16777215); received '${decimal}' instead`)
+		: THROWTYPE (`'toHexColor' requires a non-negative integer below '0xffffff' ('16777215'); received '${decimal}' instead`)
 
 /**` trunc :: Number -> Number `*/
 const trunc = Math.trunc
@@ -315,569 +362,173 @@ const xor = (x : boolean) => (y : boolean) : boolean => x !== y
 
 /********************************************************************************************************************************/
 
-/** The `IO` monad. */
-type IO<a> =
-	{
-		readonly CONS : 'IO'
-		readonly INFO : () => a
-
-		/**` (IO a).bind :: (a -> IO b) -> IO b `*/
-		readonly bind : <b>(reaction : (evaluation : a) => IO<b>) => IO<b>
-
-		/**` (IO $).bindto :: String -> ($ -> IO a) -> IO $ `*/
-		readonly bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => IO<b>) => IO<a & { [x in k] : b }>
-
-		/**` (IO a).fmap :: (a -> b) -> IO b `*/
-		readonly fmap : <b>(computation : (evaluation : a) => b) => IO<b>
-
-		/**` (IO $).fmapto :: String -> ($ -> a) -> IO $ `*/
-		readonly fmapto : <k extends string>(name : k) => <b>(computation : ($ : a) => b) => IO<a & { [x in k] : b }>
-
-		/**` (IO a).side :: (a -> IO b) -> IO a `*/
-		readonly side : <b>(reaction : (evaluation : a) => IO<b>) => IO<a>
-
-		/**` (IO a).then :: IO b -> IO b `*/
-		readonly then : <b>(successor : IO<b>) => IO<b>
-	}
-
-/** The `Maybe` monad.
- * ```
- * data (Monad) Maybe a = Nothing | Just a
- * ```
- */
-type Maybe<a> =
-	({
-		readonly CONS   : 'Nothing'
-	} | {
-		readonly CONS   : 'Just'
-		readonly INFO   : a
-	}) & {
-
-		/**` (Maybe a).bind :: (a -> Maybe b) -> Maybe b `*/
-		readonly bind : <b>(reaction : (evaluation : a) => Maybe<b>) => Maybe<b>
-
-		/**` (Maybe $).bindto :: String -> ($ -> Maybe a) -> Maybe $ `*/
-		readonly bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => Maybe<b>) => Maybe<a & { [x in k] : b }>
-
-		/**` (Maybe a).fmap :: (a -> b) -> Maybe b `*/
-		readonly fmap : <b>(computation : (evaluation : a) => b) => Maybe<b>
-
-		/**` (Maybe $).fmapto :: String -> ($ -> a) -> Maybe $ `*/
-		readonly fmapto : <k extends string>(name : k) => <b>(computation : ($ : a) => b) => Maybe<a & { [x in k] : b }>
-	}
-
-/** The `State` monad.
- * ```
- * data (Monad) State s a = State (s -> (s, a))
- * ```
- */
-type State<s, a> =
-	{
-		readonly CONS : 'State'
-		readonly INFO : (inputState : s) => [s, a]
-
-		/**` (State s a).bind :: (a -> State s b) -> State s b `*/
-		readonly bind : <b>(reaction : (statefulComputationOutput : a) => State<s, b>) => State<s, b>
-
-		/**` (State s a).fmap :: (a -> b) -> State s b `*/
-		readonly fmap : <b>(computation : (statefulComputationOutput : a) => b) => State<s, b>
-
-		/**` (State s $).bindto :: String -> ($ -> State s a) -> State s $ `*/
-		readonly bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => State<s, b>) => State<s, a & { [x in k] : b }>
-
-		/**` (State s $).fmapto :: String -> ($ -> b) -> State s $ `*/
-		readonly fmapto : <k extends string>(name : k) => <b>(computation : ($ : a) => b) => State<s, a & { [x in k] : b }>
-
-		/**` (State s a).then :: State s b -> State s b `*/
-		readonly then : <b>(successor : State<s, b>) => State<s, b>
-
-		/**` (State s a).runState :: s -> (s, a) `*/
-		readonly runState : (initialState : s) => [s, a]
-
-		/**` (State s a).evalState :: s -> s `*/
-		readonly evalState : (initialState : s) => s
-
-		/**` (State s a).execState :: s -> a `*/
-		readonly execState : (initialState : s) => a
-	}
-
-/** The `List` monad.
- * ```
- * data (Monad) List a = List (...a)
- * ```
- */
-type List<a> =
-	{
-		readonly CONS : 'List'
-		readonly INFO : ReadonlyArray<a>
-
-		/**` (List a).all :: (a -> Boolean) -> Boolean `*/
-		readonly all : (predicate : (element : a) => boolean) => boolean
-
-		/**` (List a).any :: (a -> Boolean) -> Boolean `*/
-		readonly any : (predicate : (element : a) => boolean) => boolean
-
-		/**` (List a).append :: a -> List a `*/
-		readonly append : (element : a) => List<a>
-
-		/**` (List a).at :: Number -> a `*/
-		readonly at : (index : number) => a
-
-		/**` (List a).bind :: (a -> List b) -> List b `*/
-		readonly bind : <b>(reaction : (element : a) => List<b>) => List<b>
-
-		/**` (List $).bindto :: String -> ($ -> List b) -> List $ `*/
-		readonly bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => List<b>) => List<a & { [x in k] : b }>
-
-		/**` (List a).break :: (a -> Boolean) -> (List a, List a) `*/
-		readonly break : (predicate : (element : a) => boolean) => [List<a>, List<a>]
-
-		/**` (List a).concat :: List a -> List a `*/
-		readonly concat : (succeeding : List<a>) => List<a>
-
-		/**` (List a).drop :: Number -> List a `*/
-		readonly drop : (count : number) => List<a>
-
-		/**` (List a).dropWhile :: (a -> Boolean) -> List a `*/
-		readonly dropWhile : (predicate : (element : a) => boolean) => List<a>
-
-		/**` (List a).elem :: a -> Boolean `*/
-		readonly elem : (match : a) => boolean
-
-		/**` (List a).elemIndex :: a -> Maybe Number `*/
-		readonly elemIndex : (match : a) => Maybe<number>
-
-		/**` (List a).elemIndices :: a -> List Number `*/
-		readonly elemIndices : (match : a) => List<number>
-
-		/**` (List a).filter :: (a -> Boolean) -> List a `*/
-		readonly filter : (predicate : (element : a) => boolean) => List<a>
-
-		/**` (List a).find :: (a -> Boolean) -> Maybe a `*/
-		readonly find : (predicate : (element : a) => boolean) => Maybe<a>
-
-		/**` (List a).findIndex :: (a -> Boolean) -> Maybe Number `*/
-		readonly findIndex : (predicate : (element : a) => boolean) => Maybe<number>
-
-		/**` (List a).findIndices :: (a -> Boolean) -> List Number `*/
-		readonly findIndices : (predicate : (element : a) => boolean) => List<number>
-
-		/**` (List a).fmap :: (a -> b) -> List b `*/
-		readonly fmap : <b>(computation : (element : a) => b) => List<b>
-
-		/**` (List $).fmapto :: String -> ($ -> b) -> List $ `*/
-		readonly fmapto : <k extends string>(name : k) => <b>(computation : ($ : a) => b) => List<a & { [x in k] : b }>
-
-		/**` (List a).foldl :: (b -> a -> b) -> b -> b `*/
-		readonly foldl : <b>(builder : (first : b) => (second : a) => b) => (initialValue : b) => b
-
-		/**` (List a).foldr :: (a -> b -> b) -> b -> b `*/
-		readonly foldr : <b>(builder : (second : a) => (first : b) => b) => (initialValue : b) => b
-
-		/**` (List a).foldl1 :: (a -> a -> a) -> a `*/
-		readonly foldl1 : (builder : (first : a) => (second : a) => a) => a
-
-		/**` (List a).foldr1 :: (a -> a -> a) -> a `*/
-		readonly foldr1 : (builder : (second : a) => (first : a) => a) => a
-
-		/**` (List a).head :: a `*/
-		readonly head : a
-
-		/**` (List a).ifilter :: (Number -> a -> Boolean) -> List a `*/
-		readonly ifilter : (predicate : (index : number) => (element : a) => boolean) => List<a>
-
-		/**` (List a).imap :: (Number -> a -> b) -> List b `*/
-		readonly imap : <b>(computation : (index : number) => (element : a) => b) => List<b>
-
-		/**` (List a).indexed :: List (Number, a) `*/
-		readonly indexed : List<[number, a]>
-
-		/**` (List a).indexFilter :: (Number -> Boolean) -> List a `*/
-		readonly indexFilter : (predicate : (index : number) => boolean) => List<a>
-
-		/**` (List a).indexMap :: (Number -> b) -> List b `*/
-		readonly indexMap : <b>(computation : (index : number) => b) => List<b>
-
-		/**` (List a).init :: List a `*/
-		readonly init : List<a>
-
-		/**` (List a).inits :: List (List a) `*/
-		readonly inits : List<List<a>>
-
-		/**` (List a).intersperse :: a -> List a `*/
-		readonly intersperse : (delimiter : a) => List<a>
-
-		/**` (List a).last :: a `*/
-		readonly last : a
-
-		/**` (List a).notElem :: a -> Boolean `*/
-		readonly notElem : (delimiter : a) => boolean
-
-		/**` (List a).prepend :: a -> List a `*/
-		readonly prepend : (element : a) => List<a>
-
-		/**` (List a).reverse :: List a `*/
-		readonly reverse : List<a>
-
-		/**` (List a).scanl :: (b -> a -> b) -> b -> List b `*/
-		readonly scanl : <b>(builder : (first : b) => (second : a) => b) => (initialValue : b) => List<b>
-
-		/**` (List a).scanr :: (a -> b -> b) -> b -> List b `*/
-		readonly scanr : <b>(builder : (second : a) => (first : b) => b) => (initialValue : b) => List<b>
-
-		/**` (List a).scanl1 :: (a -> a -> a) -> List a `*/
-		readonly scanl1 : (builder : (first : a) => (second : a) => a) => List<a>
-
-		/**` (List a).scanr1 :: (a -> a -> a) -> List a `*/
-		readonly scanr1 : (builder : (second : a) => (first : a) => a) => List<a>
-
-		/**` (List a).span :: (a -> Boolean) -> (List a, List a) `*/
-		readonly span : (predicate : (element : a) => boolean) => [List<a>, List<a>]
-
-		/**` (List a).splitAt :: Number -> (List a, List a) `*/
-		readonly splitAt : (index : number) => [List<a>, List<a>]
-
-		/**` (List a).tail :: List a `*/
-		readonly tail : List<a>
-
-		/**` (List a).tails :: List (List a) `*/
-		readonly tails : List<List<a>>
-
-		/**` (List a).take :: Number -> List a `*/
-		readonly take : (count : number) => List<a>
-
-		/**` (List a).takeWhile :: (a -> Boolean) -> List a `*/
-		readonly takeWhile : (predicate : (element : a) => boolean) => List<a>
-
-		/**` (List a).zip :: List b -> List (a, b) `*/
-		readonly zip : <b>(postfixes : List<b>) => List<[a, b]>
-
-		/**` (List a).zipWith :: List b -> (a -> b -> c) -> List c `*/
-		readonly zipWith : <b>(postfixes : List<b>) => <c>(builder : (firstElement : a) => (secondElement : b) => c) => List<c>
-	}
-
-/** `Vector2D` data-type used for two-dimensional linear algebra.
- * ```
- * data Vector2D = Vector2D Number Number
- * ```
- */
-type Vector2D =
-	{
-		readonly CONS : 'Vector2D'
-
-		/**` (Vector2D).x :: Number `*/
-		readonly x : number
-
-		/**` (Vector2D).y :: Number `*/
-		readonly y : number
-	}
-
-/** `Vector3D` data-type used for three-dimensional linear algebra.
- * ```
- * data Vector3D = Vector3D Number Number Number
- * ```
- */
-type Vector3D =
-	{
-		readonly CONS : 'Vector3D'
-
-		/**` (Vector3D).x :: Number `*/
-		readonly x : number
-
-		/**` (Vector3D).y :: Number `*/
-		readonly y : number
-
-		/**` (Vector3D).z :: Number `*/
-		readonly z : number
-	}
-
-/** `Vector4D` data-type used for four-dimensional linear algebra.
- * ```
- * data Vector4D = Vector4D Number Number Number Number
- * ```
- */
-type Vector4D =
-	{
-		readonly CONS : 'Vector4D'
-
-		/**` (Vector4D).x :: Number `*/
-		readonly x : number
-
-		/**` (Vector4D).y :: Number `*/
-		readonly y : number
-
-		/**` (Vector4D).z :: Number `*/
-		readonly z : number
-
-		/**` (Vector4D).w :: Number `*/
-		readonly w : number
-	}
-
-/** Data type for the representation of 2x2 matrices.
- * ```
- * data Matrix2x2 = Matrix2x2 (...4 Number)
- * ```
- */
-type Matrix2x2 =
-	{
-		readonly CONS : 'Matrix2x2'
-
-		/**` (Matrix2x2).ix :: Number `*/
-		readonly ix : number
-
-		/**` (Matrix2x2).jx :: Number `*/
-		readonly jx : number
-
-		/**` (Matrix2x2).iy :: Number `*/
-		readonly iy : number
-
-		/**` (Matrix2x2).jy :: Number `*/
-		readonly jy : number
-
-		/**` (Matrix2x2).i :: Vector2D `*/
-		readonly i : Vector2D
-
-		/**` (Matrix2x2).j :: Vector2D `*/
-		readonly j : Vector2D
-
-		/**` (Matrix2x2).x :: Vector2D `*/
-		readonly x : Vector2D
-
-		/**` (Matrix2x2).y :: Vector2D `*/
-		readonly y : Vector2D
-	}
-
-/** Data type for the representation of 3x3 matrices.
- * ```
- * data Matrix3x3 = Matrix3x3 (...9 Number)
- * ```
- */
-type Matrix3x3 =
-	{
-		readonly CONS : 'Matrix3x3'
-
-		/**` (Matrix3x3).ix :: Number `*/
-		readonly ix : number
-
-		/**` (Matrix3x3).jx :: Number `*/
-		readonly jx : number
-
-		/**` (Matrix3x3).kx :: Number `*/
-		readonly kx : number
-
-		/**` (Matrix3x3).iy :: Number `*/
-		readonly iy : number
-
-		/**` (Matrix3x3).jy :: Number `*/
-		readonly jy : number
-
-		/**` (Matrix3x3).ky :: Number `*/
-		readonly ky : number
-
-		/**` (Matrix3x3).iz :: Number `*/
-		readonly iz : number
-
-		/**` (Matrix3x3).jz :: Number `*/
-		readonly jz : number
-
-		/**` (Matrix3x3).kz :: Number `*/
-		readonly kz : number
-
-		/**` (Matrix3x3).i :: Vector3D `*/
-		readonly i : Vector3D
-
-		/**` (Matrix3x3).j :: Vector3D `*/
-		readonly j : Vector3D
-
-		/**` (Matrix3x3).k :: Vector3D `*/
-		readonly k : Vector3D
-
-		/**` (Matrix3x3).x :: Vector3D `*/
-		readonly x : Vector3D
-
-		/**` (Matrix3x3).y :: Vector3D `*/
-		readonly y : Vector3D
-
-		/**` (Matrix3x3).z :: Vector3D `*/
-		readonly z : Vector3D
-	}
-
-/** Data type for the representation of 4x4 matrices.
- * ```
- * data Matrix4x4 = Matrix4x4 (...16 Number)
- * ```
- */
-type Matrix4x4 =
-	{
-		readonly CONS : 'Matrix4x4'
-
-		/**` (Matrix4x4).ix :: Number `*/
-		readonly ix : number
-
-		/**` (Matrix4x4).jx :: Number `*/
-		readonly jx : number
-
-		/**` (Matrix4x4).kx :: Number `*/
-		readonly kx : number
-
-		/**` (Matrix4x4).lx :: Number `*/
-		readonly lx : number
-
-		/**` (Matrix4x4).iy :: Number `*/
-		readonly iy : number
-
-		/**` (Matrix4x4).jy :: Number `*/
-		readonly jy : number
-
-		/**` (Matrix4x4).ky :: Number `*/
-		readonly ky : number
-
-		/**` (Matrix4x4).ly :: Number `*/
-		readonly ly : number
-
-		/**` (Matrix4x4).iz :: Number `*/
-		readonly iz : number
-
-		/**` (Matrix4x4).jz :: Number `*/
-		readonly jz : number
-
-		/**` (Matrix4x4).kz :: Number `*/
-		readonly kz : number
-
-		/**` (Matrix4x4).lz :: Number `*/
-		readonly lz : number
-
-		/**` (Matrix4x4).iw :: Number `*/
-		readonly iw : number
-
-		/**` (Matrix4x4).jw :: Number `*/
-		readonly jw : number
-
-		/**` (Matrix4x4).kw :: Number `*/
-		readonly kw : number
-
-		/**` (Matrix4x4).lw :: Number `*/
-		readonly lw : number
-
-		/**` (Matrix4x4).i :: Vector4D `*/
-		readonly i : Vector4D
-
-		/**` (Matrix4x4).j :: Vector4D `*/
-		readonly j : Vector4D
-
-		/**` (Matrix4x4).k :: Vector4D `*/
-		readonly k : Vector4D
-
-		/**` (Matrix4x4).l :: Vector4D `*/
-		readonly l : Vector4D
-
-		/**` (Matrix4x4).x :: Vector4D `*/
-		readonly x : Vector4D
-
-		/**` (Matrix4x4).y :: Vector4D `*/
-		readonly y : Vector4D
-
-		/**` (Matrix4x4).z :: Vector4D `*/
-		readonly z : Vector4D
-
-		/**` (Matrix4x4).w :: Vector4D `*/
-		readonly w : Vector4D
-	}
-
-/** A simple data type that stores information about the measurement of texts in rendering.
- * ```
- * data TextMeasurement = TextMeasurement String Number Number
- * ```
- */
-type TextMeasurement =
-	{
-		readonly CONS : 'TextMeasurement'
-
-		/**` (TextMeasurement).text :: String `*/
-		readonly text : string
-
-		/**` (TextMeasurement).width :: Number `*/
-		readonly width : number
-
-		/**` (TextMeasurement).height :: Number `*/
-		readonly height : number
-	}
-
-/** An inline version of the `switch` statement.
- * ```
- * data Switch a b = Switch.case a (() -> b)
- * ```
- */
-type Switch<a, b> =
-	{
-		readonly CONS : 'Switch'
-
-		/**` (Switch a b).case :: a -> (() -> b) -> Switch a b `*/
-		readonly case : (domain : a) => (codomain : () => b) => Switch<a, b>
-
-		/**` (Switch a b).else :: (() -> b) -> Switch a b `*/
-		readonly else : (codomain : () => b) => Switch<a, b>
-
-		/**` (Switch a b).with :: a -> b `*/
-		readonly with : (value : a) => b
-	}
-
-/** A data structure that maps values to other values supplied with an inverse.
- * ```
- * data Bijection a b = Bijection.of a b
- * ```
- */
-type Bijection<a, b> =
-	{
-		readonly CONS : 'Bijection'
-		readonly INFO : ReadonlyArray<[a, b]>
-
-		/**` (Bijection a b).of :: a -> b -> Bijection a b `*/
-		readonly of : (domainValue : a) => (codomainValue : b) => Bijection<a, b>
-
-		/**` (Bijection a b).domain :: a -> b `*/
-		readonly domain : (domainValue : a) => b
-
-		/**` (Bijection a b).codomain :: b -> a `*/
-		readonly codomain : (codomainValue : b) => a
-	}
+/**` Boolean (Eq, Pipeable) `*/
+interface Boolean
+{
+	eq   : (value : boolean) => boolean
+	pipe : <a>(morphism : (bool : boolean) => a) => a
+}
+
+Boolean.prototype.eq = function(x)
+	{ return this === x }
+
+Boolean.prototype.pipe = function(f)
+	{ return f(this as boolean) }
+
+/**` Boolean (Eq, Pipeable) `*/
+interface Number
+{
+	eq   : (value : number) => boolean
+	pipe : <a>(morphism : (num : number) => a) => a
+}
+
+Number.prototype.eq = function(x)
+	{ return this === x }
+
+Number.prototype.pipe = function(f)
+	{ return f(this as number) }
+
+/**` String (Eq, Pipeable) `*/
+interface String
+{
+	eq   : (value : string) => boolean
+	pipe : <a>(morphism : (str : string) => a) => a
+}
+
+String.prototype.eq = function(x)
+	{ return this === x }
+
+String.prototype.pipe = function(f)
+	{ return f(this as string) }
 
 /********************************************************************************************************************************/
 
-// -- Use only for creating new IO operations; otherwise, compose existing IO monads together.
+/**` IO (Pipeable, Chainable, Monad) `*/
+type IO<a> =
+	{
+		CONS : 'IO'
+		INFO : () => a
+
+		/**` (.pipe) :: IO a -> (IO a -> b) -> b `*/
+		pipe : <b>(morphism : (io : IO<a>) => b) => b
+
+		/**` (.then) :: IO a -> IO b -> IO b `*/
+		then : <b>(successor : IO<b>) => IO<b>
+
+		/**` (.side) :: IO a -> IO b -> IO a `*/
+		side : <b>(effect : IO<b>) => IO<a>
+
+		/**` (.also) :: IO a -> (a -> IO b) -> IO a `*/
+		also : <b>(branch : (evaluation : a) => IO<b>) => IO<a>
+
+		/**` (.bind) :: IO a -> (a -> IO b) -> IO b `*/
+		bind : <b>(reaction : (evaluation : a) => IO<b>) => IO<b>
+
+		/**` (.bindto) :: IO $ -> String -> ($ -> IO a) -> IO $ `*/
+		bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => IO<b>) => IO<a & { [x in k] : b }>
+
+		/**` (.fmap) :: IO a -> (a -> b) -> IO b `*/
+		fmap : <b>(computation : (evaluation : a) => b) => IO<b>
+
+		/**` (.fmapto) :: IO $ -> String -> ($ -> a) -> IO $ `*/
+		fmapto : <k extends string>(name : k) => <b>(computation : ($ : a) => b) => IO<a & { [x in k] : b }>
+
+		/**` (.cast) :: IO a -> b -> IO b `*/
+		cast : <b>(replacement : b) => IO<b>
+	}
+
+/**` IO :: (() ~> a) -> IO a `*/
 const IO = <a>(sideeffect : () => a) : IO<a> =>
 	({
 		CONS : 'IO',
 		INFO : sideeffect,
-		bind : f => IO(() => f(sideeffect()).INFO()),
+		get pipe() { return (f : any) => f (this) },
+		then : x => IO (() => (sideeffect (), x.INFO ())),
+		side : x => IO (() => {
+			const y = sideeffect ()
+			return x.INFO (), y
+		}),
+		also : x => IO (() => {
+			const y = sideeffect ()
+			return x (y).INFO (), y
+		}),
+		bind : f => IO (() => f (sideeffect ()).INFO ()),
 		bindto : x => f =>
-			IO(() => {
-				const $ = sideeffect()
-				return { ...$, [x]: f($).INFO() } as any
+			IO (() => {
+				const $ = sideeffect ()
+				return { ...$, [x]: f ($).INFO () } as any
 			}),
-		fmap : f => IO(() => f(sideeffect())),
+		fmap : f => IO (() => f (sideeffect ())),
 		fmapto : x => f =>
-			IO(() => {
-				const $ = sideeffect()
-				return { ...$, [x]: f($) } as any
+			IO (() => {
+				const $ = sideeffect ()
+				return { ...$, [x]: f ($) } as any
 			}),
-		side : f =>
-			IO(() => {
-				const x = sideeffect()
-				f(x).INFO()
-				return x
-			}),
-		then : x => IO(() => (sideeffect(), x.INFO()))
+		cast : x => IO (() => (sideeffect(), x))
 	})
+
+/**` idle :: IO () `*/
+const idle : IO<null> =
+	IO(() => null)
+
+/**` when :: Boolean -> IO a -> IO () `*/
+const when = (condition : boolean) => <a>(io : IO<a>) : IO<null> =>
+	condition ? io .fmap (_ => null) : idle
+
+/**` sequenceIOs :: List (IO a) -> IO (List a) `*/
+const sequenceIOs = <a>(ios : List<IO<a>>) : IO<List<a>> =>
+	IO(() => ios .fmap (io => io.INFO()))
+
+/**` executeIOs :: List (IO a) -> IO () `*/
+const executeIOs = <a>(ios : List<IO<a>>) : IO<null> =>
+	IO(() => {
+		while (ios.CONS === 'Cons') ios.INFO.head.INFO(), ios = ios.INFO.tail
+		return null
+	})
+
+/********************************************************************************************************************************/
+
+/** `Maybe (Eq, Pipeable, Monad)` */
+type Maybe<a> =
+	({
+		CONS : 'Nothing'
+	} | {
+		CONS : 'Just'
+		INFO : a
+	}) & {
+		/**` (.eq) :: Maybe a -> Maybe a -> Boolean `*/
+		eq   : (value : Maybe<a>) => boolean
+
+		/**` (.pipe) :: Maybe a -> (Maybe a -> b) -> b `*/
+		pipe : <b>(morphism : (maybe : Maybe<a>) => b) => b
+
+		/**` (.bind) :: Maybe a -> (a -> Maybe b) -> Maybe b `*/
+		bind : <b>(reaction : (evaluation : a) => Maybe<b>) => Maybe<b>
+
+		/**` (.bindto) :: Maybe $ -> String -> ($ -> Maybe a) -> Maybe $ `*/
+		bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => Maybe<b>) => Maybe<a & { [x in k] : b }>
+
+		/**` (.fmap) :: Maybe a -> (a -> b) -> Maybe b `*/
+		fmap : <b>(computation : (evaluation : a) => b) => Maybe<b>
+
+		/**` (.fmapto) :: Maybe $ -> String -> ($ -> a) -> Maybe $ `*/
+		fmapto : <k extends string>(name : k) => <b>(computation : ($ : a) => b) => Maybe<a & { [x in k] : b }>
+
+		/**` (.cast) :: Maybe a -> b -> Maybe b `*/
+		cast : <b>(replacement : b) => Maybe<b>
+	}
 
 /**` Nothing :: Maybe a `*/
 const Nothing : Maybe<any> =
 	{
-		CONS : 'Nothing',
-		bind : _ => Nothing,
+		CONS   : 'Nothing',
+		eq     : x => x === Nothing,
+		pipe   : f => f (Nothing),
+		bind   : _ => Nothing,
 		bindto : _ => _ => Nothing,
-		fmap : _ => Nothing,
-		fmapto : _ => _ => Nothing
+		fmap   : _ => Nothing,
+		fmapto : _ => _ => Nothing,
+		cast   : _ => Nothing
 	}
 
 /**` Just :: a -> Maybe a `*/
@@ -885,219 +536,946 @@ const Just = <a>(value : a) : Maybe<a> =>
 	({
 		CONS : 'Just',
 		INFO : value,
+		eq : x => x.CONS === 'Just' && (x.INFO as any) .eq (value),
+		get pipe() { return (f : any) => f (this) },
 		bind : f =>
 		{
-			const x = f(value)
+			const x = f (value)
 			return x.CONS === 'Nothing' ? Nothing : x
 		},
 		bindto : x => f =>
 		{
-			const y = f(value)
-			return y.CONS === 'Nothing' ? Nothing : Just({ ...value, [x]: y.INFO }) as any
+			const y = f (value)
+			return y.CONS === 'Nothing' ? Nothing : Just ({ ...value, [x]: y.INFO }) as any
 		},
-		fmap : f => Just(f(value)),
-		fmapto : x => f => Just({ ...value, [x]: f(value) }) as any
+		fmap : f => Just (f (value)),
+		fmapto : x => f => Just ({ ...value, [x]: f (value) }) as any,
+		cast : x => Just (x)
 	})
+
+/********************************************************************************************************************************/
+
+/** `State (Pipeable, Chainable, Monad)` */
+type State<s, a> =
+	{
+		CONS : 'State'
+		INFO : (inputState : s) => [s, a]
+
+		/**` (.pipe) :: State s a -> (State s a -> b) -> b `*/
+		pipe : <b>(morphism : (state : State<s, a>) => b) => b
+
+		/**` (.then) :: State s a -> State s b -> State s b `*/
+		then : <b>(successor : State<s, b>) => State<s, b>
+
+		/**` (.side) :: State s a -> State s b -> State s a `*/
+		side : <b>(effect : State<s, b>) => State<s, a>
+
+		/**` (.also) :: State s a -> (a -> State s b) -> State s a `*/
+		also : <b>(branch : (stateComputationOutput : a) => State<s, b>) => State<s, a>
+
+		/**` (.bind) :: State s a -> (a -> State s b) -> State s b `*/
+		bind : <b>(reaction : (stateComputationOutput : a) => State<s, b>) => State<s, b>
+
+		/**` (.bindto) :: State s $ -> String -> ($ -> State s a) -> State s $ `*/
+		bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => State<s, b>) => State<s, a & { [x in k] : b }>
+
+		/**` (.fmap) :: State s a -> (a -> b) -> State s b `*/
+		fmap : <b>(computation : (stateComputationOutput : a) => b) => State<s, b>
+
+		/**` (.fmapto) :: State s $ -> String -> ($ -> b) -> State s $ `*/
+		fmapto : <k extends string>(name : k) => <b>(computation : ($ : a) => b) => State<s, a & { [x in k] : b }>
+
+		/**` (.cast) :: State s a -> b -> State s b `*/
+		cast : <b>(replacement : b) => State<s, b>
+	}
 
 /**` State :: (s -> (s, a)) -> State s a `*/
 const State = <s, a>(statefulComputation : (inputState : s) => [s, a]) : State<s, a> =>
 	({
-		CONS      : 'State',
-		INFO      : statefulComputation,
-		bind      : f =>
-			State(x => {
-				const [y, z] = statefulComputation(x)
-				return f(z).INFO(y)
+		CONS : 'State',
+		INFO : statefulComputation,
+		get pipe() { return (f : any) => f (this) },
+		then : s => State (x => s.INFO (statefulComputation (x)[0])),
+		side : s => State (x => {
+			const y = statefulComputation (x)
+			return [s.INFO (y[0])[0], y[1]]
+		}),
+		also : f => State (x => {
+			const y = statefulComputation (x)
+			return [f (y[1]).INFO (y[0])[0], y[1]]
+		}),
+		bind : f =>
+			State (x => {
+				const [y, z] = statefulComputation (x)
+				return f (z).INFO (y)
 			}),
-		fmap      : f =>
-			State(x => {
-				const [y, z] = statefulComputation(x)
-				return [y, f(z)]
-			}),
-		bindto    : k => f =>
-			State(x => {
-				const [y, $] = statefulComputation(x)
-				const [z, w] = f($).INFO(y)
+		bindto : k => f =>
+			State (x => {
+				const [y, $] = statefulComputation (x)
+				const [z, w] = f ($).INFO (y)
 				return [z, { ...$, [k]: w }] as any
 			}),
-		fmapto    : k => f =>
-			State(x => {
-				const [y, $] = statefulComputation(x)
-				return [y, { ...$, [k]: f($) }] as any
+		fmap : f =>
+			State (x => {
+				const [y, z] = statefulComputation (x)
+				return [y, f (z)]
 			}),
-		then      : s => State(x => s.INFO(statefulComputation(x)[0])),
-		runState  : s => statefulComputation(s),
-		evalState : s => statefulComputation(s)[0],
-		execState : s => statefulComputation(s)[1]
+		fmapto : k => f =>
+			State (x => {
+				const [y, $] = statefulComputation (x)
+				return [y, { ...$, [k]: f ($) }] as any
+			}),
+		cast : x => State (y => [statefulComputation (y)[0], x])
 	})
 
-/**` List :: [a] -> List a `*/
-const List = <a>(...elements : ReadonlyArray<a>) : List<a> =>
+/**` pseudoRandom :: State Number Number `*/
+const pseudoRandom : State<number, number> =
+	State(seed => [
+		(-67 * seed * seed * seed + 23 * seed * seed - 91 * seed + 73) % 65536,
+		Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536
+	])
+
+/********************************************************************************************************************************/
+
+/** Stores cached information about a linked list. */
+type LIST_CACHE<a> =
+	{
+		head    : a
+		tail    : List<a>
+		last    : a
+		init    : List<a>
+		len     : number
+		reverse : List<a>
+	}
+
+/** `List` (Eq, Pipeable, Monoid, Monad) */
+type List<a> =
 	({
-		CONS : 'List',
-		INFO : elements,
-		all : f => elements.every(x => f(x)),
-		any : f => elements.some(x => f(x)),
-		append : x => List(...elements, x),
-		at : i =>
-			i < elements.length && i >= 0
-				? elements[i] as a
-				: THROWRANGE(`Cannot retrive element at index '${i}' in 'List' of length '${elements.length}'`),
-		bind : f => List(...elements.flatMap(x => f(x).INFO)),
-		bindto : k => f => List(...elements.flatMap($ => f($).INFO.map(x => ({ ...$, [k]: x })))) as any,
-		break : f =>
+		CONS : 'Nil'
+	} | {
+		CONS : 'Cons'
+	}) & {
+		INFO : { CACHE : Partial<LIST_CACHE<a>> } & LIST_CACHE<a>
+
+		/**` (.eq) :: List a -> List a -> Boolean `*/
+		eq : (xs : List<a>) => boolean
+
+		/**` (.pipe) :: List a -> (List a -> b) -> b `*/
+		pipe : <b>(morphism : (list : List<a>) => b) => b
+
+		/**` (.plus) :: List a -> List a -> List a `*/
+		plus : (successor : List<a>) => List<a>
+
+		/**` (.bind) :: List a -> (a -> List b) -> List b `*/
+		bind : <b>(reaction : (element : a) => List<b>) => List<b>
+
+		/**` (.bindto) :: List $ -> String -> List $ -> ($ -> List a) -> List $ `*/
+		bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => List<b>) => List<a & { [x in k] : b }>
+
+		/**` (.fmap) :: List a -> (a -> b) -> List b `*/
+		fmap : <b>(computation : (element : a) => b) => List<b>
+
+		/**` (.fmapto) :: List $ -> String -> List $ -> ($ -> a) -> List $ `*/
+		fmapto : <k extends string>(name : k) => <b>(computation : ($ : a) => b) => List<a & { [x in k] : b }>
+
+		/**` (.cast) :: List a -> b -> List b `*/
+		cast : <b>(replacement : b) => List<b>
+	}
+
+/**` Nil :: List a `*/
+const Nil : List<any> =
+	(() => {
+		const self : List<any> =
+			{
+				CONS : 'Nil',
+				INFO :
+				{
+					CACHE :
+					{
+						len     : 0,
+						reverse : undefined as any
+					},
+					len     : 0,
+					reverse : undefined as any,
+					get head () { return THROWRANGE (`'head' cannot be used on 'Nil' (an empty 'List')`) },
+					get tail () { return THROWRANGE (`'tail' cannot be used on 'Nil' (an empty 'List')`) },
+					get last () { return THROWRANGE (`'last' cannot be used on 'Nil' (an empty 'List')`) },
+					get init () { return THROWRANGE (`'init' cannot be used on 'Nil' (an empty 'List')`) }
+				},
+				eq     : xs => xs === Nil,
+				pipe   : f  => f (Nil),
+				plus   : id,
+				bind   : _  => Nil,
+				bindto : _  => _ => Nil,
+				fmap   : _  => Nil,
+				fmapto : _  => _ => Nil,
+				cast   : _  => Nil
+			}
+
+		return self.INFO.reverse = self.INFO.CACHE.reverse = self
+	})()
+
+/**` Cons :: (() -> a) -> (() -> List a) -> List a `*/
+const Cons = <a>(lazyFirst : () => a) => (lazyRest : () => List<a>) : List<a> =>
+{
+	const self : List<a> =
+	{
+		CONS : 'Cons',
+		INFO :
 		{
-			const i = elements.findIndex(x => f(x))
-			return ~i
-				? [List(...elements.slice(0, i)), List(...elements.slice(i))]
-				: [List(...elements), List()]
+			CACHE : {},
+			get head() { return this.CACHE.head ??= lazyFirst () },
+			get tail() { return this.CACHE.tail ??= lazyRest  () },
+			get last()
+			{
+				return this.CACHE.last ??= (() => {
+					if (this.CACHE.reverse) return this.CACHE.reverse.INFO.head
+
+					let xs = self
+					if (this.CACHE.len)
+						while (xs.INFO.tail.CONS === 'Cons') xs = xs.INFO.tail
+					else
+					{
+						let i = 1
+						while (xs.INFO.tail.CONS === 'Cons') xs = xs.INFO.tail, ++i
+						this.CACHE.len = i
+					}
+					return xs.INFO.head
+				})()
+			},
+			get init()
+			{
+				return this.CACHE.init ??=
+					this.tail.CONS === 'Cons'
+						? Cons (() => this.head) (() => this.tail.INFO.tail.CONS === 'Cons' ? this.tail.INFO.init : Nil)
+						: Nil
+			},
+			get len()
+			{
+				return this.CACHE.len ??= (() => {
+					let i = 1, xs = this.tail
+					while (xs.CONS === 'Cons') ++i, xs = xs.INFO.tail
+					return i
+				})()
+			},
+			get reverse()
+			{
+				return this.CACHE.reverse ??= (() => {
+					let xs = singleton (this.head), ys = this.tail
+					if (this.CACHE.len)
+						while (ys.CONS === 'Cons') xs = prepend (ys.INFO.head) (xs), ys = ys.INFO.tail
+					else
+					{
+						let i = 1
+						while (ys.CONS === 'Cons') xs = prepend (ys.INFO.head) (xs), ys = ys.INFO.tail, ++i
+						this.CACHE.len = xs.INFO.CACHE.len = i
+					}
+					xs.INFO.CACHE.last    = this.head
+					xs.INFO.CACHE.reverse = self
+					return xs
+				})()
+			}
 		},
-		concat : xs => List(...elements, ...xs.INFO),
-		drop : x => List(...elements.slice(Math.max(0, x))),
-		dropWhile : f =>
+
+		eq : xs =>
 		{
-			const i = elements.findIndex(x => !f(x))
-			return List(...(~i ? elements.slice(i) : []))
+			if (self === xs) return true
+			let ys = self, i = 0
+			while (xs.CONS === 'Cons' && ys.CONS === 'Cons')
+			{
+				if (i >= 256)
+					THROWRANGE (`(.eq) checked the max amount of elements ('256') in a possible 'List'`)
+				if (!(xs.INFO.head as any).eq(ys.INFO.head)) return false
+				xs = xs.INFO.tail, ys = ys.INFO.tail, ++i
+			}
+			return xs.CONS === ys.CONS
 		},
-		elem : x => elements.includes(x),
-		elemIndex : x =>
+		pipe   : f  => f (self),
+		plus   : xs => xs.CONS === 'Cons' ? Cons (() => self.INFO.head) (() => self.INFO.tail .plus (xs)) : self,
+		bind   : f  => concat (self .fmap (f)),
+		bindto : k  => f => self .bind ($ => f ($) .fmap (x => ({ ...$, [k] : x }) as any)),
+		fmap   : f  => Cons (() => f (self.INFO.head)) (() => self.INFO.tail .fmap (f)),
+		fmapto : k  => f => self .fmap ($ => ({ ...$, [k] : f ($) }) as any),
+		cast   : x  =>
 		{
-			const i = elements.indexOf(x)
-			return ~i ? Just(i) : Nothing
-		},
-		elemIndices : x =>
+			if (self.INFO.CACHE.len) return replicate (self.INFO.CACHE.len) (x)
+			const xs = Cons (() => x) (() => self.INFO.tail .cast (x))
+			xs.INFO.CACHE.head = xs.INFO.CACHE.last = x
+			return xs.INFO.CACHE.reverse = xs
+		}
+	}
+
+	return self
+}
+
+/**` List :: (...a) -> List a `*/
+const List = <a = any>(...xs : Array<a>) : List<a> =>
+{
+	let ys : List<a> = Nil
+	for (let i = xs.length - 1; ~i; --i) ys = prepend (xs[i] as a) (ys)
+	ys.INFO.CACHE.len = xs.length
+	return ys
+}
+
+/**` all :: (a -> Boolean) -> List a -> Boolean `*/
+const all = <a>(predicate : (element : a) => boolean) => (xs : List<a>) : boolean =>
+	!any ((x : a) => !predicate (x)) (xs)
+
+/**` any :: (a -> Boolean) -> List a -> Boolean `*/
+const any = <a>(predicate : (element : a) => boolean) => (xs : List<a>) : boolean =>
+{
+	while (xs.CONS === 'Cons')
+		if (predicate (xs.INFO.head)) return true
+		else xs = xs.INFO.tail
+	return false
+}
+
+/**` append :: a -> List a -> List a `*/
+const append = <a>(element : a) => (xs : List<a>) : List<a> =>
+	xs.CONS === 'Nil' ? singleton (element) :
+	Cons (() => xs.INFO.head) (() => append (element) (xs.INFO.tail))
+
+/**` array :: List a -> [a] `*/
+const array = <a>(xs : List<a>) : Array<a> =>
+{
+	const ys : Array<a> = []
+	for (let i = 256; i && xs.CONS === 'Cons'; ys.push(xs.INFO.head), xs = xs.INFO.tail)
+		if (!--i)
+			console.warn(`'array' reached the max lengthed array of 'List' ('256') which could suggest infinity.`)
+	return ys
+}
+
+/**` at :: Number -> List a -> a `*/
+const at = (index : number) => <a>(xs : List<a>) : a =>
+{
+	if (index < 0)
+		THROWRANGE (`'at' only accepts non-negatives as an index; received '${index}' as an input`)
+	if (xs.INFO.CACHE.len! <= index)
+		THROWRANGE (`'at' cannot get element at index '${index}' in 'List' of length '${xs.INFO.len}'`)
+
+	let i = index
+	while (xs.CONS === 'Cons')
+		if (--i < 0) return xs.INFO.head
+		else xs = xs.INFO.tail
+
+	return THROWRANGE (`'at' cannot get element at index '${index}' in 'List' `)
+}
+
+/**` concat :: List (List a) -> List a `*/
+const concat = <a>(xxs : List<List<a>>) : List<a> =>
+	xxs           .CONS === 'Nil' ? Nil                    :
+	xxs.INFO.head .CONS === 'Nil' ? concat (xxs.INFO.tail) :
+	Cons (() => xxs.INFO.head.INFO.head) (() => xxs.INFO.head.INFO.tail .plus (concat (xxs.INFO.tail)))
+
+/**` countBy :: Number -> Number -> List Number `*/
+const countBy = (delta : number) => (start : number) : List<number> =>
+	Cons (() => start) (() => countBy (delta) (start + delta))
+
+/**` countDownFrom :: Number -> List Number `*/
+const countDownFrom = (start : number) : List<number> =>
+	Cons (() => start) (() => countDownFrom (start - 1))
+
+/**` countUpFrom :: Number -> List Number `*/
+const countUpFrom = (start : number) : List<number> =>
+	Cons (() => start) (() => countUpFrom (start + 1))
+
+/**` cycle :: List a -> List a `*/
+const cycle = <a>(xs : List<a>) : List<a> =>
+{
+	const self : List<a> =
+	{
+		CONS : 'Cons',
+		INFO :
 		{
-			const is : Array<number> = []
-			elements.forEach((y, i) => {
-				if (x === y) is.push(i)
-			})
-			return List(...is)
+			CACHE : {},
+			head : xs.INFO.head,
+			tail : undefined as any,
+			init : undefined as any,
+			get last    () { return THROWRANGE (`'last' cannot be used on infinite 'List's from 'cycle'`) },
+			get len     () { return THROWRANGE (`'len' cannot be used on infinite 'List's from 'cycle'`) },
+			get reverse () { return THROWRANGE (`'reverse' cannot be used on infinite 'List's from 'cycle'`) }
 		},
-		filter : f => List(...elements.filter(x => f(x))),
-		find : f =>
+
+		eq : ys =>
 		{
-			const x = elements.find(y => f(y))
-			return x === undefined ? Nothing : Just(x)
+			if (self === ys) return true
+			let zs = self, i = 0
+			while (ys.CONS === 'Cons' && zs.CONS === 'Cons')
+			{
+				if (i >= 256)
+					THROWRANGE (`(.eq) checked the max amount of elements ('256') in a infinite 'List' from 'cycle'`)
+				if (!(ys.INFO.head as any).eq(zs.INFO.head)) return false
+				ys = ys.INFO.tail, zs = zs.INFO.tail, ++i
+			}
+			return ys.CONS === zs.CONS
 		},
-		findIndex : f =>
+		pipe   : f => f (self),
+		plus   : _ => self,
+		bind   : f => cycle (xs .bind (f)),
+		bindto : _ => THROWTYPE (`'.bindto' should only be used on monads coming from 'Do', not 'repeat'`),
+		fmap   : f => cycle (xs .fmap (f)),
+		fmapto : _ => THROWTYPE (`'.fmapto' should only be used on monads coming from 'Do', not 'repeat'`),
+		cast   : repeat
+	}
+
+	self.INFO.tail = xs.INFO.tail .plus (self)
+	self.INFO.init = self
+	return self
+}
+
+/**` drop :: Number -> List a -> List a `*/
+const drop = (amount : number) => <a>(xs : List<a>) : List<a> =>
+{
+	if (xs.INFO.CACHE.len! <= amount) return Nil
+	while (xs.CONS === 'Cons' && amount >= 1) xs = xs.INFO.tail, --amount
+	return xs
+}
+
+/**` dropWhile :: (a -> Boolean) -> List a -> List a `*/
+const dropWhile = <a>(predicate : (element : a) => boolean) => (xs : List<a>) : List<a> =>
+{
+	while (xs.CONS === 'Cons')
+		if (predicate (xs.INFO.head)) xs = xs.INFO.tail
+		else break
+	return xs
+}
+
+/**` elem :: a -> List a -> Boolean`*/
+const elem = <a>(value : a) => (xs : List<a>) : boolean =>
+{
+	while (xs.CONS === 'Cons')
+		if (xs.INFO.head === value) return true
+		else xs = xs.INFO.tail
+	return false
+}
+
+/**` elemIndex :: a -> List a -> Maybe Number `*/
+const elemIndex = <a>(value : a) => (xs : List<a>) : Maybe<number> =>
+{
+	for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs.INFO.tail)
+		if (xs.INFO.head === value) return Just (i)
+	return Nothing
+}
+
+/**` elemIndices :: a -> List a -> List Number `*/
+const elemIndices = <a>(value : a) => (xs : List<a>) : List<number> =>
+	xs.CONS === 'Nil' ? Nil :
+	xs.INFO.head === value
+		? Cons (() => 0) (() => elemIndices (value) (xs.INFO.tail) .fmap (x => x + 1))
+		: elemIndices (value) (xs.INFO.tail) .fmap (x => x + 1)
+
+/**` filter :: (a -> Boolean) -> List a -> List a `*/
+const filter = <a>(predicate : (element : a) => boolean) => (xs : List<a>) : List<a> =>
+	xs.CONS === 'Nil' ? Nil :
+		predicate (xs.INFO.head)
+			? Cons (() => xs.INFO.head) (() => filter (predicate) (xs.INFO.tail))
+			: filter (predicate) (xs.INFO.tail)
+
+/**` findIndex :: (a -> Boolean) -> List a -> Maybe Number `*/
+const findIndex = <a>(predicate : (element : a) => boolean) => (xs : List<a>) : Maybe<number> =>
+{
+	for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs.INFO.tail)
+		if (predicate (xs.INFO.head)) return Just (i)
+	return Nothing
+}
+
+/**` findIndices :: (a -> Boolean) -> List a -> List Number `*/
+const findIndices = <a>(predicate : (element : a) => boolean) => (xs : List<a>) : List<number> =>
+	xs.CONS === 'Nil' ? Nil :
+	predicate (xs.INFO.head)
+		? Cons (() => 0) (() => findIndices (predicate) (xs.INFO.tail) .fmap (x => x + 1))
+		: findIndices (predicate) (xs.INFO.tail) .fmap (x => x + 1)
+
+/**` foldl :: (b -> a -> b) -> b -> List a -> b `*/
+const foldl = <a, b>(operation : (previous : b) => (next : a) => b) => (initial : b) => (xs : List<a>) : b =>
+{
+	if (xs.INFO.CACHE.len)
+		while (xs.CONS === 'Cons')
+			initial = operation (initial) (xs.INFO.head), xs = xs.INFO.tail
+	else
+	{
+		let i = 0, ys = xs
+		while (ys.CONS === 'Cons')
+			initial = operation (initial) (ys.INFO.head), ys = ys.INFO.tail, ++i
+		xs.INFO.CACHE.len = i
+	}
+		return initial
+}
+
+/**` foldl1 :: (a -> a -> a) -> List a -> a `*/
+const foldl1 = <a>(operation : (previous : a) => (next : a) => a) => (xs : List<a>) : a =>
+	xs.CONS === 'Nil' ? THROWRANGE (`'foldl1' cannot be used on 'Nil' (an empty 'List')`) :
+	foldl (operation) (xs.INFO.head) (xs.INFO.tail)
+
+/**` foldr :: (a -> b -> b) -> b -> List a -> b `*/
+const foldr = <a, b>(operation : (previous : a) => (next : b) => b) => (initial : b) => (xs : List<a>) : b =>
+	foldl<a, b>(x => y => operation (y) (x)) (initial) (xs.INFO.reverse)
+
+/**` foldr1 :: (a -> a -> a) -> List a -> a `*/
+const foldr1 = <a>(operation : (previous : a) => (next : a) => a) => (xs : List<a>) : a =>
+	xs.CONS === 'Nil' ? THROWRANGE (`'foldr1' cannot be used on 'Nil' (an empty 'List')`) :
+	foldl<a, a>(x => y => operation (y) (x)) (xs.INFO.reverse.INFO.head) (xs.INFO.reverse.INFO.tail)
+
+/**` head :: List a -> a `*/
+const head = <a>(xs : List<a>) : a => xs.INFO.head
+
+/**` init :: List a -> List a `*/
+const init = <a>(xs : List<a>) : List<a> => xs.INFO.init
+
+/**` inits :: List a -> List (List a) `*/
+const inits = <a>(xs : List<a>) : List<List<a>> =>
+	xs.CONS === 'Nil' ? singleton (Nil as List<a>) :
+	Cons (() => Nil as List<a>) (() => inits (xs.INFO.tail) .fmap (prepend (xs.INFO.head)))
+
+/**` isEmpty :: List a -> Boolean `*/
+const isEmpty = <a>(xs : List<a>) : boolean =>
+	xs.CONS === 'Nil'
+
+/**` iterate :: (a -> a) -> a -> List a `*/
+const iterate = <a>(endomorphism : (input : a) => a) => (initial : a) : List<a> =>
+	Cons (() => initial) (() => iterate (endomorphism) (endomorphism (initial)))
+
+/**` intersperse :: a -> List a -> List a `*/
+const intersperse = <a>(delimiter : a) => (xs : List<a>) : List<a> =>
+	xs .bind (x => List(delimiter, x)).INFO.tail
+
+/**` last :: List a -> a `*/
+const last = <a>(xs : List<a>) : a => xs.INFO.last
+
+/**` len :: List a -> Number `*/
+const len = <a>(xs : List<a>) : number => xs.INFO.len
+
+/**` map :: (a -> b) -> List a -> List b `*/
+const map = <a, b>(morphism : (element : a) => b) => (xs : List<a>) : List<b> =>
+	xs .fmap (morphism)
+
+/**` partition :: (a -> Boolean) -> List a -> (List a, List a) `*/
+const partition = <a>(predicate : (element : a) => boolean) => (xs : List<a>) : [List<a>, List<a>] =>
+	[filter (predicate) (xs), filter ((x : a) => !predicate(x)) (xs)]
+
+/**` prepend :: a -> List a -> List a `*/
+const prepend = <a>(element : a) => (xs : List<a>) : List<a> =>
+	xs.CONS === 'Nil' ? singleton (element) :
+	(() => {
+		const self : List<a> =
 		{
-			const i = elements.findIndex(y => f(y))
-			return ~i ? Just(i) : Nothing
-		},
-		findIndices : f =>
+			CONS : 'Cons',
+			INFO :
+			{
+				CACHE :
+				{
+					head : element,
+					tail : xs
+				},
+				head : element,
+				tail : xs,
+				get len  () { return this.CACHE.len  ??= xs.INFO.len + 1 },
+				get last () { return this.CACHE.last ??= xs.CONS === 'Cons' ? xs.INFO.last : element },
+				get init () { return this.CACHE.init ??= xs.CONS === 'Cons' ? xs.INFO.init : Nil },
+				get reverse()
+				{
+					return this.CACHE.reverse ??=
+						xs.CONS === 'Cons'
+							? append (element) (xs.INFO.reverse)
+							: self
+				}
+			},
+
+			eq : ys =>
+			{
+				if (self === ys) return true
+				let zs = self
+				while (ys.CONS === 'Cons' && zs.CONS === 'Cons')
+				{
+					if (!(ys.INFO.head as any).eq(zs.INFO.head)) return false
+					ys = ys.INFO.tail, zs = zs.INFO.tail
+				}
+				return true
+			},
+			pipe   : f  => f (self),
+			plus   : ys => ys.CONS === 'Cons' ? Cons (() => self.INFO.head) (() => self.INFO.tail .plus (ys)) : self,
+			bind   : f  => concat (self .fmap (f)),
+			bindto : k  => f => self .bind ($ => f ($) .fmap (x => ({ ...$, [k] : x }) as any)),
+			fmap   : f  => Cons (() => f (self.INFO.head)) (() => self.INFO.tail .fmap (f)),
+			fmapto : k  => f => self .fmap ($ => ({ ...$, [k] : f ($) }) as any),
+			cast   : x  =>
+			{
+				if (self.INFO.CACHE.len) return replicate (self.INFO.CACHE.len) (x)
+				const ys = Cons (() => x) (() => xs .cast (x))
+				ys.INFO.CACHE.head = ys.INFO.CACHE.last = x
+				return ys.INFO.CACHE.reverse = ys
+			}
+		}
+
+		return self
+	})()
+
+/**` repeat :: a -> List a `*/
+const repeat = <a>(value : a) : List<a> =>
+{
+	const self : List<a> =
+	{
+		CONS : 'Cons',
+		INFO :
 		{
-			const is : Array<number> = []
-			elements.forEach((y, i) => {
-				if (f(y)) is.push(i)
-			})
-			return List(...is)
+			CACHE :
+			{
+				head : value
+			},
+			head : value,
+			tail : undefined as any,
+			init : undefined as any,
+			get last    () { return THROWRANGE (`'last' cannot be used on infinite 'List's from 'repeat'`) },
+			get len     () { return THROWRANGE (`'len' cannot be used on infinite 'List's from 'repeat'`) },
+			get reverse () { return THROWRANGE (`'reverse' cannot be used on infinite 'List's from 'repeat'`) }
 		},
-		fmap : f => List(...elements.map(x => f(x))),
-		fmapto : k => f => List(...elements.map($ => ({ ...$, [k]: f($) }))) as any,
-		foldl : f => x => elements.reduce((y, z) => f(y)(z), x),
-		foldr : f => x => elements.reduceRight((y, z) => f(z)(y), x),
-		foldl1 : f =>
-			elements.length
-				? elements.reduce((y, z) => f(y)(z))
-				: THROWRANGE(`Cannot 'foldl1' on an empty 'List'`),
-		foldr1 : f =>
-			elements.length
-				? elements.reduceRight((y, z) => f(z)(y))
-				: THROWRANGE(`Cannot 'foldr1' on an empty 'List'`),
-		get head()
+		eq : xs =>
 		{
-			return elements.length
-				? elements[0] as a
-				: THROWRANGE(`Cannot get 'head' of an empty 'List'`)
+			if (self === xs) return true
+			let ys = self, i = 0
+			while (xs.CONS === 'Cons' && ys.CONS === 'Cons')
+			{
+				if (i >= 256)
+					THROWRANGE (`(.eq) checked the max amount of elements ('256') in a infinite 'List' from 'repeat'`)
+				if (!(xs.INFO.head as any).eq(ys.INFO.head)) return false
+				xs = xs.INFO.tail, ys = ys.INFO.tail, ++i
+			}
+			return xs.CONS === ys.CONS
 		},
-		ifilter : f => List(...elements.filter((x, i) => f(i)(x))),
-		imap : f => List(...elements.map((x, i) => f(i)(x))),
-		get indexed()
+		pipe   : f => f (self),
+		plus   : _ => self,
+		bind   : f => concat (repeat (f (value))),
+		bindto : _ => THROWTYPE (`'.bindto' should only be used on monads coming from 'Do', not 'repeat'`),
+		fmap   : f => repeat (f (value)),
+		fmapto : _ => THROWTYPE (`'.fmapto' should only be used on monads coming from 'Do', not 'repeat'`),
+		cast   : repeat
+	}
+
+	return self.INFO.tail = self.INFO.init = self
+}
+
+/**` replicate :: Number -> a -> List a `*/
+const replicate = (amount : number) => <a>(value : a) : List<a> =>
+	amount < 1 ? Nil :
+	Cons (() => value) (() => replicate (amount - 1) (value))
+
+/**` reverse :: List a -> List a `*/
+const reverse = <a>(xs : List<a>) : List<a> => xs.INFO.reverse
+
+/**` scanl :: (b -> a -> b) -> List a -> List b `*/
+const scanl = <a, b>(operation : (previous : b) => (next : a) => b) => (initial : b) => (xs : List<a>) : List<b> =>
+	xs.CONS === 'Nil' ? singleton (initial) :
+	Cons (() => initial) (() => scanl (operation) (operation (initial) (xs.INFO.head)) (xs.INFO.tail))
+
+/**` scanl1 :: (a -> a -> a) -> List a -> List a `*/
+const scanl1 = <a>(operation : (previous : a) => (next : a) => a) => (xs : List<a>) : List<a> =>
+	xs.CONS === 'Nil' ? Nil :
+	scanl (operation) (xs.INFO.head) (xs.INFO.tail)
+
+/**` scanr :: (a -> b -> b) -> b -> List a -> List b `*/
+const scanr = <a, b>(operation : (previous : a) => (next : b) => b) => (initial : b) => (xs : List<a>) : List<b> =>
+{
+	xs = xs.INFO.reverse
+	let ys = singleton (initial)
+	if (xs.INFO.CACHE.len)
+		while (xs.CONS === 'Cons')
+			ys = prepend (operation (xs.INFO.head) (ys.INFO.head)) (ys), xs = xs.INFO.tail
+	else
+	{
+		let i = 1
+		while (xs.CONS === 'Cons')
+			ys = prepend (operation (xs.INFO.head) (ys.INFO.head)) (ys), xs = xs.INFO.tail, ++i
+		ys.INFO.CACHE.len = i
+	}
+	return ys
+}
+
+/**` scanr1 :: (a -> a -> a) -> List a -> List a `*/
+const scanr1 = <a>(operation : (previous : a) => (next : a) => a) => (xs : List<a>) : List<a> =>
+{
+	if (xs.CONS === 'Nil') return Nil
+	xs = xs.INFO.reverse
+	let ys = singleton (xs.INFO.head)
+	xs = xs.INFO.tail
+	while (xs.CONS === 'Cons')
+		ys = prepend (operation (xs.INFO.head) (ys.INFO.head)) (ys), xs = xs.INFO.tail
+	return ys
+}
+
+/**` singleton :: a -> List a `*/
+const singleton = <a>(value : a) : List<a> =>
+{
+	const self : List<a> =
 		{
-			return List(...elements.map((x, i) => [i, x] as any))
-		},
-		indexFilter : f => List(...elements.filter((_, i) => f(i))),
-		indexMap : f => List(...elements.map((_, i) => f(i))),
-		get init()
-		{
-			return List(...elements.slice(0, -1))
-		},
-		get inits()
-		{
-			return List(...Array(elements.length + 1).fill(null).map((_, i) => List(...elements.slice(0, i))))
-		},
-		intersperse : x =>
-			List(...Array(Math.max(0, elements.length * 2 - 1)).fill(null).map((_, i) => i % 2 ? x : elements[i / 2] as a)),
-		get last()
-		{
-			return elements.length
-				? elements[elements.length - 1] as a
-				: THROWRANGE(`Cannot get 'last' of an empty 'List'`)
-		},
-		notElem : x => !elements.includes(x),
-		prepend : x => List(x, ...elements),
-		get reverse()
-		{
-			return List(...elements.slice().reverse())
-		},
-		scanl : f => x => List(...elements.reduce((y, z) => y.concat(f(y[y.length - 1]!)(z)), [x])),
-		scanr : f => x => List(...elements.reduceRight((y, z) => [f(z)(y[0]!)].concat(y), [x])),
-		scanl1 : f =>
-			List(...elements.slice(1).reduce((x, y) => x.concat(f(x[x.length - 1]!)(y)), [elements[0] as a])),
-		scanr1 : f =>
-			List(...elements.slice(0, -1).reduceRight((x, y) => [f(y)(x[0]!)].concat(x), [elements[elements.length - 1] as a])),
-		span : f =>
-		{
-			const i = elements.findIndex(x => !f(x))
-			return ~i
-				? [List(...elements.slice(0, i)), List(...elements.slice(i))]
-				: [List(), List(...elements)]
-		},
-		splitAt : i => [List(...elements.slice(0, Math.max(0, i))), List(...elements.slice(Math.max(0, i)))],
-		get tail()
-		{
-			return elements.length
-				? List(...elements.slice(1))
-				: THROWRANGE(`Cannot get 'tail' of an empty 'List'`)
-		},
-		get tails()
-		{
-			return List(...Array(elements.length + 1).fill(null).map((_, i) => List(...elements.slice(i))))
-		},
-		take : x => List(...elements.slice(0, Math.max(0, x))),
-		takeWhile : f =>
-		{
-			const i = elements.findIndex(x => !f(x))
-			return ~i
-				? List(...elements.slice(0, i))
-				: List(...elements)
-		},
-		zip : xs =>
-			List(...Array(Math.min(elements.length, xs.INFO.length)).fill(null).map((_, i) => [elements[i], xs.INFO[i]] as any)),
-		zipWith : xs => f =>
-			List(...Array(Math.min(elements.length, xs.INFO.length)).fill(null).map((_, i) => f(elements[i]!)(xs.INFO[i]!)))
-	})
+			CONS : 'Cons',
+			INFO :
+			{
+				CACHE :
+				{
+					head    : value,
+					tail    : Nil,
+					last    : value,
+					init    : Nil,
+					len     : 1,
+					reverse : undefined as any
+				},
+				head    : value,
+				tail    : Nil,
+				last    : value,
+				init    : Nil,
+				len     : 1,
+				reverse : undefined as any
+			},
+
+			eq : xs =>
+			{
+				if (self === xs) return true
+				if (xs.CONS === 'Nil' || xs.INFO.tail.CONS === 'Cons') return false
+				return (xs.INFO.head as any) .eq (value)
+			},
+			pipe   : f  => f (self),
+			plus   : xs => xs.CONS === 'Cons' ? prepend (value) (xs) : self,
+			bind   : f  => f (value),
+			bindto : _  => THROWTYPE (`'.bindto' should be used in monads coming from 'Do', not 'singleton'`),
+			fmap   : f  => singleton (f (value)),
+			fmapto : _  => THROWTYPE (`'.fmapto' should be used in monads coming from 'Do', not 'singleton'`),
+			cast   : singleton
+		}
+
+	self.INFO.reverse = self.INFO.CACHE.reverse = self
+	return self
+}
+
+/**` span :: (a -> Boolean) -> List a -> (List a, List a) `*/
+const span = <a>(predicate : (element : a) => boolean) => (xs : List<a>) : [List<a>, List<a>] =>
+	[takeWhile (predicate) (xs), dropWhile (predicate) (xs)]
+
+/**` splitAt :: Number -> List a -> (List a, List a) `*/
+const splitAt = (index : number) => <a>(xs : List<a>) : [List<a>, List<a>] =>
+	[take (index) (xs), drop (index) (xs)]
+
+/**` string :: String -> List String `*/
+const string = (str : string) : List<string> =>
+	str
+		? (() => {
+			const self : List<string> =
+			{
+				CONS : 'Cons',
+				INFO :
+				{
+					CACHE :
+					{
+						head : str[0]!,
+						last : str.slice(-1),
+						len  : str.length
+					},
+					head : str[0]!,
+					last : str.slice(-1),
+					len  : str.length,
+					get tail()    { return this.CACHE.tail    ??= string (str.slice(1)) },
+					get init()    { return this.CACHE.init    ??= string (str.slice(0, str.length - 1)) },
+					get reverse() { return this.CACHE.reverse ??= string (str.split("").reverse().join("")) }
+				},
+
+				eq : xs =>
+				{
+					if (self === xs) return true
+					let ys = self, i = 0
+					while (xs.CONS === 'Cons' && ys.CONS === 'Cons')
+					{
+						if (i >= 256)
+							THROWRANGE (`(.eq) checked the max amount of characters ('256') in a possible infinite 'List'`)
+						if (!(xs.INFO.head as any).eq(ys.INFO.head)) return false
+						xs = xs.INFO.tail, ys = ys.INFO.tail, ++i
+					}
+					return xs.CONS === ys.CONS
+				},
+				get pipe() { return (f : any) => f (this) },
+				plus (xs) { return xs.CONS === 'Cons' ? Cons (() => this.INFO.head) (() => this.INFO.tail .plus (xs)) : Nil },
+				bind (f)  { return concat (this .fmap (f)) },
+				fmap (f)  { return List (...str.split("").map(x => f(x))) },
+				bindto : _ => THROWTYPE (`'.bindto' should be used in monads coming from 'Do', not 'string'`),
+				fmapto : _ => THROWTYPE (`'.fmapto' should be used in monads coming from 'Do', not 'string'`),
+				cast   : x => replicate (str.length) (x)
+			}
+			return self
+		})()
+		: Nil
+
+/**` tail :: List a -> List a `*/
+const tail = <a>(xs : List<a>) : List<a> => xs.INFO.tail
+
+/**` tails :: List a -> List (List a) `*/
+const tails = <a>(xs : List<a>) : List<List<a>> =>
+	xs.CONS === 'Nil' ? singleton (Nil as List<a>) :
+	Cons (() => xs as List<a>) (() => tails (xs.INFO.tail))
+
+/**` take :: Number -> List a -> List a `*/
+const take = (amount : number) => <a>(xs : List<a>) : List<a> =>
+	amount < 1                   ? Nil :
+	xs.INFO.CACHE.len! <= amount ? xs  :
+	Cons (() => xs.INFO.head) (() => take (amount - 1) (xs.INFO.tail))
+
+/**` takeWhile :: (a -> Boolean) -> List a -> List a `*/
+const takeWhile = <a>(predicate : (element : a) => boolean) => (xs : List<a>) : List<a> =>
+	xs.CONS === 'Nil'        ? xs :
+	predicate (xs.INFO.head)
+		? Cons (() => xs.INFO.head) (() => takeWhile (predicate) (xs.INFO.tail))
+		: Nil
+
+/**` unstring :: List String -> String `*/
+const unstring = (xs : List<string>) : string =>
+{
+	let s = ""
+	for (let i = 256; i && xs.CONS === 'Cons'; s += xs.INFO.head, xs = xs.INFO.tail)
+		if (!--i)
+			console.warn(`'unstring' reached the max lengthed string of 'List' ('256') which could suggest infinity.`)
+	return s
+}
+
+/**` unzip :: List (a, b) -> (List a, List b) `*/
+const unzip = <a, b>(xs : List<[a, b]>) : [List<a>, List<b>] =>
+	[xs .fmap (x => x[0]), xs .fmap (x => x[1])]
+
+/**` zip :: List a -> List b -> List (a, b) `*/
+const zip = <a>(xs : List<a>) => <b>(ys : List<b>) : List<[a, b]> =>
+	xs.CONS === 'Nil' || ys.CONS === 'Nil' ? Nil :
+	Cons (() => [xs.INFO.head, ys.INFO.head] as [a, b]) (() => zip (xs.INFO.tail) (ys.INFO.tail))
+
+/**` zipWith :: (a -> b -> c) -> List a -> List b -> List c `*/
+const zipWith = <a, b, c> (zipper : (x : a) => (y : b) => c) => (xs : List<a>) => (ys : List<b>) : List<c> =>
+	xs.CONS === 'Nil' || ys.CONS === 'Nil' ? Nil :
+	Cons (() => zipper (xs.INFO.head) (ys.INFO.head)) (() => zipWith (zipper) (xs.INFO.tail) (ys.INFO.tail))
+
+/********************************************************************************************************************************/
+
+/**` Vector2D (Eq, Pipeable) `*/
+type Vector2D =
+	{
+		CONS : 'Vector2D'
+
+		/**` (.eq) :: Vector2D -> Vector2D -> Boolean `*/
+		eq : (value : Vector2D) => boolean
+
+		/**` (.pipe) :: Vector2D -> (Vector2D -> a) -> a `*/
+		pipe : <a>(morphism : (vector : Vector2D) => a) => a
+
+		/**` (.x) :: Vector2D -> Number `*/
+		x : number
+
+		/**` (.y) :: Vector2D -> Number `*/
+		y : number
+	}
 
 /**` Vector2D :: Number -> Number -> Vector2D `*/
 const Vector2D = (x : number) => (y : number) : Vector2D =>
 	({
 		CONS : 'Vector2D',
+		eq : v => v.x === x && v.y === y,
+		get pipe() { return (f : any) => f (this) },
 		x, y
 	})
+
+/**` Vector3D (Eq, Pipeable) `*/
+type Vector3D =
+	{
+		CONS : 'Vector3D'
+
+		/**` (.eq) :: Vector3D -> Vector3D -> Boolean `*/
+		eq : (value : Vector3D) => boolean
+
+		/**` (.pipe) :: Vector3D -> (Vector3D -> a) -> a `*/
+		pipe : <a>(morphism : (vector : Vector3D) => a) => a
+
+		/**` (.x) :: Vector3D -> Number `*/
+		x : number
+
+		/**` (.y) :: Vector3D -> Number `*/
+		y : number
+
+		/**` (.z) :: Vector3D -> Number `*/
+		z : number
+	}
 
 /**` Vector3D :: Number -> Number -> Number -> Vector3D `*/
 const Vector3D = (x : number) => (y : number) => (z : number) : Vector3D =>
 	({
 		CONS : 'Vector3D',
+		eq : v => v.x === x && v.y === y && v.z === z,
+		get pipe() { return (f : any) => f (this) },
 		x, y, z
 	})
+
+/**` Vector4D `*/
+type Vector4D =
+	{
+		CONS : 'Vector4D'
+
+		/**` (.eq) :: Vector4D -> Vector4D -> Boolean `*/
+		eq : (value : Vector4D) => boolean
+
+		/**` (.pipe) :: Vector4D -> (Vector4D -> a) -> a `*/
+		pipe : <a>(morphism : (vector : Vector4D) => a) => a
+
+		/**` (.x) :: Vector4D -> Number `*/
+		x : number
+
+		/**` (.y) :: Vector4D -> Number `*/
+		y : number
+
+		/**` (.z) :: Vector4D -> Number `*/
+		z : number
+
+		/**` (.w) :: Vector4D -> Number `*/
+		w : number
+	}
 
 /**` Vector4D :: Number -> Number -> Number -> Number -> Vector4D `*/
 const Vector4D = (x : number) => (y : number) => (z : number) => (w : number) : Vector4D =>
 	({
 		CONS : 'Vector4D',
+		eq : v => v.x === x && v.y === y && v.z === z && v.w === w,
+		get pipe() { return (f : any) => f (this) },
 		x, y, z, w
 	})
+
+/********************************************************************************************************************************/
+
+/**` Matrix2x2 (Eq, Pipeable) `*/
+type Matrix2x2 =
+	{
+		CONS : 'Matrix2x2'
+
+		/**` eq :: Matrix2x2 -> Matrix2x2 -> boolean `*/
+		eq : (value : Matrix2x2) => boolean
+
+		/**` pipe :: Matrix2x2 -> (Matrix2x2 -> a) -> a `*/
+		pipe : <a>(morphism : (matrix : Matrix2x2) => a) => a
+
+		/**` (.ix) :: Matrix2x2 -> Number `*/
+		ix : number
+
+		/**` (.jx) :: Matrix2x2 -> Number `*/
+		jx : number
+
+		/**` (.iy) :: Matrix2x2 -> Number `*/
+		iy : number
+
+		/**` (.jy) :: Matrix2x2 -> Number `*/
+		jy : number
+
+		/**` (.i) :: Matrix2x2 -> Vector2D `*/
+		i : Vector2D
+
+		/**` (.j) :: Matrix2x2 -> Vector2D `*/
+		j : Vector2D
+
+		/**` (.x) :: Matrix2x2 -> Vector2D `*/
+		x : Vector2D
+
+		/**` (.y) :: Matrix2x2 -> Vector2D `*/
+		y : Vector2D
+	}
 
 /**` Matrix2x2 :: (4 Number...) -> Matrix2x2 `*/
 const Matrix2x2 =
@@ -1105,11 +1483,76 @@ const Matrix2x2 =
 		(iy : number) => (jy : number) : Matrix2x2 =>
 	({
 		CONS : 'Matrix2x2',
+		eq : m => m.ix === ix && m.jx === jx && m.iy === iy && m.jy === jy,
+		get pipe() { return (f : any) => f (this) },
 		ix, jx,
 		iy, jy,
 		i : Vector2D(ix)(iy), j : Vector2D(jx)(jy),
 		x : Vector2D(ix)(jx), y : Vector2D(iy)(jy)
 	})
+
+/**` Matrix2D :: Vector2D -> Vector2D -> Matrix2x2 `*/
+const Matrix2D = (i : Vector2D) => (j : Vector2D) : Matrix2x2 =>
+	Matrix2x2
+		(i.x)(j.x)
+		(i.y)(j.y)
+
+/**` Matrix3x3 (Eq, Pipeable) `*/
+type Matrix3x3 =
+	{
+		CONS : 'Matrix3x3'
+
+		/**` eq :: Matrix3x3 -> Matrix3x3 -> boolean `*/
+		eq : (value : Matrix3x3) => boolean
+
+		/**` pipe :: Matrix3x3 -> (Matrix3x3 -> a) -> a `*/
+		pipe : <a>(morphism : (matrix : Matrix3x3) => a) => a
+
+		/**` (.ix) :: Matrix3x3 -> Number `*/
+		ix : number
+
+		/**` (.jx) :: Matrix3x3 -> Number `*/
+		jx : number
+
+		/**` (.kx) :: Matrix3x3 -> Number `*/
+		kx : number
+
+		/**` (.iy) :: Matrix3x3 -> Number `*/
+		iy : number
+
+		/**` (.jy) :: Matrix3x3 -> Number `*/
+		jy : number
+
+		/**` (.ky) :: Matrix3x3 -> Number `*/
+		ky : number
+
+		/**` (.iz) :: Matrix3x3 -> Number `*/
+		iz : number
+
+		/**` (.jz) :: Matrix3x3 -> Number `*/
+		jz : number
+
+		/**` (.kz) :: Matrix3x3 -> Number `*/
+		kz : number
+
+		/**` (.i) :: Matrix3x3 -> Vector3D `*/
+		i : Vector3D
+
+		/**` (.j) :: Matrix3x3 -> Vector3D `*/
+		j : Vector3D
+
+		/**` (.k) :: Matrix3x3 -> Vector3D `*/
+		k : Vector3D
+
+		/**` (.x) :: Matrix3x3 -> Vector3D `*/
+		x : Vector3D
+
+		/**` (.y) :: Matrix3x3 -> Vector3D `*/
+		y : Vector3D
+
+		/**` (.z) :: Matrix3x3 -> Vector3D `*/
+		z : Vector3D
+	}
 
 /**` Matrix3x3 :: (9 Number...) -> Matrix3x3 `*/
 const Matrix3x3 =
@@ -1118,12 +1561,108 @@ const Matrix3x3 =
 		(iz : number) => (jz : number) => (kz : number) : Matrix3x3 =>
 	({
 		CONS : 'Matrix3x3',
+		eq : m =>
+			m.ix === ix && m.jx === jx && m.kx === kx &&
+			m.iy === iy && m.jy === jy && m.ky === ky &&
+			m.iz === iz && m.jz === jz && m.kz === kz,
+		get pipe() { return (f : any) => f (this) },
 		ix, jx, kx,
 		iy, jy, ky,
 		iz, jz, kz,
 		i : Vector3D(ix)(iy)(iz), j : Vector3D(jx)(jy)(jz), k : Vector3D(kx)(ky)(kz),
 		x : Vector3D(ix)(jx)(kx), y : Vector3D(iy)(jy)(ky), z : Vector3D(iz)(jz)(kz)
 	})
+
+/**` Matrix3D :: Vector3D -> Vector3D -> Vector3D -> Matrix3x3 `*/
+const Matrix3D = (i : Vector3D) => (j : Vector3D) => (k : Vector3D) : Matrix3x3 =>
+	Matrix3x3
+		(i.x)(j.x)(k.x)
+		(i.y)(j.y)(k.y)
+		(i.z)(j.z)(k.z)
+
+/**` Matrix4x4 (Eq, Pipeable) `*/
+type Matrix4x4 =
+	{
+		CONS : 'Matrix4x4'
+
+		/**` eq :: Matrix4x4 -> Matrix4x4 -> boolean `*/
+		eq : (value : Matrix4x4) => boolean
+
+		/**` pipe :: Matrix4x4 -> (Matrix4x4 -> a) -> a `*/
+		pipe : <a>(morphism : (matrix : Matrix4x4) => a) => a
+
+		/**` (.i)x ::Matrix4x4 ->  Number `*/
+		ix : number
+
+		/**` (.j)x ::Matrix4x4 ->  Number `*/
+		jx : number
+
+		/**` (.k)x ::Matrix4x4 ->  Number `*/
+		kx : number
+
+		/**` (.l)x ::Matrix4x4 ->  Number `*/
+		lx : number
+
+		/**` (.i)y ::Matrix4x4 ->  Number `*/
+		iy : number
+
+		/**` (.j)y ::Matrix4x4 ->  Number `*/
+		jy : number
+
+		/**` (.k)y ::Matrix4x4 ->  Number `*/
+		ky : number
+
+		/**` (.l)y ::Matrix4x4 ->  Number `*/
+		ly : number
+
+		/**` (.i)z ::Matrix4x4 ->  Number `*/
+		iz : number
+
+		/**` (.j)z ::Matrix4x4 ->  Number `*/
+		jz : number
+
+		/**` (.k)z ::Matrix4x4 ->  Number `*/
+		kz : number
+
+		/**` (.l)z ::Matrix4x4 ->  Number `*/
+		lz : number
+
+		/**` (.i)w ::Matrix4x4 ->  Number `*/
+		iw : number
+
+		/**` (.j)w ::Matrix4x4 ->  Number `*/
+		jw : number
+
+		/**` (.k)w ::Matrix4x4 ->  Number `*/
+		kw : number
+
+		/**` (.l)w ::Matrix4x4 ->  Number `*/
+		lw : number
+
+		/**` (.i) :: Matrix4x4 -> Vector4D `*/
+		i : Vector4D
+
+		/**` (.j) :: Matrix4x4 -> Vector4D `*/
+		j : Vector4D
+
+		/**` (.k) :: Matrix4x4 -> Vector4D `*/
+		k : Vector4D
+
+		/**` (.l) :: Matrix4x4 -> Vector4D `*/
+		l : Vector4D
+
+		/**` (.x) :: Matrix4x4 -> Vector4D `*/
+		x : Vector4D
+
+		/**` (.y) :: Matrix4x4 -> Vector4D `*/
+		y : Vector4D
+
+		/**` (.z) :: Matrix4x4 -> Vector4D `*/
+		z : Vector4D
+
+		/**` (.w) :: Matrix4x4 -> Vector4D `*/
+		w : Vector4D
+	}
 
 /**` Matrix4x4 :: (16 Number...) -> Matrix4x4 `*/
 const Matrix4x4 =
@@ -1133,6 +1672,12 @@ const Matrix4x4 =
 		(iw : number) => (jw : number) => (kw : number) => (lw : number) : Matrix4x4 =>
 	({
 		CONS : 'Matrix4x4',
+		eq : m =>
+			m.ix === ix && m.jx === jx && m.kx === kx && m.lx === lx &&
+			m.iy === iy && m.jy === jy && m.ky === ky && m.ly === ly &&
+			m.iz === iz && m.jz === jz && m.kz === kz && m.lz === lz &&
+			m.iw === iw && m.jw === jw && m.kw === kw && m.lw === lw,
+		get pipe() { return (f : any) => f (this) },
 		ix, jx, kx, lx,
 		iy, jy, ky, ly,
 		iz, jz, kz, lz,
@@ -1141,12 +1686,54 @@ const Matrix4x4 =
 		x : Vector4D(ix)(jx)(kx)(lx), y : Vector4D(iy)(jy)(ky)(ly), z : Vector4D(iz)(jz)(kz)(lz), w : Vector4D(iw)(jw)(kw)(lw)
 	})
 
+/**` Matrix4D :: Vector4D -> Vector4D -> Vector4D -> Vector4D -> Matrix4x4 `*/
+const Matrix4D = (i : Vector4D) => (j : Vector4D) => (k : Vector4D) => (l : Vector4D) : Matrix4x4 =>
+	Matrix4x4
+		(i.x)(j.x)(k.x)(l.x)
+		(i.y)(j.y)(k.y)(l.y)
+		(i.z)(j.z)(k.z)(l.z)
+		(i.w)(j.w)(k.w)(l.w)
+
+/********************************************************************************************************************************/
+
+/** A simple data type that stores information about the measurement of texts in rendering. */
+type TextMeasurement =
+	{
+		CONS : 'TextMeasurement'
+
+		/**` (.text) :: TextMeasurement -> String `*/
+		text : string
+
+		/**` (.width) :: TextMeasurement -> Number `*/
+		width : number
+
+		/**` (.height) :: TextMeasurement -> Number `*/
+		height : number
+	}
+
 /**` TextMeasurement :: String -> Number -> Number -> TextMeasurement `*/
 const TextMeasurement = (text : string) => (width : number) => (height : number) : TextMeasurement =>
 	({
 		CONS : 'TextMeasurement',
 		text, width, height
 	})
+
+/********************************************************************************************************************************/
+
+/** An inline version of the `switch` statement. */
+type Switch<a, b> =
+	{
+		CONS : 'Switch'
+
+		/**` (.case) :: Switch a b -> a -> (() -> b) -> Switch a b `*/
+		case : (domain : a) => (codomain : () => b) => Switch<a, b>
+
+		/**` (.else) :: Switch a b -> (() -> b) -> Switch a b `*/
+		else : (codomain : () => b) => Switch<a, b>
+
+		/**` (.with) :: Switch a b -> a -> b `*/
+		with : (value : a) => b
+	}
 
 /**` Switch.case :: a -> (() -> b) -> Switch a b `*/
 const Switch = <a, b>(f : (x : a) => b | undefined) : Switch<a, b> =>
@@ -1172,6 +1759,24 @@ const Switch = <a, b>(f : (x : a) => b | undefined) : Switch<a, b> =>
 Switch.case = <a>(domain : a) => <b>(codomain : () => b) : Switch<a, b> =>
 	Switch<a, b>(x => x === domain ? codomain() : undefined)
 
+/********************************************************************************************************************************/
+
+/** A data structure that maps values to other values supplied with an inverse. */
+type Bijection<a, b> =
+	{
+		CONS : 'Bijection'
+		INFO : ReadonlyArray<[a, b]>
+
+		/**` (.of) :: Bijection a b -> a -> b -> Bijection a b `*/
+		of : (domainValue : a) => (codomainValue : b) => Bijection<a, b>
+
+		/**` (.domain) :: Bijection a b -> a -> b `*/
+		domain : (domainValue : a) => b
+
+		/**` (.codomain) :: Bijection a b -> b -> a `*/
+		codomain : (codomainValue : b) => a
+	}
+
 /**` Bijection.of :: a -> b -> Bijection a b `*/
 const Bijection = <a, b>(pairs : ReadonlyArray<[a, b]>) : Bijection<a, b> =>
 	({
@@ -1194,6 +1799,17 @@ const Bijection = <a, b>(pairs : ReadonlyArray<[a, b]>) : Bijection<a, b> =>
 
 Bijection.of = <a>(domainValue : a) => <b>(codomainValue : b) : Bijection<a, b> =>
 	Bijection([[domainValue, codomainValue]])
+
+/********************************************************************************************************************************/
+
+/**` unit :: (Monad m) => a -> m a `*/
+const unit =
+	{
+		IO    : <a>(output : a) : IO<a> => IO(() => output),
+		Maybe : Just,
+		State : <a>(output : a) : State<null, a> => State(_ => [null, output]),
+		List  : <a>(element : a) : List<a> => Cons (() => element) (() => Nil)
+	} as const
 
 /********************************************************************************************************************************/
 
@@ -1331,33 +1947,33 @@ const relaxLateral = (direction : Lateral) : Lateral =>
 		.else (() => direction)
 		.with (direction)
 
-/**` bijectionLineCap :: Bijection LineCap CanvasLineCap `*/
-const bijectionLineCap : Bijection<LineCap, CanvasLineCap> =
+/**` bijectionLineCap :: Bijection LineCap String `*/
+const bijectionLineCap : Bijection<LineCap, string> =
 	Bijection
-		.of (LineCap.Butt)   ('butt' as CanvasLineCap)
+		.of (LineCap.Butt)   ('butt')
 		.of (LineCap.Round)  ('round')
 		.of (LineCap.Square) ('square')
 
-/**` bijectionLineJoin :: Bijection LineJoin CanvasLineJoin `*/
-const bijectionLineJoin : Bijection<LineJoin, CanvasLineJoin> =
+/**` bijectionLineJoin :: Bijection LineJoin String `*/
+const bijectionLineJoin : Bijection<LineJoin, string> =
 	Bijection
-		.of (LineJoin.Round) ('round' as CanvasLineJoin)
+		.of (LineJoin.Round) ('round')
 		.of (LineJoin.Bevel) ('bevel')
 		.of (LineJoin.Miter) ('miter')
 
-/**` bijectionTextAlign :: Bijection TextAlign CanvasTextAlign `*/
-const bijectionTextAlign : Bijection<TextAlign, CanvasTextAlign> =
+/**` bijectionTextAlign :: Bijection TextAlign String `*/
+const bijectionTextAlign : Bijection<TextAlign, string> =
 	Bijection
-		.of (TextAlign.Center) ('center' as CanvasTextAlign)
+		.of (TextAlign.Center) ('center')
 		.of (TextAlign.End)    ('end')
 		.of (TextAlign.Left)   ('left')
 		.of (TextAlign.Right)  ('right')
 		.of (TextAlign.Start)  ('start')
 
-/**` bijectionTextBaseline :: Bijection TextBaseline CanvasTextBaseline `*/
-const bijectionTextBaseline : Bijection<TextBaseline, CanvasTextBaseline> =
+/**` bijectionTextBaseline :: Bijection TextBaseline String `*/
+const bijectionTextBaseline : Bijection<TextBaseline, string> =
 	Bijection
-		.of (TextBaseline.Alphabetic)  ('alphabetic' as CanvasTextBaseline)
+		.of (TextBaseline.Alphabetic)  ('alphabetic')
 		.of (TextBaseline.Bottom)      ('bottom')
 		.of (TextBaseline.Hanging)     ('hanging')
 		.of (TextBaseline.Ideographic) ('ideographic')
@@ -1394,73 +2010,17 @@ const bijectionCompositionOperation : Bijection<CompositionOperation, string> =
 		.of(CompositionOperation.Color)           ('color')
 		.of(CompositionOperation.Luminosity)      ('luminosity')
 
-/**` Matrix2D :: Vector2D -> Vector2D -> Matrix2x2 `*/
-const Matrix2D = (i : Vector2D) => (j : Vector2D) : Matrix2x2 =>
-	Matrix2x2
-		(i.x)(j.x)
-		(i.y)(j.y)
-
-/**` Matrix3D :: Vector3D -> Vector3D -> Vector3D -> Matrix3x3 `*/
-const Matrix3D = (i : Vector3D) => (j : Vector3D) => (k : Vector3D) : Matrix3x3 =>
-	Matrix3x3
-		(i.x)(j.x)(k.x)
-		(i.y)(j.y)(k.y)
-		(i.z)(j.z)(k.z)
-
-/**` Matrix4D :: Vector4D -> Vector4D -> Vector4D -> Vector4D -> Matrix4x4 `*/
-const Matrix4D = (i : Vector4D) => (j : Vector4D) => (k : Vector4D) => (l : Vector4D) : Matrix4x4 =>
-	Matrix4x4
-		(i.x)(j.x)(k.x)(l.x)
-		(i.y)(j.y)(k.y)(l.y)
-		(i.z)(j.z)(k.z)(l.z)
-		(i.w)(j.w)(k.w)(l.w)
-
-/**` pseudoRandom :: State Number Number `*/
-const pseudoRandom : State<number, number> =
-	State(seed => [
-		(-67 * seed * seed * seed + 23 * seed * seed - 91 * seed + 73) % 65536,
-		Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536
-	])
-
-/**` returnIO :: a -> IO a `*/
-const returnIO = <a>(x : a) : IO<a> => IO(() => x)
-
-/**` when :: Boolean -> IO a -> IO () `*/
-const when = (condition : boolean) => <a>(io : IO<a>) : IO<null> =>
-	(condition ? io.fmap : IO)(() => null)
-
-/**` nil :: IO () `*/
-const nil : IO<null> = IO(() => null)
-
-/**` sequenceIOs :: List (IO a) -> IO (List a) `*/
-const sequenceIOs = <a>(ios : List<IO<a>>) : IO<List<a>> =>
-	IO(() => List(...ios.INFO.map(io => io.INFO())))
-
-/**` executeIOs :: List (IO a) -> IO () `*/
-const executeIOs = <a>(ios : List<IO<a>>) : IO<null> =>
-	IO(() => {
-		for (const io of ios.INFO) io.INFO()
-		return null
-	})
-
-/**` replicate :: Number -> a -> List a `*/
-const replicate = (count : number) => <a>(element : a) : List<a> =>
-	count >= 0 && Number.isInteger(count)
-		? List(...Array(count).fill(element))
-		: THROWTYPE(`'replicate' must take in a positive, integral number; instead recieved '${count}'`)
-
 /********************************************************************************************************************************/
 
 // The Do-Notation syntax where a monad stores an empty object.
 const Do =
 	{
-		IO    : IO<{}>(() => Object.create(null)),
-		Maybe : Just<{}>(Object.create(null)),
-		State : State<any, {}>((s : any) => [s, Object.create(null)]),
-		List  : List<{}>(Object.create(null))
+		IO    : IO <{}> (() => Object.create(null)),
+		Maybe : Just <{}> (Object.create(null)),
+		State : State <any, {}> ((s : any) => [s, Object.create(null)]),
+		List  : singleton <{}> (Object.create(null))
 	} as const
 
-/********************************************************************************************************************************/
 
 /**` __KEYBOARD_KEYS_ARRAY__ :: [String] `*/
 const __KEYBOARD_KEYS_ARRAY__ =
@@ -1954,75 +2514,51 @@ namespace Mutate
 	{
 		/**` Mutate.Norm.lineWidth :: Number -> IO () `*/
 		export const lineWidth = (w : number) : IO<null> =>
-			IO(() => {
-				__EXTERNAL__.context.lineWidth = w * __EXTERNAL__.context.canvas.width
-				return null
-			})
+			IO(() => (__EXTERNAL__.context.lineWidth = w * __EXTERNAL__.context.canvas.width, null))
 
 		/**` Mutate.Norm.lineDashPattern :: List Number -> IO () `*/
 		export const lineDashPattern = (pattern : List<number>) : IO<null> =>
 			IO(() => {
-				__EXTERNAL__.context.setLineDash(pattern.INFO.map(n => n * __EXTERNAL__.context.canvas.width))
+				__EXTERNAL__.context.setLineDash(array(pattern.fmap(n => n * __EXTERNAL__.context.canvas.width)))
 				return null
 			})
 
 		/**` Mutate.Norm.lineDashOffset :: Number -> IO () `*/
 		export const lineDashOffset = (offset : number) : IO<null> =>
-			IO(() => {
-				__EXTERNAL__.context.lineDashOffset = offset * __EXTERNAL__.context.canvas.width
-				return null
-			})
+			IO(() => (__EXTERNAL__.context.lineDashOffset = offset * __EXTERNAL__.context.canvas.width, null))
 
 		/**` Mutate.Norm.fontSize :: Number -> IO () `*/
 		export const fontSize = (size : number) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.font =
-					`${size * __EXTERNAL__.context.canvas.width}px ` +
-					`${__EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" ") + 1)}`
+					`${size * __EXTERNAL__.context.canvas.width}px` +
+					`${__EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" "))}`
 				return null
 			})
 
 		/**` Mutate.Norm.fillRGBA :: Number -> Number -> Number -> Number -> IO () `*/
 		export const fillRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO<null> =>
-			IO(() => {
-				__EXTERNAL__.context.fillStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`
-				return null
-			})
+			IO(() => (__EXTERNAL__.context.fillStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null))
 
 		/**` Mutate.Norm.fillVector :: Vector4D -> IO () `*/
 		export const fillVector = (v : Vector4D) : IO<null> =>
-			IO(() => {
-				__EXTERNAL__.context.fillStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`
-				return null
-			})
+			IO(() => (__EXTERNAL__.context.fillStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null))
 
 		/**` Mutate.Norm.strokeRGBA :: Number -> Number -> Number -> Number -> IO () `*/
 		export const strokeRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO<null> =>
-			IO(() => {
-				__EXTERNAL__.context.strokeStyle = `rgba(${r * 255},${g * 255},${b * 255},${a * 255})`
-				return null
-			})
+			IO(() => (__EXTERNAL__.context.strokeStyle = `rgba(${r * 255},${g * 255},${b * 255},${a * 255})`, null))
 
 		/**` Mutate.Norm.strokeVector :: Vector4D -> IO () `*/
 		export const strokeVector = (v : Vector4D) : IO<null> =>
-			IO(() => {
-				__EXTERNAL__.context.strokeStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`
-				return null
-			})
+			IO(() => (__EXTERNAL__.context.strokeStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null))
 
 		/**` Mutate.Norm.shadowRGBA :: Number -> Number -> Number -> Number -> IO () `*/
 		export const shadowRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO<null> =>
-			IO(() => {
-				__EXTERNAL__.context.shadowColor = `rgba(${r * 255},${g * 255},${b * 255},${a})`
-				return null
-			})
+			IO(() => (__EXTERNAL__.context.shadowColor = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null))
 
 		/**` Mutate.Norm.shadowVector :: Vector4D -> IO () `*/
 		export const shadowVector = (v : Vector4D) : IO<null> =>
-			IO(() => {
-				__EXTERNAL__.context.shadowColor = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`
-				return null
-			})
+			IO(() => (__EXTERNAL__.context.shadowColor = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null))
 
 		/**` Mutate.Norm.shadowOffset :: Number -> Number -> IO () `*/
 		export const shadowOffset = (x : number) => (y : number) : IO<null> =>
@@ -2042,17 +2578,11 @@ namespace Mutate
 
 		/**` Mutate.Norm.shadowOffsetX :: Number -> IO () `*/
 		export const shadowOffsetX = (x : number) : IO<null> =>
-			IO(() => {
-				__EXTERNAL__.context.shadowOffsetX = x * __EXTERNAL__.context.canvas.width
-				return null
-			})
+			IO(() => (__EXTERNAL__.context.shadowOffsetX = x * __EXTERNAL__.context.canvas.width, null))
 
 		/**` Mutate.Norm.shadowOffsetY :: Number -> IO () `*/
 		export const shadowOffsetY = (y : number) : IO<null> =>
-			IO(() => {
-				__EXTERNAL__.context.shadowOffsetY = y * __EXTERNAL__.context.canvas.height
-				return null
-			})
+			IO(() => (__EXTERNAL__.context.shadowOffsetY = y * __EXTERNAL__.context.canvas.height, null))
 
 		/**` Mutate.Norm.transformationMatrix :: Matrix3x3 -> IO () `*/
 		export const transformationMatrix = (m : Matrix3x3) : IO<null> =>
@@ -2084,66 +2614,39 @@ namespace Mutate
 
 	/**` Mutate.canvasDimensionW :: Number -> IO () `*/
 	export const canvasDimensionW = (w : number) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.canvas.width = w
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.canvas.width = w, null))
 
 	/**` Mutate.canvasDimensionH :: Number -> IO () `*/
 	export const canvasDimensionH = (h : number) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.canvas.height = h
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.canvas.height = h, null))
 
 	/**` Mutate.lineWidth :: Number -> IO () `*/
 	export const lineWidth = (w : number) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.lineWidth = w
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.lineWidth = w, null))
 
 	/**` Mutate.lineCap :: LineCap -> IO () `*/
 	export const lineCap = (cap : LineCap) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.lineCap = bijectionLineCap.domain(cap)
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.lineCap = bijectionLineCap.domain(cap) as any, null))
 
 	/**` Mutate.lineJoin :: LineJoin -> IO () `*/
 	export const lineJoin = (joining : LineJoin) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.lineJoin = bijectionLineJoin.domain(joining)
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.lineJoin = bijectionLineJoin.domain(joining) as any, null))
 
 	/**` Mutate.lineDashPattern :: List Number -> IO () `*/
 	export const lineDashPattern = (pattern : List<number>) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.setLineDash(pattern.INFO.slice())
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.setLineDash(array(pattern)), null))
 
 	/**` Mutate.lineDashOffset :: Number -> IO () `*/
 	export const lineDashOffset = (offset : number) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.lineDashOffset = offset
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.lineDashOffset = offset, null))
 
 	/**` Mutate.miterLimit :: Number -> IO () `*/
 	export const miterLimit = (limit : number) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.miterLimit = limit
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.miterLimit = limit, null))
 
 	/**` Mutate.font :: String -> IO () `*/
 	export const font = (fontDescription : string) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.font = fontDescription
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.font = fontDescription, null))
 
 	/**` Mutate.fontSize :: Number -> IO () `*/
 	export const fontSize = (size : number) : IO<null> =>
@@ -2162,87 +2665,51 @@ namespace Mutate
 
 	/**` Mutate.textAlign :: TextAlign -> IO () `*/
 	export const textAlign = (align : TextAlign) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.textAlign = bijectionTextAlign.domain(align)
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.textAlign = bijectionTextAlign.domain(align) as any, null))
 
 	/**` Mutate.textBaseline :: TextBaseline -> IO () `*/
 	export const textBaseline = (baseline : TextBaseline) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.textBaseline = bijectionTextBaseline.domain(baseline)
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.textBaseline = bijectionTextBaseline.domain(baseline) as any, null))
 
 	/**` Mutate.fillColor :: String -> IO () `*/
 	export const fillColor = (color : string) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.fillStyle = color
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.fillStyle = color, null))
 
 	/**` Mutate.fillRGBA :: Number -> Number -> Number -> Number -> IO () `*/
 	export const fillRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.fillStyle = `rgba(${r},${g},${b},${a})`
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.fillStyle = `rgba(${r},${g},${b},${a})`, null))
 
 	/**` Mutate.fillVector :: Vector4D -> IO () `*/
 	export const fillVector = (v : Vector4D) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.fillStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.fillStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`, null))
 
 	/**` Mutate.strokeColor :: String -> IO () `*/
 	export const strokeColor = (color : string) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.strokeStyle = color
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.strokeStyle = color, null))
 
 	/**` Mutate.strokeRGBA :: Number -> Number -> Number -> Number -> IO () `*/
 	export const strokeRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.strokeStyle = `rgba(${r},${g},${b},${a})`
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.strokeStyle = `rgba(${r},${g},${b},${a})`, null))
 
 	/**` Mutate.strokeVector :: Vector4D -> IO () `*/
 	export const strokeVector = (v : Vector4D) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.strokeStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.strokeStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`, null))
 
 	/**` Mutate.shadowBlurAmount :: Number -> IO () `*/
 	export const shadowBlurAmount = (amount : number) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.shadowBlur = amount
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.shadowBlur = amount, null))
 
 	/**` Mutate.shadowColor :: String -> IO () `*/
 	export const shadowColor = (color : string) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.shadowColor = color
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.shadowColor = color, null))
 
 	/**` Mutate.shadowRGBA :: Number -> Number -> Number -> Number -> IO () `*/
 	export const shadowRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.shadowColor = `rgba(${r},${g},${b},${a})`
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.shadowColor = `rgba(${r},${g},${b},${a})`, null))
 
 	/**` Mutate.shadowVector :: Vector4D -> IO () `*/
 	export const shadowVector = (v : Vector4D) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.shadowColor = `rgba(${v.x},${v.y},${v.z},${v.w})`
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.shadowColor = `rgba(${v.x},${v.y},${v.z},${v.w})`, null))
 
 	/**` Mutate.shadowOffset :: Number -> Number -> IO () `*/
 	export const shadowOffset = (x : number) => (y : number) : IO<null> =>
@@ -2262,31 +2729,19 @@ namespace Mutate
 
 	/**` Mutate.shadowOffsetX :: Number -> IO () `*/
 	export const shadowOffsetX = (x : number) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.shadowOffsetX = x
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.shadowOffsetX = x, null))
 
 	/**` Mutate.shadowOffsetY :: Number -> IO () `*/
 	export const shadowOffsetY = (y : number) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.shadowOffsetY = y
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.shadowOffsetY = y, null))
 
 	/**` Mutate.transformationMatrix :: Matrix3x3 -> IO () `*/
 	export const transformationMatrix = (m : Matrix3x3) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx, m.ky)
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx, m.ky), null))
 
 	/**` Mutate.alpha :: Number -> IO () `*/
 	export const alpha = (opacity : number) : IO<null> =>
-		IO(() => {
-			__EXTERNAL__.context.globalAlpha = opacity
-			return null
-		})
+		IO(() => (__EXTERNAL__.context.globalAlpha = opacity, null))
 
 	/**` Mutate.compositionOperation :: CompositionOperation -> IO () `*/
 	export const compositionOperation = (composition : CompositionOperation) : IO<null> =>
@@ -2427,8 +2882,10 @@ namespace Effect
 		export const clearRectangleVector = (coordinates : Vector2D) => (dimensions : Vector2D) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.clearRect(
-					coordinates.x * __EXTERNAL__.context.canvas.width - 0.5, coordinates.y * __EXTERNAL__.context.canvas.height - 0.5,
-					dimensions.x * __EXTERNAL__.context.canvas.width + 1, dimensions.y * __EXTERNAL__.context.canvas.height + 1
+					coordinates.x * __EXTERNAL__.context.canvas.width - 0.5,
+					coordinates.y * __EXTERNAL__.context.canvas.height - 0.5,
+					dimensions.x * __EXTERNAL__.context.canvas.width + 1,
+					dimensions.y * __EXTERNAL__.context.canvas.height + 1
 				)
 				return null
 			})
@@ -2580,8 +3037,10 @@ namespace Effect
 		export const rectangleVector = (coordinates : Vector2D) => (dimensions : Vector2D) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.rect(
-					coordinates.x * __EXTERNAL__.context.canvas.width - 0.5, coordinates.y * __EXTERNAL__.context.canvas.height - 0.5,
-					dimensions.x  * __EXTERNAL__.context.canvas.width + 1, dimensions.y  * __EXTERNAL__.context.canvas.height + 1
+					coordinates.x * __EXTERNAL__.context.canvas.width - 0.5,
+					coordinates.y * __EXTERNAL__.context.canvas.height - 0.5,
+					dimensions.x  * __EXTERNAL__.context.canvas.width + 1,
+					dimensions.y  * __EXTERNAL__.context.canvas.height + 1
 				)
 				return null
 			})
@@ -2600,8 +3059,10 @@ namespace Effect
 		export const fillRectangleVector = (coordinates : Vector2D) => (dimensions : Vector2D) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.fillRect(
-					coordinates.x * __EXTERNAL__.context.canvas.width - 0.5, coordinates.y * __EXTERNAL__.context.canvas.height - 0.5,
-					dimensions.x  * __EXTERNAL__.context.canvas.width + 1, dimensions.y  * __EXTERNAL__.context.canvas.height + 1
+					coordinates.x * __EXTERNAL__.context.canvas.width - 0.5,
+					coordinates.y * __EXTERNAL__.context.canvas.height - 0.5,
+					dimensions.x  * __EXTERNAL__.context.canvas.width + 1,
+					dimensions.y  * __EXTERNAL__.context.canvas.height + 1
 				)
 				return null
 			})
@@ -2620,8 +3081,10 @@ namespace Effect
 		export const strokeRectangleVector = (coordinates : Vector2D) => (dimensions : Vector2D) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.strokeRect(
-					coordinates.x * __EXTERNAL__.context.canvas.width - 0.5, coordinates.y * __EXTERNAL__.context.canvas.height - 0.5,
-					dimensions.x  * __EXTERNAL__.context.canvas.width + 1, dimensions.y  * __EXTERNAL__.context.canvas.height + 1
+					coordinates.x * __EXTERNAL__.context.canvas.width - 0.5,
+					coordinates.y * __EXTERNAL__.context.canvas.height - 0.5,
+					dimensions.x  * __EXTERNAL__.context.canvas.width + 1,
+					dimensions.y  * __EXTERNAL__.context.canvas.height + 1
 				)
 				return null
 			})
@@ -3407,5 +3870,3 @@ onload = () =>
 		__EXTERNAL__.isPointerLocked = document.pointerLockElement === __EXTERNAL__.context.canvas
 	}
 }
-
-/********************************************************************************************************************************/
