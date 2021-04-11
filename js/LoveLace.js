@@ -150,8 +150,8 @@ const idle = IO(() => null);
 const when = (condition) => (io) => condition ? io.fmap(_ => null) : idle;
 const sequenceIOs = (ios) => IO(() => ios.fmap(io => io.INFO()));
 const executeIOs = (ios) => IO(() => {
-    while (ios.CONS === 'Cons')
-        ios.INFO.head.INFO(), ios = ios.INFO.tail;
+    for (let i = ios; i.CONS === 'Cons'; i = i.INFO.tail)
+        i.INFO.head.INFO();
     return null;
 });
 const Nothing = {
@@ -1363,7 +1363,7 @@ var Effect;
         return null;
     });
     Effect.activatePointerLock = IO(() => {
-        __EXTERNAL__.context.canvas.onmousedown = () => {
+        __EXTERNAL__.context.canvas.onmouseup = () => {
             if (!__EXTERNAL__.isPointerLocked)
                 __EXTERNAL__.context.canvas.requestPointerLock();
         };

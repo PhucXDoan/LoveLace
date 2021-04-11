@@ -523,7 +523,7 @@ const sequenceIOs = <a>(ios : List<IO<a>>) : IO<List<a>> =>
 /**` executeIOs :: List (IO a) -> IO () `*/
 const executeIOs = <a>(ios : List<IO<a>>) : IO<null> =>
 	IO(() => {
-		while (ios.CONS === 'Cons') ios.INFO.head.INFO(), ios = ios.INFO.tail
+		for (let i = ios; i.CONS === 'Cons'; i = i.INFO.tail) i.INFO.head.INFO()
 		return null
 	})
 
@@ -3397,7 +3397,7 @@ namespace Effect
 	/**` Effect.activatePointerLock :: IO () `*/
 	export const activatePointerLock : IO<null> =
 		IO(() => {
-			__EXTERNAL__.context.canvas.onmousedown = () =>
+			__EXTERNAL__.context.canvas.onmouseup = () =>
 			{
 				if (!__EXTERNAL__.isPointerLocked) __EXTERNAL__.context.canvas.requestPointerLock()
 			}
