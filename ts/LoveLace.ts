@@ -97,6 +97,9 @@ const and = (x : boolean) => (y : boolean) : boolean => x && y
 /**` apply :: a -> (a -> b) -> b `*/
 const apply = <a>(x : a) => <b>(f : (x : a) => b) : b => f(x)
 
+/**` applyWhen :: Boolean -> (a -> a) -> a -> a `*/
+const applyWhen = (condition : boolean) => <a>(f : (x : a) => a) => condition ? f : id
+
 /**` approx :: Number -> Number -> Number -> Boolean `*/
 const approx = (x : number) => (y : number) => (error : number) : boolean =>
 	Math.abs(x - y) < error
@@ -126,10 +129,6 @@ const atanh = Math.atanh
 /**` BIT :: Boolean -> Number `*/
 const BIT = (x : boolean) : (0 | 1) => x ? 1 : 0
 
-/**` rboth :: (a -> b) -> (a, a) -> (b, b) `*/
-const rboth = <a>(pair : [a, a]) => <b>(f : (x : a) => b) : [b, b] =>
-	[f(pair[0]), f(pair[1])]
-
 /**` cbrt :: Number -> Number `*/
 const cbrt = Math.cbrt
 
@@ -155,7 +154,7 @@ const div = (x : number) => (y : number) : number => x / y
 const rdiv = (y : number) => (x : number) : number => x / y
 
 /**` eq :: a -> a -> Boolean `*/
-const eq = <a>(x : a) => (y : a) : boolean => x === y
+const eq = <a>(x : a) => (y : a) : boolean => x === y || (x as any) .eq (y)
 
 /**` even :: Number -> Boolean `*/
 const even = (x : number) : boolean => x % 2 === 0
@@ -171,9 +170,6 @@ const floor = Math.floor
 
 /**` fround :: Number -> Number `*/
 const fround = Math.fround
-
-/**` fst :: (a, b) -> a `*/
-const fst = <a, b>(pair : [a, b]) : a => pair[0]
 
 /**` greater :: Number -> Number -> Boolean `*/
 const greater = (x : number) => (y : number) : boolean => y > x
@@ -287,10 +283,6 @@ const or = (x : boolean) => (y : boolean) : boolean => x || y
 /**` nor :: Boolean -> Boolean -> Boolean `*/
 const nor = (x : boolean) => (y : boolean) : boolean => !(x || y)
 
-/**` pick :: Boolean -> (a, a) -> a `*/
-const pick = (condition : boolean) : <a>(pair : [a, a]) => a =>
-	condition ? fst : snd
-
 /**` pow :: Number -> Number -> Number `*/
 const pow = (x : number) => (y : number) : number => x ** y
 
@@ -317,9 +309,6 @@ const sin = Math.sin
 
 /**` sinh :: Number -> Number `*/
 const sinh = Math.sinh
-
-/**` snd :: (a, b) -> b `*/
-const snd = <a, b>(pair : [a, b]) : b => pair[1]
 
 /**` sqrt :: Number -> Number `*/
 const sqrt = Math.sqrt
@@ -400,6 +389,58 @@ String.prototype.eq = function(x)
 
 String.prototype.pipe = function(f)
 	{ return f(this as string) }
+
+/********************************************************************************************************************************/
+
+/**` Pair (Eq, Pipeable) `*/
+type Pair<a, b> =
+	{
+		CONS : 'Pair'
+
+		/**` eq :: Pair a b -> Pair a b -> Boolean `*/
+		eq : (value : Pair<a, b>) => boolean
+
+		/**` pipe :: Pair a b -> (Pair a b -> c) -> c `*/
+		pipe : <c>(morphism : (pair : Pair<a, b>) => c) => c
+
+		/**` fst :: Pair a b -> a `*/
+		fst : a
+
+		/**` snd :: Pair a b -> b `*/
+		snd : b
+	}
+
+/**` Pair :: (a, b) -> Pair a b `*/
+const Pair = <a, b>(first : a, second : b) : Pair<a, b> =>
+	({
+		CONS : 'Pair',
+		eq : x => (x.fst as any) .eq (first) && (x.snd as any) .eq (second),
+		get pipe() { return (f : any) => f (this) },
+		fst : first,
+		snd : second
+	})
+
+/**` fst :: Pair a b -> a `*/
+const fst = <a, b>(pair : Pair<a, b>) : a => pair.fst
+
+/**` snd :: Pair a b -> b `*/
+const snd = <a, b>(pair : Pair<a, b>) : b => pair.snd
+
+/**` fpair :: (a -> b -> c) -> Pair a a -> Pair b b -> Pair c c `*/
+const fpair = <a, b, c>(f : (x : a) => (y : b) => c) => (firsts : Pair<a, a>) => (seconds : Pair<b, b>) : Pair<c, c> =>
+	Pair (f (firsts .fst) (seconds .fst), f (firsts .snd) (seconds .snd))
+
+/**` pick :: Boolean -> Pair a a -> a `*/
+const pick = (condition : boolean) : <a>(pair : Pair<a, a>) => a =>
+	condition ? fst : snd
+
+/**` both :: (a -> b) -> Pair a a -> Pair b b `*/
+const both = <a, b>(f : (x : a) => b) => (pair : Pair<a, a>) : Pair<b, b> =>
+	Pair (f (pair .fst), f (pair .snd))
+
+/**` uncurry :: (a -> b -> c) -> Pair a b -> c `*/
+const uncurry = <a, b, c>(f : (x : a) => (y : b) => c) => (pair : Pair<a, b>) : c =>
+	f (pair .fst) (pair .snd)
 
 /********************************************************************************************************************************/
 
@@ -559,7 +600,7 @@ const Just = <a>(value : a) : Maybe<a> =>
 type State<s, a> =
 	{
 		CONS : 'State'
-		INFO : (inputState : s) => [s, a]
+		INFO : (inputState : s) => Pair<s, a>
 
 		/**` (.pipe) :: State s a -> (State s a -> b) -> b `*/
 		pipe : <b>(morphism : (state : State<s, a>) => b) => b
@@ -590,50 +631,50 @@ type State<s, a> =
 	}
 
 /**` State :: (s -> (s, a)) -> State s a `*/
-const State = <s, a>(statefulComputation : (inputState : s) => [s, a]) : State<s, a> =>
+const State = <s, a>(statefulComputation : (inputState : s) => Pair<s, a>) : State<s, a> =>
 	({
 		CONS : 'State',
 		INFO : statefulComputation,
 		get pipe() { return (f : any) => f (this) },
-		then : s => State (x => s.INFO (statefulComputation (x)[0])),
+		then : s => State (x => s.INFO (statefulComputation (x) .fst)),
 		side : s => State (x => {
 			const y = statefulComputation (x)
-			return [s.INFO (y[0])[0], y[1]]
+			return Pair (s.INFO (y .fst) .fst, y .snd)
 		}),
 		also : f => State (x => {
 			const y = statefulComputation (x)
-			return [f (y[1]).INFO (y[0])[0], y[1]]
+			return Pair (f (y .snd).INFO (y .fst) .fst, y .snd)
 		}),
 		bind : f =>
 			State (x => {
-				const [y, z] = statefulComputation (x)
+				const { fst : y, snd : z } = statefulComputation (x)
 				return f (z).INFO (y)
 			}),
 		bindto : k => f =>
 			State (x => {
-				const [y, $] = statefulComputation (x)
-				const [z, w] = f ($).INFO (y)
-				return [z, { ...$, [k]: w }] as any
+				const { fst : y, snd : $ } = statefulComputation (x)
+				const { fst : z, snd : w } = f ($).INFO (y)
+				return Pair (z, { ...$, [k]: w }) as any
 			}),
 		fmap : f =>
 			State (x => {
-				const [y, z] = statefulComputation (x)
-				return [y, f (z)]
+				const { fst : y, snd : z } = statefulComputation (x)
+				return Pair (y, f (z))
 			}),
 		fmapto : k => f =>
 			State (x => {
-				const [y, $] = statefulComputation (x)
-				return [y, { ...$, [k]: f ($) }] as any
+				const { fst : y, snd : $ } = statefulComputation (x)
+				return Pair (y, { ...$, [k]: f ($) }) as any
 			}),
-		cast : x => State (y => [statefulComputation (y)[0], x])
+		cast : x => State (y => Pair(statefulComputation (y) .fst, x))
 	})
 
 /**` pseudoRandom :: State Number Number `*/
 const pseudoRandom : State<number, number> =
-	State(seed => [
+	State(seed => Pair(
 		(-67 * seed * seed * seed + 23 * seed * seed - 91 * seed + 73) % 65536,
 		Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536
-	])
+	))
 
 /********************************************************************************************************************************/
 
@@ -944,7 +985,7 @@ const dropWhile = <a>(predicate : (element : a) => boolean) => (xs : List<a>) : 
 const elem = <a>(value : a) => (xs : List<a>) : boolean =>
 {
 	while (xs.CONS === 'Cons')
-		if (xs.INFO.head === value) return true
+		if ((xs.INFO.head as any) .eq (value)) return true
 		else xs = xs.INFO.tail
 	return false
 }
@@ -953,14 +994,14 @@ const elem = <a>(value : a) => (xs : List<a>) : boolean =>
 const elemIndex = <a>(value : a) => (xs : List<a>) : Maybe<number> =>
 {
 	for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs.INFO.tail)
-		if (xs.INFO.head === value) return Just (i)
+		if ((xs.INFO.head as any) .eq (value)) return Just (i)
 	return Nothing
 }
 
 /**` elemIndices :: a -> List a -> List Number `*/
 const elemIndices = <a>(value : a) => (xs : List<a>) : List<number> =>
 	xs.CONS === 'Nil' ? Nil :
-	xs.INFO.head === value
+	(xs.INFO.head as any) .eq (value)
 		? Cons (() => 0) (() => elemIndices (value) (xs.INFO.tail) .fmap (x => x + 1))
 		: elemIndices (value) (xs.INFO.tail) .fmap (x => x + 1)
 
@@ -1049,9 +1090,9 @@ const len = <a>(xs : List<a>) : number => xs.INFO.len
 const map = <a, b>(morphism : (element : a) => b) => (xs : List<a>) : List<b> =>
 	xs .fmap (morphism)
 
-/**` partition :: (a -> Boolean) -> List a -> (List a, List a) `*/
-const partition = <a>(predicate : (element : a) => boolean) => (xs : List<a>) : [List<a>, List<a>] =>
-	[filter (predicate) (xs), filter ((x : a) => !predicate(x)) (xs)]
+/**` partition :: (a -> Boolean) -> List a -> Pair (List a) (List a) `*/
+const partition = <a>(predicate : (element : a) => boolean) => (xs : List<a>) : Pair<List<a>, List<a>> =>
+	Pair (filter (predicate) (xs), filter ((x : a) => !predicate(x)) (xs))
 
 /**` prepend :: a -> List a -> List a `*/
 const prepend = <a>(element : a) => (xs : List<a>) : List<a> =>
@@ -1246,13 +1287,13 @@ const singleton = <a>(value : a) : List<a> =>
 	return self
 }
 
-/**` span :: (a -> Boolean) -> List a -> (List a, List a) `*/
-const span = <a>(predicate : (element : a) => boolean) => (xs : List<a>) : [List<a>, List<a>] =>
-	[takeWhile (predicate) (xs), dropWhile (predicate) (xs)]
+/**` span :: (a -> Boolean) -> List a -> Pair (List a) (List a) `*/
+const span = <a>(predicate : (element : a) => boolean) => (xs : List<a>) : Pair<List<a>, List<a>> =>
+	Pair (takeWhile (predicate) (xs), dropWhile (predicate) (xs))
 
-/**` splitAt :: Number -> List a -> (List a, List a) `*/
-const splitAt = (index : number) => <a>(xs : List<a>) : [List<a>, List<a>] =>
-	[take (index) (xs), drop (index) (xs)]
+/**` splitAt :: Number -> List a -> Pair (List a) (List a) `*/
+const splitAt = (index : number) => <a>(xs : List<a>) : Pair<List<a>, List<a>> =>
+	Pair (take (index) (xs), drop (index) (xs))
 
 /**` string :: String -> List String `*/
 const string = (str : string) : List<string> =>
@@ -1318,7 +1359,7 @@ const take = (amount : number) => <a>(xs : List<a>) : List<a> =>
 
 /**` takeWhile :: (a -> Boolean) -> List a -> List a `*/
 const takeWhile = <a>(predicate : (element : a) => boolean) => (xs : List<a>) : List<a> =>
-	xs.CONS === 'Nil'        ? xs :
+	xs.CONS === 'Nil' ? xs :
 	predicate (xs.INFO.head)
 		? Cons (() => xs.INFO.head) (() => takeWhile (predicate) (xs.INFO.tail))
 		: Nil
@@ -1333,14 +1374,14 @@ const unstring = (xs : List<string>) : string =>
 	return s
 }
 
-/**` unzip :: List (a, b) -> (List a, List b) `*/
-const unzip = <a, b>(xs : List<[a, b]>) : [List<a>, List<b>] =>
-	[xs .fmap (x => x[0]), xs .fmap (x => x[1])]
+/**` unzip :: List (Pair a b) -> Pair (List a) (List b) `*/
+const unzip = <a, b>(xs : List<Pair<a, b>>) : Pair<List<a>, List<b>> =>
+	Pair (xs .fmap (fst), xs .fmap (snd))
 
-/**` zip :: List a -> List b -> List (a, b) `*/
-const zip = <a>(xs : List<a>) => <b>(ys : List<b>) : List<[a, b]> =>
+/**` zip :: List a -> List b -> List (Pair a b) `*/
+const zip = <a>(xs : List<a>) => <b>(ys : List<b>) : List<Pair<a, b>> =>
 	xs.CONS === 'Nil' || ys.CONS === 'Nil' ? Nil :
-	Cons (() => [xs.INFO.head, ys.INFO.head] as [a, b]) (() => zip (xs.INFO.tail) (ys.INFO.tail))
+	Cons (() => Pair (xs.INFO.head, ys.INFO.head)) (() => zip (xs.INFO.tail) (ys.INFO.tail))
 
 /**` zipWith :: (a -> b -> c) -> List a -> List b -> List c `*/
 const zipWith = <a, b, c> (zipper : (x : a) => (y : b) => c) => (xs : List<a>) => (ys : List<b>) : List<c> =>
@@ -1696,7 +1737,7 @@ const Matrix4D = (i : Vector4D) => (j : Vector4D) => (k : Vector4D) => (l : Vect
 
 /********************************************************************************************************************************/
 
-/** A simple data type that stores information about the measurement of texts in rendering. */
+/**` TextMeasurement `*/
 type TextMeasurement =
 	{
 		CONS : 'TextMeasurement'
@@ -1720,85 +1761,37 @@ const TextMeasurement = (text : string) => (width : number) => (height : number)
 
 /********************************************************************************************************************************/
 
-/** An inline version of the `switch` statement. */
-type Switch<a, b> =
+/**` Mapping `*/
+type Mapping<a, b> =
 	{
-		CONS : 'Switch'
+		CONS : 'Mapping'
 
-		/**` (.case) :: Switch a b -> a -> (() -> b) -> Switch a b `*/
-		case : (domain : a) => (codomain : () => b) => Switch<a, b>
+		/**` (.domain) :: Mapping a b -> a -> b `*/
+		domain : (domain : a) => b
 
-		/**` (.else) :: Switch a b -> (() -> b) -> Switch a b `*/
-		else : (codomain : () => b) => Switch<a, b>
-
-		/**` (.with) :: Switch a b -> a -> b `*/
-		with : (value : a) => b
+		/**` (.codomain) :: Mapping a b -> b -> a `*/
+		codomain : (codomain : b) => a
 	}
 
-/**` Switch.case :: a -> (() -> b) -> Switch a b `*/
-const Switch = <a, b>(f : (x : a) => b | undefined) : Switch<a, b> =>
+/**` Mapping :: [(a, b)] -> Mapping a b `*/
+const Mapping = <a, b>(...mappings : Array<[a, b]>) : Mapping<a, b> =>
 	({
-		CONS : 'Switch',
-		case : x => y =>
-			Switch(z => {
-				const w = f(z)
-				return w === undefined && z === x ? y() : w
-			}),
-		else : x => Switch(y => {
-			const z = f(y)
-			return z === undefined ? x() : z
-		}),
-		with : x => {
-			const y = f(x)
-			return y === undefined
-				? THROWRANGE(`'Switch' did not cover all cases; missing case on value: '${x}'`)
-				: y
-		}
-	})
-
-Switch.case = <a>(domain : a) => <b>(codomain : () => b) : Switch<a, b> =>
-	Switch<a, b>(x => x === domain ? codomain() : undefined)
-
-/********************************************************************************************************************************/
-
-/** A data structure that maps values to other values supplied with an inverse. */
-type Bijection<a, b> =
-	{
-		CONS : 'Bijection'
-		INFO : ReadonlyArray<[a, b]>
-
-		/**` (.of) :: Bijection a b -> a -> b -> Bijection a b `*/
-		of : (domainValue : a) => (codomainValue : b) => Bijection<a, b>
-
-		/**` (.domain) :: Bijection a b -> a -> b `*/
-		domain : (domainValue : a) => b
-
-		/**` (.codomain) :: Bijection a b -> b -> a `*/
-		codomain : (codomainValue : b) => a
-	}
-
-/**` Bijection.of :: a -> b -> Bijection a b `*/
-const Bijection = <a, b>(pairs : ReadonlyArray<[a, b]>) : Bijection<a, b> =>
-	({
-		CONS : 'Bijection',
-		INFO : pairs,
-		of : x => y => Bijection([...pairs, [x, y]]),
-		domain : x => {
-			const y = pairs.find(([z, _]) => z === x)
-			return y === undefined
-				? THROWRANGE(`'Bijection' did not have a well-defined enough domain for value: '${x}'`)
-				: y[1]
+		CONS : 'Mapping',
+		domain : x =>
+		{
+			const i = mappings.findIndex(p => (p[0] as any) .eq (x))
+			return ~i
+				? mappings[i]![1]
+				: THROWRANGE (`'Mapping' was non-exhaustive; could not find domain of '${x}'`)
 		},
-		codomain : x => {
-			const y = pairs.find(([_, z]) => z === x)
-			return y === undefined
-				? THROWRANGE(`'Bijection' did not have a well-defined enough codomain for value: '${x}'`)
-				: y[0]
+		codomain : x =>
+		{
+			const i = mappings.findIndex(p => (p[1] as any) .eq (x))
+			return ~i
+				? mappings[i]![0]
+				: THROWRANGE (`'Mapping' was non-exhaustive; could not find codomain of '${x}'`)
 		}
 	})
-
-Bijection.of = <a>(domainValue : a) => <b>(codomainValue : b) : Bijection<a, b> =>
-	Bijection([[domainValue, codomainValue]])
 
 /********************************************************************************************************************************/
 
@@ -1807,13 +1800,13 @@ const unit =
 	{
 		IO    : <a>(output : a) : IO<a> => IO(() => output),
 		Maybe : Just,
-		State : <a>(output : a) : State<null, a> => State(_ => [null, output]),
+		State : <a>(output : a) : State<null, a> => State(_ => Pair (null, output)),
 		List  : <a>(element : a) : List<a> => Cons (() => element) (() => Nil)
 	} as const
 
 /********************************************************************************************************************************/
 
-/**` data Horizontal = Leftward | Left | CenterX | Right | Rightward `*/
+/**` Horizontal `*/
 enum Horizontal
 {
 	Leftward  = 'Leftward :: Horizontal',
@@ -1823,7 +1816,7 @@ enum Horizontal
 	Rightward = 'Rightward :: Horizontal',
 }
 
-/**` data Vertical = Downward | Down | CenterY | Up | Upward `*/
+/**` Vertical `*/
 enum Vertical
 {
 	Downward = 'Downward :: Vertical',
@@ -1833,7 +1826,7 @@ enum Vertical
 	Upward   = 'Upward :: Vertical'
 }
 
-/**` data Lateral = Backward | Back | CenterZ | Fore | Forward `*/
+/**` Lateral `*/
 enum Lateral
 {
 	Backward = 'Backward :: Lateral',
@@ -1843,7 +1836,7 @@ enum Lateral
 	Forward  = 'Forward :: Lateral'
 }
 
-/**` data LineCap = Butt | Round | Square `*/
+/**` LineCap `*/
 enum LineCap
 {
 	Butt   = 'Butt :: LineCap',
@@ -1851,7 +1844,7 @@ enum LineCap
 	Square = 'Square :: LineCap'
 }
 
-/**` data LineJoin = Round | Bevel | Miter `*/
+/**` LineJoin `*/
 enum LineJoin
 {
 	Round = 'Round :: LineJoin',
@@ -1859,7 +1852,7 @@ enum LineJoin
 	Miter = 'Miter :: LineJoin'
 }
 
-/**` data TextAlign = Start | End | Left | Right | Center `*/
+/**` TextAlign `*/
 enum TextAlign
 {
 	Start  = 'Start :: TextAlign',
@@ -1869,7 +1862,7 @@ enum TextAlign
 	Center = 'Center :: TextAlign'
 }
 
-/**` data TextBaseline = Top | Hanging | Middle | Alphabetic | Ideographic | Bottom `*/
+/**` TextBaseline `*/
 enum TextBaseline
 {
 	Top         = 'Top :: TextBaseline',
@@ -1880,17 +1873,7 @@ enum TextBaseline
 	Bottom      = 'Bottom :: TextBaseline'
 }
 
-/**
- * ```
- * data CompositionOperation = SourceOver      | SourceIn      | SourceOut      | SourceAtop      |
- *                             DestinationOver | DestinationIn | DestinationOut | DestinationAtop |
- *                             Lighter         | Copy          | Xor            | Multiply        |
- *                             Screen          | Overlay       | Darken         | Lighten         |
- *                             ColorDodge      | ColorBurn     | HardLight      | SoftLight       |
- *                             Difference      | Exclusion     | Hue            | Saturation      |
- *                             Color           | Luminosity
- * ```
- */
+/**` CompositionOperation `*/
 enum CompositionOperation
 {
 	SourceOver      = 'SourceOver :: CompositionOperation',
@@ -1925,90 +1908,89 @@ enum CompositionOperation
 
 /**` relaxHorizontal :: Horizontal -> Horizontal `*/
 const relaxHorizontal = (direction : Horizontal) : Horizontal =>
-	Switch
-		.case (Horizontal.Leftward)  (() => Horizontal.Left)
-		.case (Horizontal.Rightward) (() => Horizontal.Right)
-		.else (() => direction)
-		.with (direction)
+		direction === Horizontal.Leftward  ? Horizontal.Left  :
+		direction === Horizontal.Rightward ? Horizontal.Right :
+		direction
 
 /**` relaxVertical :: Vertical -> Vertical `*/
 const relaxVertical = (direction : Vertical) : Vertical =>
-	Switch
-		.case (Vertical.Downward) (() => Vertical.Down)
-		.case (Vertical.Upward)   (() => Vertical.Up)
-		.else (() => direction)
-		.with (direction)
+	direction === Vertical.Downward ? Vertical.Down :
+	direction === Vertical.Upward   ? Vertical.Up   :
+	direction
 
 /**` relaxLateral :: Lateral -> Lateral `*/
 const relaxLateral = (direction : Lateral) : Lateral =>
-	Switch
-		.case (Lateral.Backward) (() => Lateral.Back)
-		.case (Lateral.Forward)  (() => Lateral.Fore)
-		.else (() => direction)
-		.with (direction)
+	direction === Lateral.Backward ? Lateral.Back :
+	direction === Lateral.Forward  ? Lateral.Fore :
+	direction
 
-/**` bijectionLineCap :: Bijection LineCap String `*/
-const bijectionLineCap : Bijection<LineCap, string> =
-	Bijection
-		.of (LineCap.Butt)   ('butt')
-		.of (LineCap.Round)  ('round')
-		.of (LineCap.Square) ('square')
+/**` mappingLineCap :: Mapping LineCap String `*/
+const mappingLineCap : Mapping<LineCap, string> =
+	Mapping (
+		[LineCap.Butt   , 'butt'  ],
+		[LineCap.Round  , 'round' ],
+		[LineCap.Square , 'square']
+	)
 
-/**` bijectionLineJoin :: Bijection LineJoin String `*/
-const bijectionLineJoin : Bijection<LineJoin, string> =
-	Bijection
-		.of (LineJoin.Round) ('round')
-		.of (LineJoin.Bevel) ('bevel')
-		.of (LineJoin.Miter) ('miter')
+/**` mappingLineJoin :: Mapping LineJoin String `*/
+const mappingLineJoin : Mapping<LineJoin, string> =
+	Mapping (
+		[LineJoin.Round , 'round'],
+		[LineJoin.Bevel , 'bevel'],
+		[LineJoin.Miter , 'miter']
+	)
 
-/**` bijectionTextAlign :: Bijection TextAlign String `*/
-const bijectionTextAlign : Bijection<TextAlign, string> =
-	Bijection
-		.of (TextAlign.Center) ('center')
-		.of (TextAlign.End)    ('end')
-		.of (TextAlign.Left)   ('left')
-		.of (TextAlign.Right)  ('right')
-		.of (TextAlign.Start)  ('start')
+/**` mappingTextAlign :: Mapping TextAlign String `*/
+const mappingTextAlign : Mapping<TextAlign, string> =
+	Mapping (
+		[TextAlign.Center , 'center'],
+		[TextAlign.End    , 'end'   ],
+		[TextAlign.Left   , 'left'  ],
+		[TextAlign.Right  , 'right' ],
+		[TextAlign.Start  , 'start' ]
+	)
 
-/**` bijectionTextBaseline :: Bijection TextBaseline String `*/
-const bijectionTextBaseline : Bijection<TextBaseline, string> =
-	Bijection
-		.of (TextBaseline.Alphabetic)  ('alphabetic')
-		.of (TextBaseline.Bottom)      ('bottom')
-		.of (TextBaseline.Hanging)     ('hanging')
-		.of (TextBaseline.Ideographic) ('ideographic')
-		.of (TextBaseline.Middle)      ('middle')
-		.of (TextBaseline.Top)         ('top')
+/**` mappingTextBaseline :: Mapping TextBaseline String `*/
+const mappingTextBaseline : Mapping<TextBaseline, string> =
+	Mapping (
+		[TextBaseline.Alphabetic  , 'alphabetic' ],
+		[TextBaseline.Bottom      , 'bottom'     ],
+		[TextBaseline.Hanging     , 'hanging'    ],
+		[TextBaseline.Ideographic , 'ideographic'],
+		[TextBaseline.Middle      , 'middle'     ],
+		[TextBaseline.Top         , 'top'        ]
+	)
 
-/**` bijectionCompositionOperation :: Bijection CompositionOperation String `*/
-const bijectionCompositionOperation : Bijection<CompositionOperation, string> =
-	Bijection
-		.of(CompositionOperation.SourceOver)      ('source-over')
-		.of(CompositionOperation.SourceIn)        ('source-in')
-		.of(CompositionOperation.SourceOut)       ('source-out')
-		.of(CompositionOperation.SourceAtop)      ('source-atop')
-		.of(CompositionOperation.DestinationOver) ('destination-over')
-		.of(CompositionOperation.DestinationIn)   ('destination-in')
-		.of(CompositionOperation.DestinationOut)  ('destination-out')
-		.of(CompositionOperation.DestinationAtop) ('destination-atop')
-		.of(CompositionOperation.Lighter)         ('lighter')
-		.of(CompositionOperation.Copy)            ('copy')
-		.of(CompositionOperation.Xor)             ('xor')
-		.of(CompositionOperation.Multiply)        ('multiply')
-		.of(CompositionOperation.Screen)          ('screen')
-		.of(CompositionOperation.Overlay)         ('overlay')
-		.of(CompositionOperation.Darken)          ('darken')
-		.of(CompositionOperation.Lighten)         ('lighten')
-		.of(CompositionOperation.ColorDodge)      ('color-dodge')
-		.of(CompositionOperation.ColorBurn)       ('color-burn')
-		.of(CompositionOperation.HardLight)       ('hard-light')
-		.of(CompositionOperation.SoftLight)       ('soft-light')
-		.of(CompositionOperation.Difference)      ('difference')
-		.of(CompositionOperation.Exclusion)       ('exclusion')
-		.of(CompositionOperation.Hue)             ('hue')
-		.of(CompositionOperation.Saturation)      ('saturation')
-		.of(CompositionOperation.Color)           ('color')
-		.of(CompositionOperation.Luminosity)      ('luminosity')
+/**` mappingCompositionOperation :: Mapping CompositionOperation String `*/
+const mappingCompositionOperation : Mapping<CompositionOperation, string> =
+	Mapping (
+		[CompositionOperation.SourceOver      , 'source-over'     ],
+		[CompositionOperation.SourceIn        , 'source-in'       ],
+		[CompositionOperation.SourceOut       , 'source-out'      ],
+		[CompositionOperation.SourceAtop      , 'source-atop'     ],
+		[CompositionOperation.DestinationOver , 'destination-over'],
+		[CompositionOperation.DestinationIn   , 'destination-in'  ],
+		[CompositionOperation.DestinationOut  , 'destination-out' ],
+		[CompositionOperation.DestinationAtop , 'destination-atop'],
+		[CompositionOperation.Lighter         , 'lighter'         ],
+		[CompositionOperation.Copy            , 'copy'            ],
+		[CompositionOperation.Xor             , 'xor'             ],
+		[CompositionOperation.Multiply        , 'multiply'        ],
+		[CompositionOperation.Screen          , 'screen'          ],
+		[CompositionOperation.Overlay         , 'overlay'         ],
+		[CompositionOperation.Darken          , 'darken'          ],
+		[CompositionOperation.Lighten         , 'lighten'         ],
+		[CompositionOperation.ColorDodge      , 'color-dodge'     ],
+		[CompositionOperation.ColorBurn       , 'color-burn'      ],
+		[CompositionOperation.HardLight       , 'hard-light'      ],
+		[CompositionOperation.SoftLight       , 'soft-light'      ],
+		[CompositionOperation.Difference      , 'difference'      ],
+		[CompositionOperation.Exclusion       , 'exclusion'       ],
+		[CompositionOperation.Hue             , 'hue'             ],
+		[CompositionOperation.Saturation      , 'saturation'      ],
+		[CompositionOperation.Color           , 'color'           ],
+		[CompositionOperation.Luminosity      , 'luminosity'      ]
+	)
 
 /********************************************************************************************************************************/
 
@@ -2017,8 +1999,8 @@ const Do =
 	{
 		IO    : IO <{}> (() => Object.create(null)),
 		Maybe : Just <{}> (Object.create(null)),
-		State : State <any, {}> ((s : any) => [s, Object.create(null)]),
-		List  : singleton <{}> (Object.create(null))
+		State : State <any, {}> ((s : any) => Pair (s, Object.create(null))),
+		List  : Cons <{}> (() => Object.create(null)) (() => Nil)
 	} as const
 
 
@@ -2057,7 +2039,7 @@ const __EXTERNAL__ =
 				canvasX : 0, canvasY : 0,
 				deltaX  : 0, deltaY  : 0,
 				scroll  : Vertical.CenterY,
-				buttons : new Array(5).fill(Vertical.Up) as [Vertical, Vertical, Vertical, Vertical, Vertical]
+				buttons : Array(5).fill(Vertical.Up) as [Vertical, Vertical, Vertical, Vertical, Vertical]
 			},
 		keyboard        :
 			__KEYBOARD_KEYS_ARRAY__.reduce(($, k) => ({ ...$, [k] : Vertical.Up }), {}) as { [key in KeyboardKey] : Vertical }
@@ -2069,12 +2051,12 @@ namespace Import
 {
 	export namespace Norm
 	{
-		/**` Import.Norm.mouseCanvasPosition :: IO (Number, Number) `*/
-		export const mouseCanvasPosition : IO<[number, number]> =
-			IO(() => [
+		/**` Import.Norm.mouseCanvasPosition :: IO (Pair Number Number) `*/
+		export const mouseCanvasPosition : IO<Pair<number, number>> =
+			IO(() => Pair (
 				__EXTERNAL__.mouse.canvasX / __EXTERNAL__.context.canvas.width,
 				__EXTERNAL__.mouse.canvasY / __EXTERNAL__.context.canvas.height
-			])
+			))
 
 		/**` Import.Norm.mouseCanvasPositionVector :: IO Vector2D `*/
 		export const mouseCanvasPositionVector : IO<Vector2D> =
@@ -2092,12 +2074,12 @@ namespace Import
 		export const mouseCanvasPositionY : IO<number> =
 			IO(() => __EXTERNAL__.mouse.canvasY / __EXTERNAL__.context.canvas.height)
 
-		/**` Import.Norm.mouseVelocity :: IO (Number, Number) `*/
-		export const mouseVelocity : IO<[number, number]> =
-			IO(() => [
+		/**` Import.Norm.mouseVelocity :: IO (Pair Number Number) `*/
+		export const mouseVelocity : IO<Pair<number, number>> =
+			IO(() => Pair (
 				__EXTERNAL__.mouse.deltaX / __EXTERNAL__.context.canvas.width,
 				__EXTERNAL__.mouse.deltaY / __EXTERNAL__.context.canvas.height
-			])
+			))
 
 		/**` Import.Norm.mouseVelocityVector :: IO Vector2D `*/
 		export const mouseVelocityVector : IO<Vector2D> =
@@ -2143,12 +2125,12 @@ namespace Import
 		export const fontSize : IO<number> =
 			IO(() => parseFloat(__EXTERNAL__.context.font) / __EXTERNAL__.context.canvas.width)
 
-		/**` Import.Norm.shadowOffset :: IO (Number, Number) `*/
-		export const shadowOffset : IO<[number, number]> =
-			IO(() => [
+		/**` Import.Norm.shadowOffset :: IO (Pair Number Number) `*/
+		export const shadowOffset : IO<Pair<number, number>> =
+			IO(() => Pair (
 				__EXTERNAL__.context.shadowOffsetX / __EXTERNAL__.context.canvas.width,
 				__EXTERNAL__.context.shadowOffsetY / __EXTERNAL__.context.canvas.height
-			])
+			))
 
 		/**` Import.Norm.shadowOffsetVector :: IO Vector2D `*/
 		export const shadowOffsetVector : IO<Vector2D> =
@@ -2251,9 +2233,9 @@ namespace Import
 	export const isWindowResized : IO<boolean> =
 		IO(() => __EXTERNAL__.isResized)
 
-	/**` Import.screenDimensions :: IO (Number, Number) `*/
-	export const screenDimensions : IO<[number, number]> =
-		IO(() => [screen.width, screen.height])
+	/**` Import.screenDimensions :: IO (Pair Number Number) `*/
+	export const screenDimensions : IO<Pair<number, number>> =
+		IO(() => Pair (screen.width, screen.height))
 
 	/**` Import.screenDimensionsVector :: IO Vector2D `*/
 	export const screenDimensionsVector : IO<Vector2D> =
@@ -2267,9 +2249,9 @@ namespace Import
 	export const screenDimensionH : IO<number> =
 		IO(() => screen.height)
 
-	/**` Import.windowDimensions :: IO (Number, Number) `*/
-	export const windowDimensions : IO<[number, number]> =
-		IO(() => [innerWidth, innerHeight])
+	/**` Import.windowDimensions :: IO (Pair Number Number) `*/
+	export const windowDimensions : IO<Pair<number, number>> =
+		IO(() => Pair (innerWidth, innerHeight))
 
 	/**` Import.windowDimensionsVector :: IO Vector2D `*/
 	export const windowDimensionsVector : IO<Vector2D> =
@@ -2283,9 +2265,9 @@ namespace Import
 	export const windowDimensionH : IO<number> =
 		IO(() => innerHeight)
 
-	/**` Import.canvasDimensions :: IO (Number, Number) `*/
-	export const canvasDimensions : IO<[number, number]> =
-		IO(() => [__EXTERNAL__.context.canvas.width, __EXTERNAL__.context.canvas.height])
+	/**` Import.canvasDimensions :: IO (Pair Number Number) `*/
+	export const canvasDimensions : IO<Pair<number, number>> =
+		IO(() => Pair (__EXTERNAL__.context.canvas.width, __EXTERNAL__.context.canvas.height))
 
 	/**` Import.canvasDimensionsVector :: IO Vector2D `*/
 	export const canvasDimensionsVector : IO<Vector2D> =
@@ -2299,9 +2281,9 @@ namespace Import
 	export const canvasDimensionH : IO<number> =
 		IO(() => __EXTERNAL__.context.canvas.height)
 
-	/**` Import.mouseScreenPosition :: IO (Number, Number) `*/
-	export const mouseScreenPosition : IO<[number, number]> =
-		IO(() => [__EXTERNAL__.mouse.screenX, __EXTERNAL__.mouse.screenY])
+	/**` Import.mouseScreenPosition :: IO (Pair Number Number) `*/
+	export const mouseScreenPosition : IO<Pair<number, number>> =
+		IO(() => Pair (__EXTERNAL__.mouse.screenX, __EXTERNAL__.mouse.screenY))
 
 	/**` Import.mouseScreenPositionVector :: IO Vector2D `*/
 	export const mouseScreenPositionVector : IO<Vector2D> =
@@ -2315,9 +2297,9 @@ namespace Import
 	export const mouseScreenPositionY : IO<number> =
 		IO(() => __EXTERNAL__.mouse.screenY)
 
-	/**` Import.mouseWindowPosition :: IO (Number, Number) `*/
-	export const mouseWindowPosition : IO<[number, number]> =
-		IO(() => [__EXTERNAL__.mouse.windowX, __EXTERNAL__.mouse.windowY])
+	/**` Import.mouseWindowPosition :: IO (Pair Number Number) `*/
+	export const mouseWindowPosition : IO<Pair<number, number>> =
+		IO(() => Pair (__EXTERNAL__.mouse.windowX, __EXTERNAL__.mouse.windowY))
 
 	/**` Import.mouseWindowPositionVector :: IO Vector2D `*/
 	export const mouseWindowPositionVector : IO<Vector2D> =
@@ -2331,9 +2313,9 @@ namespace Import
 	export const mouseWindowPositionY : IO<number> =
 		IO(() => __EXTERNAL__.mouse.windowY)
 
-	/**` Import.mouseCanvasPosition :: IO (Number, Number) `*/
-	export const mouseCanvasPosition : IO<[number, number]> =
-		IO(() => [__EXTERNAL__.mouse.canvasX, __EXTERNAL__.mouse.canvasY])
+	/**` Import.mouseCanvasPosition :: IO (Pair Number Number) `*/
+	export const mouseCanvasPosition : IO<Pair<number, number>> =
+		IO(() => Pair (__EXTERNAL__.mouse.canvasX, __EXTERNAL__.mouse.canvasY))
 
 	/**` Import.mouseCanvasPositionVector :: IO Vector2D `*/
 	export const mouseCanvasPositionVector : IO<Vector2D> =
@@ -2347,9 +2329,9 @@ namespace Import
 	export const mouseCanvasPositionY : IO<number> =
 		IO(() => __EXTERNAL__.mouse.canvasY)
 
-	/**` Import.mouseVelocity :: IO (Number, Number) `*/
-	export const mouseVelocity : IO<[number, number]> =
-		IO(() => [__EXTERNAL__.mouse.deltaX, __EXTERNAL__.mouse.deltaY])
+	/**` Import.mouseVelocity :: IO (Pair Number Number) `*/
+	export const mouseVelocity : IO<Pair<number, number>> =
+		IO(() => Pair (__EXTERNAL__.mouse.deltaX, __EXTERNAL__.mouse.deltaY))
 
 	/**` Import.mouseVelocityVector :: IO Vector2D `*/
 	export const mouseVelocityVector : IO<Vector2D> =
@@ -2403,11 +2385,11 @@ namespace Import
 
 	/**` Import.lineCap :: IO LineCap `*/
 	export const lineCap : IO<LineCap> =
-		IO(() => bijectionLineCap.codomain(__EXTERNAL__.context.lineCap))
+		IO(() => mappingLineCap.codomain(__EXTERNAL__.context.lineCap))
 
 	/**` Import.lineJoin :: IO LineJoin `*/
 	export const lineJoin : IO<LineJoin> =
-		IO(() => bijectionLineJoin.codomain(__EXTERNAL__.context.lineJoin))
+		IO(() => mappingLineJoin.codomain(__EXTERNAL__.context.lineJoin))
 
 	/**` Import.lineDashPattern :: IO (List Number) `*/
 	export const lineDashPattern : IO<List<number>> =
@@ -2435,11 +2417,11 @@ namespace Import
 
 	/**` Import.textAlign :: IO TextAlign `*/
 	export const textAlign : IO<TextAlign> =
-		IO(() => bijectionTextAlign.codomain(__EXTERNAL__.context.textAlign))
+		IO(() => mappingTextAlign.codomain(__EXTERNAL__.context.textAlign))
 
 	/**` Import.textBaseline :: IO TextBaseline `*/
 	export const textBaseline : IO<TextBaseline> =
-		IO(() => bijectionTextBaseline.codomain(__EXTERNAL__.context.textBaseline))
+		IO(() => mappingTextBaseline.codomain(__EXTERNAL__.context.textBaseline))
 
 	/**` Import.shadowBlurAmount :: IO Number `*/
 	export const shadowBlurAmount : IO<number> =
@@ -2449,9 +2431,9 @@ namespace Import
 	export const shadowColor : IO<string> =
 		IO(() => __EXTERNAL__.context.shadowColor)
 
-	/**` Import.shadowOffset :: IO (Number, Number) `*/
-	export const shadowOffset : IO<[number, number]> =
-		IO(() => [__EXTERNAL__.context.shadowOffsetX, __EXTERNAL__.context.shadowOffsetY])
+	/**` Import.shadowOffset :: IO (Pair Number Number) `*/
+	export const shadowOffset : IO<Pair<number, number>> =
+		IO(() => Pair (__EXTERNAL__.context.shadowOffsetX, __EXTERNAL__.context.shadowOffsetY))
 
 	/**` Import.shadowOffsetVector :: IO Vector2D `*/
 	export const shadowOffsetVector : IO<Vector2D> =
@@ -2505,7 +2487,7 @@ namespace Import
 
 	/**` Import.compositionOperation :: IO CompositionOperation `*/
 	export const compositionOperation : IO<CompositionOperation> =
-		IO(() => bijectionCompositionOperation.codomain(__EXTERNAL__.context.globalCompositeOperation))
+		IO(() => mappingCompositionOperation.codomain(__EXTERNAL__.context.globalCompositeOperation))
 }
 
 namespace Mutate
@@ -2626,11 +2608,11 @@ namespace Mutate
 
 	/**` Mutate.lineCap :: LineCap -> IO () `*/
 	export const lineCap = (cap : LineCap) : IO<null> =>
-		IO(() => (__EXTERNAL__.context.lineCap = bijectionLineCap.domain(cap) as any, null))
+		IO(() => (__EXTERNAL__.context.lineCap = mappingLineCap.domain(cap) as any, null))
 
 	/**` Mutate.lineJoin :: LineJoin -> IO () `*/
 	export const lineJoin = (joining : LineJoin) : IO<null> =>
-		IO(() => (__EXTERNAL__.context.lineJoin = bijectionLineJoin.domain(joining) as any, null))
+		IO(() => (__EXTERNAL__.context.lineJoin = mappingLineJoin.domain(joining) as any, null))
 
 	/**` Mutate.lineDashPattern :: List Number -> IO () `*/
 	export const lineDashPattern = (pattern : List<number>) : IO<null> =>
@@ -2665,11 +2647,11 @@ namespace Mutate
 
 	/**` Mutate.textAlign :: TextAlign -> IO () `*/
 	export const textAlign = (align : TextAlign) : IO<null> =>
-		IO(() => (__EXTERNAL__.context.textAlign = bijectionTextAlign.domain(align) as any, null))
+		IO(() => (__EXTERNAL__.context.textAlign = mappingTextAlign.domain(align) as any, null))
 
 	/**` Mutate.textBaseline :: TextBaseline -> IO () `*/
 	export const textBaseline = (baseline : TextBaseline) : IO<null> =>
-		IO(() => (__EXTERNAL__.context.textBaseline = bijectionTextBaseline.domain(baseline) as any, null))
+		IO(() => (__EXTERNAL__.context.textBaseline = mappingTextBaseline.domain(baseline) as any, null))
 
 	/**` Mutate.fillColor :: String -> IO () `*/
 	export const fillColor = (color : string) : IO<null> =>
@@ -2746,7 +2728,7 @@ namespace Mutate
 	/**` Mutate.compositionOperation :: CompositionOperation -> IO () `*/
 	export const compositionOperation = (composition : CompositionOperation) : IO<null> =>
 		IO(() => {
-			__EXTERNAL__.context.globalCompositeOperation = bijectionCompositionOperation.domain(composition)
+			__EXTERNAL__.context.globalCompositeOperation = mappingCompositionOperation.domain(composition)
 			return null
 		})
 }
@@ -3386,8 +3368,8 @@ namespace Effect
 			))
 	}
 
-	/**` Effect.log :: String -> IO () `*/
-	export const log = (message : string) : IO<null> =>
+	/**` Effect.log :: a -> IO () `*/
+	export const log = <a>(message : a) : IO<null> =>
 		IO(() => (console.log(message), null))
 
 	/**` Effect.flush :: IO () `*/

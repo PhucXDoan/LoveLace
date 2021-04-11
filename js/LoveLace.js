@@ -19,6 +19,7 @@ const add = (x) => (y) => x + y;
 const AND = (x) => (y) => x & y;
 const and = (x) => (y) => x && y;
 const apply = (x) => (f) => f(x);
+const applyWhen = (condition) => (f) => condition ? f : id;
 const approx = (x) => (y) => (error) => Math.abs(x - y) < error;
 const napprox = (x) => (y) => (error) => Math.abs(x - y) > error;
 const asin = Math.asin;
@@ -28,7 +29,6 @@ const atan2 = (y) => (x) => Math.atan2(y, x);
 const ratan2 = (x) => (y) => Math.atan2(y, x);
 const atanh = Math.atanh;
 const BIT = (x) => x ? 1 : 0;
-const rboth = (pair) => (f) => [f(pair[0]), f(pair[1])];
 const cbrt = Math.cbrt;
 const ceil = Math.ceil;
 const CLZ32 = Math.clz32;
@@ -37,13 +37,12 @@ const cosh = Math.cosh;
 const diff = (x) => (y) => Math.abs(x - y);
 const div = (x) => (y) => x / y;
 const rdiv = (y) => (x) => x / y;
-const eq = (x) => (y) => x === y;
+const eq = (x) => (y) => x === y || x.eq(y);
 const even = (x) => x % 2 === 0;
 const exp = Math.exp;
 const expm1 = Math.expm1;
 const floor = Math.floor;
 const fround = Math.fround;
-const fst = (pair) => pair[0];
 const greater = (x) => (y) => y > x;
 const greaterEqual = (x) => (y) => y >= x;
 const gt = (x) => (y) => x > y;
@@ -80,7 +79,6 @@ const odd = (x) => Math.abs(x) % 2 === 1;
 const OR = (x) => (y) => x | y;
 const or = (x) => (y) => x || y;
 const nor = (x) => (y) => !(x || y);
-const pick = (condition) => condition ? fst : snd;
 const pow = (x) => (y) => Math.pow(x, y);
 const rpow = (y) => (x) => Math.pow(x, y);
 const pythagoras = (x) => (y) => Math.sqrt(x * x + y * y);
@@ -90,7 +88,6 @@ const rRSHIFT = (y) => (x) => x >> y;
 const sign = Math.sign;
 const sin = Math.sin;
 const sinh = Math.sinh;
-const snd = (pair) => pair[1];
 const sqrt = Math.sqrt;
 const sub = (x) => (y) => x - y;
 const rsub = (y) => (x) => x - y;
@@ -111,6 +108,19 @@ Number.prototype.eq = function (x) { return this === x; };
 Number.prototype.pipe = function (f) { return f(this); };
 String.prototype.eq = function (x) { return this === x; };
 String.prototype.pipe = function (f) { return f(this); };
+const Pair = (first, second) => ({
+    CONS: 'Pair',
+    eq: x => x.fst.eq(first) && x.snd.eq(second),
+    get pipe() { return (f) => f(this); },
+    fst: first,
+    snd: second
+});
+const fst = (pair) => pair.fst;
+const snd = (pair) => pair.snd;
+const fpair = (f) => (firsts) => (seconds) => Pair(f(firsts.fst)(seconds.fst), f(firsts.snd)(seconds.snd));
+const pick = (condition) => condition ? fst : snd;
+const both = (f) => (pair) => Pair(f(pair.fst), f(pair.snd));
+const uncurry = (f) => (pair) => f(pair.fst)(pair.snd);
 const IO = (sideeffect) => ({
     CONS: 'IO',
     INFO: sideeffect,
@@ -175,38 +185,35 @@ const State = (statefulComputation) => ({
     CONS: 'State',
     INFO: statefulComputation,
     get pipe() { return (f) => f(this); },
-    then: s => State(x => s.INFO(statefulComputation(x)[0])),
+    then: s => State(x => s.INFO(statefulComputation(x).fst)),
     side: s => State(x => {
         const y = statefulComputation(x);
-        return [s.INFO(y[0])[0], y[1]];
+        return Pair(s.INFO(y.fst).fst, y.snd);
     }),
     also: f => State(x => {
         const y = statefulComputation(x);
-        return [f(y[1]).INFO(y[0])[0], y[1]];
+        return Pair(f(y.snd).INFO(y.fst).fst, y.snd);
     }),
     bind: f => State(x => {
-        const [y, z] = statefulComputation(x);
+        const { fst: y, snd: z } = statefulComputation(x);
         return f(z).INFO(y);
     }),
     bindto: k => f => State(x => {
-        const [y, $] = statefulComputation(x);
-        const [z, w] = f($).INFO(y);
-        return [z, Object.assign(Object.assign({}, $), { [k]: w })];
+        const { fst: y, snd: $ } = statefulComputation(x);
+        const { fst: z, snd: w } = f($).INFO(y);
+        return Pair(z, Object.assign(Object.assign({}, $), { [k]: w }));
     }),
     fmap: f => State(x => {
-        const [y, z] = statefulComputation(x);
-        return [y, f(z)];
+        const { fst: y, snd: z } = statefulComputation(x);
+        return Pair(y, f(z));
     }),
     fmapto: k => f => State(x => {
-        const [y, $] = statefulComputation(x);
-        return [y, Object.assign(Object.assign({}, $), { [k]: f($) })];
+        const { fst: y, snd: $ } = statefulComputation(x);
+        return Pair(y, Object.assign(Object.assign({}, $), { [k]: f($) }));
     }),
-    cast: x => State(y => [statefulComputation(y)[0], x])
+    cast: x => State(y => Pair(statefulComputation(y).fst, x))
 });
-const pseudoRandom = State(seed => [
-    (-67 * seed * seed * seed + 23 * seed * seed - 91 * seed + 73) % 65536,
-    Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536
-]);
+const pseudoRandom = State(seed => Pair((-67 * seed * seed * seed + 23 * seed * seed - 91 * seed + 73) % 65536, Math.abs(97 * seed * seed * seed + 91 * seed * seed - 83 * seed + 79) % 65536 / 65536));
 const Nil = (() => {
     const self = {
         CONS: 'Nil',
@@ -423,7 +430,7 @@ const dropWhile = (predicate) => (xs) => {
 };
 const elem = (value) => (xs) => {
     while (xs.CONS === 'Cons')
-        if (xs.INFO.head === value)
+        if (xs.INFO.head.eq(value))
             return true;
         else
             xs = xs.INFO.tail;
@@ -431,12 +438,12 @@ const elem = (value) => (xs) => {
 };
 const elemIndex = (value) => (xs) => {
     for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs.INFO.tail)
-        if (xs.INFO.head === value)
+        if (xs.INFO.head.eq(value))
             return Just(i);
     return Nothing;
 };
 const elemIndices = (value) => (xs) => xs.CONS === 'Nil' ? Nil :
-    xs.INFO.head === value
+    xs.INFO.head.eq(value)
         ? Cons(() => 0)(() => elemIndices(value)(xs.INFO.tail).fmap(x => x + 1))
         : elemIndices(value)(xs.INFO.tail).fmap(x => x + 1);
 const filter = (predicate) => (xs) => xs.CONS === 'Nil' ? Nil :
@@ -480,7 +487,7 @@ const intersperse = (delimiter) => (xs) => xs.bind(x => List(delimiter, x)).INFO
 const last = (xs) => xs.INFO.last;
 const len = (xs) => xs.INFO.len;
 const map = (morphism) => (xs) => xs.fmap(morphism);
-const partition = (predicate) => (xs) => [filter(predicate)(xs), filter((x) => !predicate(x))(xs)];
+const partition = (predicate) => (xs) => Pair(filter(predicate)(xs), filter((x) => !predicate(x))(xs));
 const prepend = (element) => (xs) => xs.CONS === 'Nil' ? singleton(element) :
     (() => {
         const self = {
@@ -635,8 +642,8 @@ const singleton = (value) => {
     self.INFO.reverse = self.INFO.CACHE.reverse = self;
     return self;
 };
-const span = (predicate) => (xs) => [takeWhile(predicate)(xs), dropWhile(predicate)(xs)];
-const splitAt = (index) => (xs) => [take(index)(xs), drop(index)(xs)];
+const span = (predicate) => (xs) => Pair(takeWhile(predicate)(xs), dropWhile(predicate)(xs));
+const splitAt = (index) => (xs) => Pair(take(index)(xs), drop(index)(xs));
 const string = (str) => str
     ? (() => {
         const self = {
@@ -695,9 +702,9 @@ const unstring = (xs) => {
             console.warn(`'unstring' reached the max lengthed string of 'List' ('256') which could suggest infinity.`);
     return s;
 };
-const unzip = (xs) => [xs.fmap(x => x[0]), xs.fmap(x => x[1])];
+const unzip = (xs) => Pair(xs.fmap(fst), xs.fmap(snd));
 const zip = (xs) => (ys) => xs.CONS === 'Nil' || ys.CONS === 'Nil' ? Nil :
-    Cons(() => [xs.INFO.head, ys.INFO.head])(() => zip(xs.INFO.tail)(ys.INFO.tail));
+    Cons(() => Pair(xs.INFO.head, ys.INFO.head))(() => zip(xs.INFO.tail)(ys.INFO.tail));
 const zipWith = (zipper) => (xs) => (ys) => xs.CONS === 'Nil' || ys.CONS === 'Nil' ? Nil :
     Cons(() => zipper(xs.INFO.head)(ys.INFO.head))(() => zipWith(zipper)(xs.INFO.tail)(ys.INFO.tail));
 const Vector2D = (x) => (y) => ({
@@ -760,46 +767,25 @@ const TextMeasurement = (text) => (width) => (height) => ({
     CONS: 'TextMeasurement',
     text, width, height
 });
-const Switch = (f) => ({
-    CONS: 'Switch',
-    case: x => y => Switch(z => {
-        const w = f(z);
-        return w === undefined && z === x ? y() : w;
-    }),
-    else: x => Switch(y => {
-        const z = f(y);
-        return z === undefined ? x() : z;
-    }),
-    with: x => {
-        const y = f(x);
-        return y === undefined
-            ? THROWRANGE(`'Switch' did not cover all cases; missing case on value: '${x}'`)
-            : y;
-    }
-});
-Switch.case = (domain) => (codomain) => Switch(x => x === domain ? codomain() : undefined);
-const Bijection = (pairs) => ({
-    CONS: 'Bijection',
-    INFO: pairs,
-    of: x => y => Bijection([...pairs, [x, y]]),
+const Mapping = (...mappings) => ({
+    CONS: 'Mapping',
     domain: x => {
-        const y = pairs.find(([z, _]) => z === x);
-        return y === undefined
-            ? THROWRANGE(`'Bijection' did not have a well-defined enough domain for value: '${x}'`)
-            : y[1];
+        const i = mappings.findIndex(p => p[0].eq(x));
+        return ~i
+            ? mappings[i][1]
+            : THROWRANGE(`'Mapping' was non-exhaustive; could not find domain of '${x}'`);
     },
     codomain: x => {
-        const y = pairs.find(([_, z]) => z === x);
-        return y === undefined
-            ? THROWRANGE(`'Bijection' did not have a well-defined enough codomain for value: '${x}'`)
-            : y[0];
+        const i = mappings.findIndex(p => p[1].eq(x));
+        return ~i
+            ? mappings[i][0]
+            : THROWRANGE(`'Mapping' was non-exhaustive; could not find codomain of '${x}'`);
     }
 });
-Bijection.of = (domainValue) => (codomainValue) => Bijection([[domainValue, codomainValue]]);
 const unit = {
     IO: (output) => IO(() => output),
     Maybe: Just,
-    State: (output) => State(_ => [null, output]),
+    State: (output) => State(_ => Pair(null, output)),
     List: (element) => Cons(() => element)(() => Nil)
 };
 var Horizontal;
@@ -884,74 +870,25 @@ var CompositionOperation;
     CompositionOperation["Color"] = "Color :: CompositionOperation";
     CompositionOperation["Luminosity"] = "Luminosity :: CompositionOperation";
 })(CompositionOperation || (CompositionOperation = {}));
-const relaxHorizontal = (direction) => Switch
-    .case(Horizontal.Leftward)(() => Horizontal.Left)
-    .case(Horizontal.Rightward)(() => Horizontal.Right)
-    .else(() => direction)
-    .with(direction);
-const relaxVertical = (direction) => Switch
-    .case(Vertical.Downward)(() => Vertical.Down)
-    .case(Vertical.Upward)(() => Vertical.Up)
-    .else(() => direction)
-    .with(direction);
-const relaxLateral = (direction) => Switch
-    .case(Lateral.Backward)(() => Lateral.Back)
-    .case(Lateral.Forward)(() => Lateral.Fore)
-    .else(() => direction)
-    .with(direction);
-const bijectionLineCap = Bijection
-    .of(LineCap.Butt)('butt')
-    .of(LineCap.Round)('round')
-    .of(LineCap.Square)('square');
-const bijectionLineJoin = Bijection
-    .of(LineJoin.Round)('round')
-    .of(LineJoin.Bevel)('bevel')
-    .of(LineJoin.Miter)('miter');
-const bijectionTextAlign = Bijection
-    .of(TextAlign.Center)('center')
-    .of(TextAlign.End)('end')
-    .of(TextAlign.Left)('left')
-    .of(TextAlign.Right)('right')
-    .of(TextAlign.Start)('start');
-const bijectionTextBaseline = Bijection
-    .of(TextBaseline.Alphabetic)('alphabetic')
-    .of(TextBaseline.Bottom)('bottom')
-    .of(TextBaseline.Hanging)('hanging')
-    .of(TextBaseline.Ideographic)('ideographic')
-    .of(TextBaseline.Middle)('middle')
-    .of(TextBaseline.Top)('top');
-const bijectionCompositionOperation = Bijection
-    .of(CompositionOperation.SourceOver)('source-over')
-    .of(CompositionOperation.SourceIn)('source-in')
-    .of(CompositionOperation.SourceOut)('source-out')
-    .of(CompositionOperation.SourceAtop)('source-atop')
-    .of(CompositionOperation.DestinationOver)('destination-over')
-    .of(CompositionOperation.DestinationIn)('destination-in')
-    .of(CompositionOperation.DestinationOut)('destination-out')
-    .of(CompositionOperation.DestinationAtop)('destination-atop')
-    .of(CompositionOperation.Lighter)('lighter')
-    .of(CompositionOperation.Copy)('copy')
-    .of(CompositionOperation.Xor)('xor')
-    .of(CompositionOperation.Multiply)('multiply')
-    .of(CompositionOperation.Screen)('screen')
-    .of(CompositionOperation.Overlay)('overlay')
-    .of(CompositionOperation.Darken)('darken')
-    .of(CompositionOperation.Lighten)('lighten')
-    .of(CompositionOperation.ColorDodge)('color-dodge')
-    .of(CompositionOperation.ColorBurn)('color-burn')
-    .of(CompositionOperation.HardLight)('hard-light')
-    .of(CompositionOperation.SoftLight)('soft-light')
-    .of(CompositionOperation.Difference)('difference')
-    .of(CompositionOperation.Exclusion)('exclusion')
-    .of(CompositionOperation.Hue)('hue')
-    .of(CompositionOperation.Saturation)('saturation')
-    .of(CompositionOperation.Color)('color')
-    .of(CompositionOperation.Luminosity)('luminosity');
+const relaxHorizontal = (direction) => direction === Horizontal.Leftward ? Horizontal.Left :
+    direction === Horizontal.Rightward ? Horizontal.Right :
+        direction;
+const relaxVertical = (direction) => direction === Vertical.Downward ? Vertical.Down :
+    direction === Vertical.Upward ? Vertical.Up :
+        direction;
+const relaxLateral = (direction) => direction === Lateral.Backward ? Lateral.Back :
+    direction === Lateral.Forward ? Lateral.Fore :
+        direction;
+const mappingLineCap = Mapping([LineCap.Butt, 'butt'], [LineCap.Round, 'round'], [LineCap.Square, 'square']);
+const mappingLineJoin = Mapping([LineJoin.Round, 'round'], [LineJoin.Bevel, 'bevel'], [LineJoin.Miter, 'miter']);
+const mappingTextAlign = Mapping([TextAlign.Center, 'center'], [TextAlign.End, 'end'], [TextAlign.Left, 'left'], [TextAlign.Right, 'right'], [TextAlign.Start, 'start']);
+const mappingTextBaseline = Mapping([TextBaseline.Alphabetic, 'alphabetic'], [TextBaseline.Bottom, 'bottom'], [TextBaseline.Hanging, 'hanging'], [TextBaseline.Ideographic, 'ideographic'], [TextBaseline.Middle, 'middle'], [TextBaseline.Top, 'top']);
+const mappingCompositionOperation = Mapping([CompositionOperation.SourceOver, 'source-over'], [CompositionOperation.SourceIn, 'source-in'], [CompositionOperation.SourceOut, 'source-out'], [CompositionOperation.SourceAtop, 'source-atop'], [CompositionOperation.DestinationOver, 'destination-over'], [CompositionOperation.DestinationIn, 'destination-in'], [CompositionOperation.DestinationOut, 'destination-out'], [CompositionOperation.DestinationAtop, 'destination-atop'], [CompositionOperation.Lighter, 'lighter'], [CompositionOperation.Copy, 'copy'], [CompositionOperation.Xor, 'xor'], [CompositionOperation.Multiply, 'multiply'], [CompositionOperation.Screen, 'screen'], [CompositionOperation.Overlay, 'overlay'], [CompositionOperation.Darken, 'darken'], [CompositionOperation.Lighten, 'lighten'], [CompositionOperation.ColorDodge, 'color-dodge'], [CompositionOperation.ColorBurn, 'color-burn'], [CompositionOperation.HardLight, 'hard-light'], [CompositionOperation.SoftLight, 'soft-light'], [CompositionOperation.Difference, 'difference'], [CompositionOperation.Exclusion, 'exclusion'], [CompositionOperation.Hue, 'hue'], [CompositionOperation.Saturation, 'saturation'], [CompositionOperation.Color, 'color'], [CompositionOperation.Luminosity, 'luminosity']);
 const Do = {
     IO: IO(() => Object.create(null)),
     Maybe: Just(Object.create(null)),
-    State: State((s) => [s, Object.create(null)]),
-    List: singleton(Object.create(null))
+    State: State((s) => Pair(s, Object.create(null))),
+    List: Cons(() => Object.create(null))(() => Nil)
 };
 const __KEYBOARD_KEYS_ARRAY__ = [
     'AltLeft', 'AltRight', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Backquote',
@@ -981,7 +918,7 @@ const __EXTERNAL__ = {
         canvasX: 0, canvasY: 0,
         deltaX: 0, deltaY: 0,
         scroll: Vertical.CenterY,
-        buttons: new Array(5).fill(Vertical.Up)
+        buttons: Array(5).fill(Vertical.Up)
     },
     keyboard: __KEYBOARD_KEYS_ARRAY__.reduce(($, k) => (Object.assign(Object.assign({}, $), { [k]: Vertical.Up })), {})
 };
@@ -989,17 +926,11 @@ var Import;
 (function (Import) {
     let Norm;
     (function (Norm) {
-        Norm.mouseCanvasPosition = IO(() => [
-            __EXTERNAL__.mouse.canvasX / __EXTERNAL__.context.canvas.width,
-            __EXTERNAL__.mouse.canvasY / __EXTERNAL__.context.canvas.height
-        ]);
+        Norm.mouseCanvasPosition = IO(() => Pair(__EXTERNAL__.mouse.canvasX / __EXTERNAL__.context.canvas.width, __EXTERNAL__.mouse.canvasY / __EXTERNAL__.context.canvas.height));
         Norm.mouseCanvasPositionVector = IO(() => Vector2D(__EXTERNAL__.mouse.canvasX / __EXTERNAL__.context.canvas.width)(__EXTERNAL__.mouse.canvasY / __EXTERNAL__.context.canvas.height));
         Norm.mouseCanvasPositionX = IO(() => __EXTERNAL__.mouse.canvasX / __EXTERNAL__.context.canvas.width);
         Norm.mouseCanvasPositionY = IO(() => __EXTERNAL__.mouse.canvasY / __EXTERNAL__.context.canvas.height);
-        Norm.mouseVelocity = IO(() => [
-            __EXTERNAL__.mouse.deltaX / __EXTERNAL__.context.canvas.width,
-            __EXTERNAL__.mouse.deltaY / __EXTERNAL__.context.canvas.height
-        ]);
+        Norm.mouseVelocity = IO(() => Pair(__EXTERNAL__.mouse.deltaX / __EXTERNAL__.context.canvas.width, __EXTERNAL__.mouse.deltaY / __EXTERNAL__.context.canvas.height));
         Norm.mouseVelocityVector = IO(() => Vector2D(__EXTERNAL__.mouse.deltaX / __EXTERNAL__.context.canvas.width)(__EXTERNAL__.mouse.deltaY / __EXTERNAL__.context.canvas.height));
         Norm.mouseVelocityX = IO(() => __EXTERNAL__.mouse.deltaX / __EXTERNAL__.context.canvas.width);
         Norm.mouseVelocityY = IO(() => __EXTERNAL__.mouse.deltaY / __EXTERNAL__.context.canvas.height);
@@ -1012,10 +943,7 @@ var Import;
         Norm.lineDashPattern = IO(() => List(...__EXTERNAL__.context.getLineDash().map(n => n / __EXTERNAL__.context.canvas.width)));
         Norm.lineDashOffset = IO(() => __EXTERNAL__.context.lineDashOffset / __EXTERNAL__.context.canvas.width);
         Norm.fontSize = IO(() => parseFloat(__EXTERNAL__.context.font) / __EXTERNAL__.context.canvas.width);
-        Norm.shadowOffset = IO(() => [
-            __EXTERNAL__.context.shadowOffsetX / __EXTERNAL__.context.canvas.width,
-            __EXTERNAL__.context.shadowOffsetY / __EXTERNAL__.context.canvas.height
-        ]);
+        Norm.shadowOffset = IO(() => Pair(__EXTERNAL__.context.shadowOffsetX / __EXTERNAL__.context.canvas.width, __EXTERNAL__.context.shadowOffsetY / __EXTERNAL__.context.canvas.height));
         Norm.shadowOffsetVector = IO(() => Vector2D(__EXTERNAL__.context.shadowOffsetX / __EXTERNAL__.context.canvas.width)(__EXTERNAL__.context.shadowOffsetY / __EXTERNAL__.context.canvas.height));
         Norm.shadowOffsetX = IO(() => __EXTERNAL__.context.shadowOffsetX / __EXTERNAL__.context.canvas.width);
         Norm.shadowOffsetY = IO(() => __EXTERNAL__.context.shadowOffsetY / __EXTERNAL__.context.canvas.height);
@@ -1034,31 +962,31 @@ var Import;
     Import.timeSince1970 = IO(() => Date.now());
     Import.universalSeed = IO(() => __EXTERNAL__.seed);
     Import.isWindowResized = IO(() => __EXTERNAL__.isResized);
-    Import.screenDimensions = IO(() => [screen.width, screen.height]);
+    Import.screenDimensions = IO(() => Pair(screen.width, screen.height));
     Import.screenDimensionsVector = IO(() => Vector2D(screen.width)(screen.height));
     Import.screenDimensionW = IO(() => screen.width);
     Import.screenDimensionH = IO(() => screen.height);
-    Import.windowDimensions = IO(() => [innerWidth, innerHeight]);
+    Import.windowDimensions = IO(() => Pair(innerWidth, innerHeight));
     Import.windowDimensionsVector = IO(() => Vector2D(innerWidth)(innerHeight));
     Import.windowDimensionW = IO(() => innerWidth);
     Import.windowDimensionH = IO(() => innerHeight);
-    Import.canvasDimensions = IO(() => [__EXTERNAL__.context.canvas.width, __EXTERNAL__.context.canvas.height]);
+    Import.canvasDimensions = IO(() => Pair(__EXTERNAL__.context.canvas.width, __EXTERNAL__.context.canvas.height));
     Import.canvasDimensionsVector = IO(() => Vector2D(__EXTERNAL__.context.canvas.width)(__EXTERNAL__.context.canvas.height));
     Import.canvasDimensionW = IO(() => __EXTERNAL__.context.canvas.width);
     Import.canvasDimensionH = IO(() => __EXTERNAL__.context.canvas.height);
-    Import.mouseScreenPosition = IO(() => [__EXTERNAL__.mouse.screenX, __EXTERNAL__.mouse.screenY]);
+    Import.mouseScreenPosition = IO(() => Pair(__EXTERNAL__.mouse.screenX, __EXTERNAL__.mouse.screenY));
     Import.mouseScreenPositionVector = IO(() => Vector2D(__EXTERNAL__.mouse.screenX)(__EXTERNAL__.mouse.screenY));
     Import.mouseScreenPositionX = IO(() => __EXTERNAL__.mouse.screenX);
     Import.mouseScreenPositionY = IO(() => __EXTERNAL__.mouse.screenY);
-    Import.mouseWindowPosition = IO(() => [__EXTERNAL__.mouse.windowX, __EXTERNAL__.mouse.windowY]);
+    Import.mouseWindowPosition = IO(() => Pair(__EXTERNAL__.mouse.windowX, __EXTERNAL__.mouse.windowY));
     Import.mouseWindowPositionVector = IO(() => Vector2D(__EXTERNAL__.mouse.windowX)(__EXTERNAL__.mouse.windowY));
     Import.mouseWindowPositionX = IO(() => __EXTERNAL__.mouse.windowX);
     Import.mouseWindowPositionY = IO(() => __EXTERNAL__.mouse.windowY);
-    Import.mouseCanvasPosition = IO(() => [__EXTERNAL__.mouse.canvasX, __EXTERNAL__.mouse.canvasY]);
+    Import.mouseCanvasPosition = IO(() => Pair(__EXTERNAL__.mouse.canvasX, __EXTERNAL__.mouse.canvasY));
     Import.mouseCanvasPositionVector = IO(() => Vector2D(__EXTERNAL__.mouse.canvasX)(__EXTERNAL__.mouse.canvasY));
     Import.mouseCanvasPositionX = IO(() => __EXTERNAL__.mouse.canvasX);
     Import.mouseCanvasPositionY = IO(() => __EXTERNAL__.mouse.canvasY);
-    Import.mouseVelocity = IO(() => [__EXTERNAL__.mouse.deltaX, __EXTERNAL__.mouse.deltaY]);
+    Import.mouseVelocity = IO(() => Pair(__EXTERNAL__.mouse.deltaX, __EXTERNAL__.mouse.deltaY));
     Import.mouseVelocityVector = IO(() => Vector2D(__EXTERNAL__.mouse.deltaX)(__EXTERNAL__.mouse.deltaY));
     Import.mouseVelocityX = IO(() => __EXTERNAL__.mouse.deltaX);
     Import.mouseVelocityY = IO(() => __EXTERNAL__.mouse.deltaY);
@@ -1073,19 +1001,19 @@ var Import;
         return TextMeasurement(text)(Math.abs(metrics.actualBoundingBoxLeft) + Math.abs(metrics.actualBoundingBoxRight))(Math.abs(metrics.actualBoundingBoxAscent) + Math.abs(metrics.actualBoundingBoxDescent));
     });
     Import.lineWidth = IO(() => __EXTERNAL__.context.lineWidth);
-    Import.lineCap = IO(() => bijectionLineCap.codomain(__EXTERNAL__.context.lineCap));
-    Import.lineJoin = IO(() => bijectionLineJoin.codomain(__EXTERNAL__.context.lineJoin));
+    Import.lineCap = IO(() => mappingLineCap.codomain(__EXTERNAL__.context.lineCap));
+    Import.lineJoin = IO(() => mappingLineJoin.codomain(__EXTERNAL__.context.lineJoin));
     Import.lineDashPattern = IO(() => List(...__EXTERNAL__.context.getLineDash()));
     Import.lineDashOffset = IO(() => __EXTERNAL__.context.lineDashOffset);
     Import.miterLimit = IO(() => __EXTERNAL__.context.miterLimit);
     Import.font = IO(() => __EXTERNAL__.context.font);
     Import.fontSize = IO(() => parseFloat(__EXTERNAL__.context.font));
     Import.fontFamily = IO(() => __EXTERNAL__.context.font.slice(__EXTERNAL__.context.font.indexOf(" ") + 1));
-    Import.textAlign = IO(() => bijectionTextAlign.codomain(__EXTERNAL__.context.textAlign));
-    Import.textBaseline = IO(() => bijectionTextBaseline.codomain(__EXTERNAL__.context.textBaseline));
+    Import.textAlign = IO(() => mappingTextAlign.codomain(__EXTERNAL__.context.textAlign));
+    Import.textBaseline = IO(() => mappingTextBaseline.codomain(__EXTERNAL__.context.textBaseline));
     Import.shadowBlurAmount = IO(() => __EXTERNAL__.context.shadowBlur);
     Import.shadowColor = IO(() => __EXTERNAL__.context.shadowColor);
-    Import.shadowOffset = IO(() => [__EXTERNAL__.context.shadowOffsetX, __EXTERNAL__.context.shadowOffsetY]);
+    Import.shadowOffset = IO(() => Pair(__EXTERNAL__.context.shadowOffsetX, __EXTERNAL__.context.shadowOffsetY));
     Import.shadowOffsetVector = IO(() => Vector2D(__EXTERNAL__.context.shadowOffsetX)(__EXTERNAL__.context.shadowOffsetY));
     Import.shadowOffsetX = IO(() => __EXTERNAL__.context.shadowOffsetX);
     Import.shadowOffsetY = IO(() => __EXTERNAL__.context.shadowOffsetY);
@@ -1100,7 +1028,7 @@ var Import;
         return Matrix3x3(m.a)(m.c)(m.e)(m.b)(m.d)(m.f)(0)(0)(1);
     });
     Import.alpha = IO(() => __EXTERNAL__.context.globalAlpha);
-    Import.compositionOperation = IO(() => bijectionCompositionOperation.codomain(__EXTERNAL__.context.globalCompositeOperation));
+    Import.compositionOperation = IO(() => mappingCompositionOperation.codomain(__EXTERNAL__.context.globalCompositeOperation));
 })(Import || (Import = {}));
 var Mutate;
 (function (Mutate) {
@@ -1154,8 +1082,8 @@ var Mutate;
     Mutate.canvasDimensionW = (w) => IO(() => (__EXTERNAL__.context.canvas.width = w, null));
     Mutate.canvasDimensionH = (h) => IO(() => (__EXTERNAL__.context.canvas.height = h, null));
     Mutate.lineWidth = (w) => IO(() => (__EXTERNAL__.context.lineWidth = w, null));
-    Mutate.lineCap = (cap) => IO(() => (__EXTERNAL__.context.lineCap = bijectionLineCap.domain(cap), null));
-    Mutate.lineJoin = (joining) => IO(() => (__EXTERNAL__.context.lineJoin = bijectionLineJoin.domain(joining), null));
+    Mutate.lineCap = (cap) => IO(() => (__EXTERNAL__.context.lineCap = mappingLineCap.domain(cap), null));
+    Mutate.lineJoin = (joining) => IO(() => (__EXTERNAL__.context.lineJoin = mappingLineJoin.domain(joining), null));
     Mutate.lineDashPattern = (pattern) => IO(() => (__EXTERNAL__.context.setLineDash(array(pattern)), null));
     Mutate.lineDashOffset = (offset) => IO(() => (__EXTERNAL__.context.lineDashOffset = offset, null));
     Mutate.miterLimit = (limit) => IO(() => (__EXTERNAL__.context.miterLimit = limit, null));
@@ -1169,8 +1097,8 @@ var Mutate;
         __EXTERNAL__.context.font = `${parseFloat(__EXTERNAL__.context.font)}px ${family}`;
         return null;
     });
-    Mutate.textAlign = (align) => IO(() => (__EXTERNAL__.context.textAlign = bijectionTextAlign.domain(align), null));
-    Mutate.textBaseline = (baseline) => IO(() => (__EXTERNAL__.context.textBaseline = bijectionTextBaseline.domain(baseline), null));
+    Mutate.textAlign = (align) => IO(() => (__EXTERNAL__.context.textAlign = mappingTextAlign.domain(align), null));
+    Mutate.textBaseline = (baseline) => IO(() => (__EXTERNAL__.context.textBaseline = mappingTextBaseline.domain(baseline), null));
     Mutate.fillColor = (color) => IO(() => (__EXTERNAL__.context.fillStyle = color, null));
     Mutate.fillRGBA = (r) => (g) => (b) => (a) => IO(() => (__EXTERNAL__.context.fillStyle = `rgba(${r},${g},${b},${a})`, null));
     Mutate.fillVector = (v) => IO(() => (__EXTERNAL__.context.fillStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`, null));
@@ -1196,7 +1124,7 @@ var Mutate;
     Mutate.transformationMatrix = (m) => IO(() => (__EXTERNAL__.context.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx, m.ky), null));
     Mutate.alpha = (opacity) => IO(() => (__EXTERNAL__.context.globalAlpha = opacity, null));
     Mutate.compositionOperation = (composition) => IO(() => {
-        __EXTERNAL__.context.globalCompositeOperation = bijectionCompositionOperation.domain(composition);
+        __EXTERNAL__.context.globalCompositeOperation = mappingCompositionOperation.domain(composition);
         return null;
     });
 })(Mutate || (Mutate = {}));
