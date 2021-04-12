@@ -8,7 +8,7 @@ const main : IO<null> =
 		.bindto ('maxCanvasScalar') ( _ => fetchMaxCanvasScalar )
 
 		// -- Maximizes the canvas.
-		.also ( $ => uncurry (Mutate.canvasDimensions) (both (mul ($.maxCanvasScalar)) (ASPECT_RATIO)) )
+		.also ( $ => uncurry (Mutate.canvasDimensions) (Pair ($.maxCanvasScalar, $.maxCanvasScalar / ASPECT_RATIO)) )
 
 		// -- Starts the loop with initial values.
 		.bind
@@ -53,7 +53,7 @@ const loop = (core : Core) => (program : Program) : IO<null> =>
 		.bind ( $ => Effect.queue (loop ($.updatedCore) ($.updatedProgram)) )
 
 /**` draw :: Core -> Program -> IO () `*/
-const draw = (core : Core) => (program : Program) =>
+const draw = (core : Core) => (program : Program) : IO<null> =>
 	idle
 
 /**` updateProgram :: Program -> IO Program `*/

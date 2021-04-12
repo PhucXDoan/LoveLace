@@ -1,5 +1,5 @@
-/**` ASPECT_RATIO :: Pair Number Number `*/
-const ASPECT_RATIO = Pair (16, 9)
+/**` ASPECT_RATIO :: Number `*/
+const ASPECT_RATIO = 16 / 9
 
 /**` RESIZING_THRESHOLD :: Number `*/
 const RESIZING_THRESHOLD = 1
@@ -119,7 +119,10 @@ const ProgramInitial =
 /********************************************************************************************************************************/
 
 /**` fetchMaxCanvasScalar :: IO Number `*/
-const fetchMaxCanvasScalar = Import.windowDimensions .fmap (p => uncurry (min) (fpair (div) (p) (ASPECT_RATIO)))
+const fetchMaxCanvasScalar =
+	Import.windowDimensions
+		.fmap ( fsnd (mul (ASPECT_RATIO)) )
+		.fmap ( uncurry (min) )
 
 /**` setCanvasScalar :: Number -> IO () `*/
-const setCanvasScalar = (scalar : number) => uncurry (Mutate.canvasDimensions) (both (mul (scalar)) (ASPECT_RATIO))
+const setCanvasScalar = (scalar : number) => Mutate.canvasDimensions (scalar) (scalar / ASPECT_RATIO)

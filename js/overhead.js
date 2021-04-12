@@ -1,5 +1,5 @@
 "use strict";
-const ASPECT_RATIO = Pair(16, 9);
+const ASPECT_RATIO = 16 / 9;
 const RESIZING_THRESHOLD = 1;
 const RESIZING_SPEED = 0.1;
 const REFRESH_TIME = 15;
@@ -28,5 +28,7 @@ const ProgramInitial = ({ time }) => ({
     get pipe() { return (f) => f(this); },
     time
 });
-const fetchMaxCanvasScalar = Import.windowDimensions.fmap(p => uncurry(min)(fpair(div)(p)(ASPECT_RATIO)));
-const setCanvasScalar = (scalar) => uncurry(Mutate.canvasDimensions)(both(mul(scalar))(ASPECT_RATIO));
+const fetchMaxCanvasScalar = Import.windowDimensions
+    .fmap(fsnd(mul(ASPECT_RATIO)))
+    .fmap(uncurry(min));
+const setCanvasScalar = (scalar) => Mutate.canvasDimensions(scalar)(scalar / ASPECT_RATIO);

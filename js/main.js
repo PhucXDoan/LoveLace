@@ -2,7 +2,7 @@
 const main = Do.IO
     .bindto('present')(_ => Import.timeSinceOpen)
     .bindto('maxCanvasScalar')(_ => fetchMaxCanvasScalar)
-    .also($ => uncurry(Mutate.canvasDimensions)(both(mul($.maxCanvasScalar))(ASPECT_RATIO)))
+    .also($ => uncurry(Mutate.canvasDimensions)(Pair($.maxCanvasScalar, $.maxCanvasScalar / ASPECT_RATIO)))
     .bind($ => loop(Core({
     time: $.present,
     refreshTime: 0,

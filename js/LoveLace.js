@@ -121,6 +121,8 @@ const fpair = (f) => (firsts) => (seconds) => Pair(f(firsts.fst)(seconds.fst), f
 const pick = (condition) => condition ? fst : snd;
 const both = (f) => (pair) => Pair(f(pair.fst), f(pair.snd));
 const uncurry = (f) => (pair) => f(pair.fst)(pair.snd);
+const ffst = (f) => (pair) => Pair(f(pair.fst), pair.snd);
+const fsnd = (f) => (pair) => Pair(pair.fst, f(pair.snd));
 const IO = (sideeffect) => ({
     CONS: 'IO',
     INFO: sideeffect,
@@ -713,18 +715,24 @@ const Vector2D = (x) => (y) => ({
     get pipe() { return (f) => f(this); },
     x, y
 });
+const translate2D = (dx) => (dy) => (v) => Vector2D(v.x + dx)(v.y + dy);
+const translateVector2D = (dv) => (v) => Vector2D(v.x + dv.x)(v.y + dv.y);
 const Vector3D = (x) => (y) => (z) => ({
     CONS: 'Vector3D',
     eq: v => v.x === x && v.y === y && v.z === z,
     get pipe() { return (f) => f(this); },
     x, y, z
 });
+const translate3D = (dx) => (dy) => (dz) => (v) => Vector3D(v.x + dx)(v.y + dy)(v.z + dz);
+const translateVector3D = (dv) => (v) => Vector3D(v.x + dv.x)(v.y + dv.y)(v.z + dv.z);
 const Vector4D = (x) => (y) => (z) => (w) => ({
     CONS: 'Vector4D',
     eq: v => v.x === x && v.y === y && v.z === z && v.w === w,
     get pipe() { return (f) => f(this); },
     x, y, z, w
 });
+const translate4D = (dx) => (dy) => (dz) => (dw) => (v) => Vector4D(v.x + dx)(v.y + dy)(v.z + dz)(v.w + dw);
+const translateVector4D = (dv) => (v) => Vector4D(v.x + dv.x)(v.y + dv.y)(v.z + dv.z)(v.w + dv.w);
 const Matrix2x2 = (ix) => (jx) => (iy) => (jy) => ({
     CONS: 'Matrix2x2',
     eq: m => m.ix === ix && m.jx === jx && m.iy === iy && m.jy === jy,

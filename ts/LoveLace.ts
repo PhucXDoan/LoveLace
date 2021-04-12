@@ -442,6 +442,14 @@ const both = <a, b>(f : (x : a) => b) => (pair : Pair<a, a>) : Pair<b, b> =>
 const uncurry = <a, b, c>(f : (x : a) => (y : b) => c) => (pair : Pair<a, b>) : c =>
 	f (pair .fst) (pair .snd)
 
+/**` ffst :: (a -> b) -> (a, c) -> (b, c) `*/
+const ffst = <a, b>(f : (x : a) => b) => <c>(pair : Pair<a, c>) : Pair<b, c> =>
+	Pair (f (pair .fst), pair .snd)
+
+/**` fsnd :: (a -> b) -> (c, a) -> (c, b) `*/
+const fsnd = <a, b>(f : (x : a) => b) => <c>(pair : Pair<c, a>) : Pair<c, b> =>
+	Pair (pair .fst, f (pair .snd))
+
 /********************************************************************************************************************************/
 
 /**` IO (Pipeable, Chainable, Monad) `*/
@@ -1417,6 +1425,18 @@ const Vector2D = (x : number) => (y : number) : Vector2D =>
 		x, y
 	})
 
+/**` translate2D :: Number -> Number -> Vector2D -> Vector2D `*/
+const translate2D = (dx : number) => (dy : number) => (v : Vector2D) : Vector2D =>
+	Vector2D
+		(v.x + dx)
+		(v.y + dy)
+
+/**` translateVector2D :: Vector2D -> Vector2D -> Vector2D `*/
+const translateVector2D = (dv : Vector2D) => (v : Vector2D) : Vector2D =>
+	Vector2D
+		(v.x + dv.x)
+		(v.y + dv.y)
+
 /**` Vector3D (Eq, Pipeable) `*/
 type Vector3D =
 	{
@@ -1446,6 +1466,20 @@ const Vector3D = (x : number) => (y : number) => (z : number) : Vector3D =>
 		get pipe() { return (f : any) => f (this) },
 		x, y, z
 	})
+
+/**` translate3D :: Number -> Number -> Number -> Vector3D -> Vector3D `*/
+const translate3D = (dx : number) => (dy : number) => (dz : number) => (v : Vector3D) : Vector3D =>
+	Vector3D
+		(v.x + dx)
+		(v.y + dy)
+		(v.z + dz)
+
+/**` translateVector3D :: Vector3D -> Vector3D -> Vector3D `*/
+const translateVector3D = (dv : Vector3D) => (v : Vector3D) : Vector3D =>
+	Vector3D
+		(v.x + dv.x)
+		(v.y + dv.y)
+		(v.z + dv.z)
 
 /**` Vector4D `*/
 type Vector4D =
@@ -1479,6 +1513,22 @@ const Vector4D = (x : number) => (y : number) => (z : number) => (w : number) : 
 		get pipe() { return (f : any) => f (this) },
 		x, y, z, w
 	})
+
+/**` translate4D :: Number -> Number -> Number -> Number -> Vector4D -> Vector4D `*/
+const translate4D = (dx : number) => (dy : number) => (dz : number) => (dw : number) => (v : Vector4D) : Vector4D =>
+	Vector4D
+		(v.x + dx)
+		(v.y + dy)
+		(v.z + dz)
+		(v.w + dw)
+
+/**` translateVector4D :: Vector4D -> Vector4D -> Vector4D `*/
+const translateVector4D = (dv : Vector4D) => (v : Vector4D) : Vector4D =>
+	Vector4D
+		(v.x + dv.x)
+		(v.y + dv.y)
+		(v.z + dv.z)
+		(v.w + dv.w)
 
 /********************************************************************************************************************************/
 
