@@ -1284,38 +1284,38 @@ var Effect;
             __EXTERNAL__.context.strokeRect(coordinates.x * __EXTERNAL__.context.canvas.width - 0.5, coordinates.y * __EXTERNAL__.context.canvas.height - 0.5, dimensions.x * __EXTERNAL__.context.canvas.width + 1, dimensions.y * __EXTERNAL__.context.canvas.height + 1);
             return null;
         });
-        Norm.arc = (x) => (y) => (r) => (a) => (b) => IO(() => {
+        Norm.arc = (r) => (x) => (y) => (a) => (b) => IO(() => {
             __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, a * TAU, b * TAU);
             return null;
         });
-        Norm.arcVector = (v) => (r) => (a) => (b) => IO(() => {
+        Norm.arcVector = (r) => (v) => (a) => (b) => IO(() => {
             __EXTERNAL__.context.arc(v.x * __EXTERNAL__.context.canvas.width, v.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, a * TAU, b * TAU);
             return null;
         });
-        Norm.circle = (x) => (y) => (r) => IO(() => {
+        Norm.circle = (r) => (x) => (y) => IO(() => {
             __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
             return null;
         });
-        Norm.circleVector = (coordinates) => (r) => IO(() => {
+        Norm.circleVector = (r) => (coordinates) => IO(() => {
             __EXTERNAL__.context.arc(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
             return null;
         });
-        Norm.strokeCircle = (x) => (y) => (r) => IO(() => {
+        Norm.strokeCircle = (r) => (x) => (y) => IO(() => {
             __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
             __EXTERNAL__.context.stroke();
             return null;
         });
-        Norm.strokeCircleVector = (coordinates) => (r) => IO(() => {
+        Norm.strokeCircleVector = (r) => (coordinates) => IO(() => {
             __EXTERNAL__.context.arc(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
             __EXTERNAL__.context.stroke();
             return null;
         });
-        Norm.fillCircle = (x) => (y) => (r) => IO(() => {
+        Norm.fillCircle = (r) => (x) => (y) => IO(() => {
             __EXTERNAL__.context.arc(x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
             __EXTERNAL__.context.fill();
             return null;
         });
-        Norm.fillCircleVector = (coordinates) => (r) => IO(() => {
+        Norm.fillCircleVector = (r) => (coordinates) => IO(() => {
             __EXTERNAL__.context.arc(coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height, r * __EXTERNAL__.context.canvas.width, 0, TAU);
             __EXTERNAL__.context.fill();
             return null;
@@ -1487,14 +1487,14 @@ var Effect;
     Effect.fillRectangleVector = (coordinates) => (dimensions) => IO(() => (__EXTERNAL__.context.fillRect(coordinates.x, coordinates.y, dimensions.x, dimensions.y), null));
     Effect.strokeRectangle = (x) => (y) => (w) => (h) => IO(() => (__EXTERNAL__.context.strokeRect(x, y, w, h), null));
     Effect.strokeRectangleVector = (coordinates) => (dimensions) => IO(() => (__EXTERNAL__.context.strokeRect(coordinates.x, coordinates.y, dimensions.x, dimensions.y), null));
-    Effect.arc = (x) => (y) => (r) => (a) => (b) => IO(() => (__EXTERNAL__.context.arc(x, y, r, a, b), null));
-    Effect.arcVector = (v) => (r) => (a) => (b) => IO(() => (__EXTERNAL__.context.arc(v.x, v.y, r, a, b), null));
-    Effect.circle = (x) => (y) => (r) => IO(() => (__EXTERNAL__.context.arc(x, y, r, 0, TAU), null));
-    Effect.circleVector = (coordinates) => (r) => IO(() => (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), null));
-    Effect.strokeCircle = (x) => (y) => (r) => IO(() => (__EXTERNAL__.context.arc(x, y, r, 0, TAU), __EXTERNAL__.context.stroke(), null));
-    Effect.strokeCircleVector = (coordinates) => (r) => IO(() => (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), __EXTERNAL__.context.stroke(), null));
-    Effect.fillCircle = (x) => (y) => (r) => IO(() => (__EXTERNAL__.context.arc(x, y, r, 0, TAU), __EXTERNAL__.context.fill(), null));
-    Effect.fillCircleVector = (coordinates) => (r) => IO(() => (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), __EXTERNAL__.context.fill(), null));
+    Effect.arc = (r) => (x) => (y) => (a) => (b) => IO(() => (__EXTERNAL__.context.arc(x, y, r, a, b), null));
+    Effect.arcVector = (r) => (v) => (a) => (b) => IO(() => (__EXTERNAL__.context.arc(v.x, v.y, r, a, b), null));
+    Effect.circle = (r) => (x) => (y) => IO(() => (__EXTERNAL__.context.arc(x, y, r, 0, TAU), null));
+    Effect.circleVector = (r) => (coordinates) => IO(() => (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), null));
+    Effect.strokeCircle = (r) => (x) => (y) => IO(() => (__EXTERNAL__.context.arc(x, y, r, 0, TAU), __EXTERNAL__.context.stroke(), null));
+    Effect.strokeCircleVector = (r) => (coordinates) => IO(() => (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), __EXTERNAL__.context.stroke(), null));
+    Effect.fillCircle = (r) => (x) => (y) => IO(() => (__EXTERNAL__.context.arc(x, y, r, 0, TAU), __EXTERNAL__.context.fill(), null));
+    Effect.fillCircleVector = (r) => (coordinates) => IO(() => (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), __EXTERNAL__.context.fill(), null));
     Effect.elliptic = (x) => (y) => (kx) => (ky) => (a) => (b) => (r) => IO(() => (__EXTERNAL__.context.ellipse(x, y, kx, ky, r, a, b), null));
     Effect.ellipticVector = (coordinates) => (dimensions) => (a) => (b) => (r) => IO(() => (__EXTERNAL__.context.ellipse(coordinates.x, coordinates.y, dimensions.x, dimensions.y, r, a, b), null));
     Effect.ellipse = (x) => (y) => (kx) => (ky) => (r) => IO(() => (__EXTERNAL__.context.ellipse(x, y, kx, ky, r, 0, TAU), null));

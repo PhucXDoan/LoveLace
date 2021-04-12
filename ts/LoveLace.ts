@@ -3211,7 +3211,7 @@ namespace Effect
 			})
 
 		/**` Effect.Norm.arc :: (5 Number...) -> IO () `*/
-		export const arc = (x : number) => (y : number) => (r : number) => (a : number) => (b : number) : IO<null> =>
+		export const arc = (r : number) => (x : number) => (y : number) => (a : number) => (b : number) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.arc(
 					x * __EXTERNAL__.context.canvas.width,
@@ -3223,7 +3223,7 @@ namespace Effect
 			})
 
 		/**` Effect.Norm.arcVector :: Vector2D -> Number -> Number -> Number -> IO () `*/
-		export const arcVector = (v : Vector2D) => (r : number) => (a : number) => (b : number) : IO<null> =>
+		export const arcVector = (r : number) => (v : Vector2D) => (a : number) => (b : number) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.arc(
 					v.x * __EXTERNAL__.context.canvas.width,
@@ -3235,7 +3235,7 @@ namespace Effect
 			})
 
 		/**` Effect.Norm.circle :: Number -> Number -> Number -> IO () `*/
-		export const circle = (x : number) => (y : number) => (r : number) : IO<null> =>
+		export const circle = (r : number) => (x : number) => (y : number) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.arc(
 					x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height,
@@ -3244,8 +3244,8 @@ namespace Effect
 				return null
 			})
 
-		/**` Effect.Norm.circleVector :: Vector2D -> Number -> IO () `*/
-		export const circleVector = (coordinates : Vector2D) => (r : number) : IO<null> =>
+		/**` Effect.Norm.circleVector :: Number -> Vector2D -> IO () `*/
+		export const circleVector = (r : number) => (coordinates : Vector2D) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.arc(
 					coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height,
@@ -3255,7 +3255,7 @@ namespace Effect
 			})
 
 		/**` Effect.Norm.strokeCircle :: Number -> Number -> Number -> IO () `*/
-		export const strokeCircle = (x : number) => (y : number) => (r : number) : IO<null> =>
+		export const strokeCircle = (r : number) => (x : number) => (y : number) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.arc(
 					x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height,
@@ -3265,8 +3265,8 @@ namespace Effect
 				return null
 			})
 
-		/**` Effect.Norm.strokeCircleVector :: Vector2D -> Number -> IO () `*/
-		export const strokeCircleVector = (coordinates : Vector2D) => (r : number) : IO<null> =>
+		/**` Effect.Norm.strokeCircleVector :: Number -> Vector2D -> IO () `*/
+		export const strokeCircleVector = (r : number) => (coordinates : Vector2D) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.arc(
 					coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height,
@@ -3277,7 +3277,7 @@ namespace Effect
 			})
 
 		/**` Effect.Norm.fillCircle :: Number -> Number -> Number -> IO () `*/
-		export const fillCircle = (x : number) => (y : number) => (r : number) : IO<null> =>
+		export const fillCircle = (r : number) => (x : number) => (y : number) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.arc(
 					x * __EXTERNAL__.context.canvas.width, y * __EXTERNAL__.context.canvas.height,
@@ -3287,8 +3287,8 @@ namespace Effect
 				return null
 			})
 
-		/**` Effect.Norm.fillCircleVector :: Vector2D -> Number -> IO () `*/
-		export const fillCircleVector = (coordinates : Vector2D) => (r : number) : IO<null> =>
+		/**` Effect.Norm.fillCircleVector :: Number -> Vector2D -> IO () `*/
+		export const fillCircleVector = (r : number) => (coordinates : Vector2D) : IO<null> =>
 			IO(() => {
 				__EXTERNAL__.context.arc(
 					coordinates.x * __EXTERNAL__.context.canvas.width, coordinates.y * __EXTERNAL__.context.canvas.height,
@@ -3814,35 +3814,35 @@ namespace Effect
 		IO(() => (__EXTERNAL__.context.strokeRect(coordinates.x, coordinates.y, dimensions.x, dimensions.y), null))
 
 	/**` Effect.arc :: (5 Number...) -> IO () `*/
-	export const arc = (x : number) => (y : number) => (r : number) => (a : number) => (b : number) : IO<null> =>
+	export const arc = (r : number) => (x : number) => (y : number) => (a : number) => (b : number) : IO<null> =>
 		IO(() => (__EXTERNAL__.context.arc(x, y, r, a, b), null))
 
-	/**` Effect.arcVector :: Vector2D -> Number -> Number -> Number -> IO () `*/
-	export const arcVector = (v : Vector2D) => (r : number) => (a : number) => (b : number) : IO<null> =>
+	/**` Effect.arcVector :: Number -> Vector2D -> Number -> Number -> IO () `*/
+	export const arcVector = (r : number) => (v : Vector2D) => (a : number) => (b : number) : IO<null> =>
 		IO(() => (__EXTERNAL__.context.arc(v.x, v.y, r, a, b), null))
 
 	/**` Effect.circle :: Number -> Number -> Number -> IO () `*/
-	export const circle = (x : number) => (y : number) => (r : number) : IO<null> =>
+	export const circle = (r : number) => (x : number) => (y : number) : IO<null> =>
 		IO(() => (__EXTERNAL__.context.arc(x, y, r, 0, TAU), null))
 
-	/**` Effect.circleVector :: Vector2D -> Number -> IO () `*/
-	export const circleVector = (coordinates : Vector2D) => (r : number) : IO<null> =>
+	/**` Effect.circleVector :: Number -> Vector2D -> IO () `*/
+	export const circleVector = (r : number) => (coordinates : Vector2D) : IO<null> =>
 		IO(() => (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), null))
 
 	/**` Effect.strokeCircle :: Number -> Number -> Number -> IO () `*/
-	export const strokeCircle = (x : number) => (y : number) => (r : number) : IO<null> =>
+	export const strokeCircle = (r : number) => (x : number) => (y : number) : IO<null> =>
 		IO(() => (__EXTERNAL__.context.arc(x, y, r, 0, TAU), __EXTERNAL__.context.stroke(), null))
 
-	/**` Effect.strokeCircleVector :: Vector2D -> Number -> IO () `*/
-	export const strokeCircleVector = (coordinates : Vector2D) => (r : number) : IO<null> =>
+	/**` Effect.strokeCircleVector :: Number -> Vector2D -> IO () `*/
+	export const strokeCircleVector = (r : number) => (coordinates : Vector2D) : IO<null> =>
 		IO(() => (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), __EXTERNAL__.context.stroke(), null))
 
 	/**` Effect.fillCircle :: Number -> Number -> Number -> IO () `*/
-	export const fillCircle = (x : number) => (y : number) => (r : number) : IO<null> =>
+	export const fillCircle = (r : number) => (x : number) => (y : number) : IO<null> =>
 		IO(() => (__EXTERNAL__.context.arc(x, y, r, 0, TAU), __EXTERNAL__.context.fill(), null))
 
-	/**` Effect.fillCircleVector :: Vector2D -> Number -> IO () `*/
-	export const fillCircleVector = (coordinates : Vector2D) => (r : number) : IO<null> =>
+	/**` Effect.fillCircleVector :: Number -> Vector2D -> IO () `*/
+	export const fillCircleVector = (r : number) => (coordinates : Vector2D) : IO<null> =>
 		IO(() => (__EXTERNAL__.context.arc(coordinates.x, coordinates.y, r, 0, TAU), __EXTERNAL__.context.fill(), null))
 
 	/**` Effect.elliptic :: (7 Number...) -> IO () `*/
