@@ -3,6 +3,46 @@ const ASPECT_RATIO = 16 / 9
 
 /********************************************************************************************************************************/
 
+const cubeVertices =
+	List
+	(
+		Vector3D (-0.5) (-0.5) (-0.5),
+		Vector3D ( 0.5) (-0.5) (-0.5),
+		Vector3D (-0.5) ( 0.5) (-0.5),
+		Vector3D ( 0.5) ( 0.5) (-0.5),
+		Vector3D (-0.5) (-0.5) ( 0.5),
+		Vector3D ( 0.5) (-0.5) ( 0.5),
+		Vector3D (-0.5) ( 0.5) ( 0.5),
+		Vector3D ( 0.5) ( 0.5) ( 0.5)
+	)
+
+/********************************************************************************************************************************/
+
+/**` Camera (Pipeable) `*/
+type Camera =
+	{
+		CONS : 'Camera'
+
+		/**` (.pipe) :: Camera -> (Camera -> a) -> a `*/
+		pipe : <a>(morphism : (camera : Camera) => a) => a
+
+		/**` (.position) :: Camera -> Vector3D `*/
+		position : Vector3D
+	}
+
+/**` Camera :: { ... } -> Camera `*/
+const Camera =
+	(record : {
+		position : Vector3D
+	}) : Camera =>
+	({
+		CONS : 'Camera',
+		get pipe() { return (f : any) => f (this) },
+		...record
+	})
+
+/********************************************************************************************************************************/
+
 /**` Program (Pipeable) `*/
 type Program =
 	{
@@ -13,20 +53,21 @@ type Program =
 
 		/**` (.time) :: Program -> Number `*/
 		time : number
+
+		/**` (.camera) :: Program -> Camera `*/
+		camera : Camera
 	}
 
 /**` ProgramInitial :: { ... } -> Program `*/
 const ProgramInitial =
-	(
-		{ time } :
-		{
-			time : number
-		}
-	) : Program =>
+	(record : {
+		time   : number
+		camera : Camera
+	}) : Program =>
 	({
 		CONS : 'ProgramInitial',
 		get pipe() { return (f : any) => f (this) },
-		time
+		...record
 	})
 
 /********************************************************************************************************************************/
@@ -39,6 +80,12 @@ const fetchMaxCanvasScalar =
 
 /**` setCanvasScalar :: Number -> IO () `*/
 const setCanvasScalar = (scalar : number) => Mutate.canvasDimensions (scalar) (scalar / ASPECT_RATIO)
+
+/**` projectVector3D :: Camera -> Vector3D -> Vector2D `*/
+const projectVector3D = (camera : Camera) => (v : Vector3D) : Vector2D =>
+	Vector2D
+		(0.5 - (v.x - camera.position.x) / (v.z - camera.position.z))
+		(0.5 + (v.y - camera.position.y) / (v.z - camera.position.z) * ASPECT_RATIO)
 
 /********************************************************************************************************************************/
 
@@ -70,7 +117,12 @@ const main : IO<null> =
 			)(
 				ProgramInitial
 				({
-					time : $.present
+					time   : $.present,
+					camera :
+						Camera
+						({
+							position : Vector3D (0) (0) (0)
+						})
 				})
 			)
 		)
@@ -82,7 +134,7 @@ const loop = (core : Core) => (program : Program) : IO<null> =>
 		.bindto ('updatedCore') ( _ => updateCore (core) )
 
 		/**` $.updatedProgram :: Program `*/
-		.bindto ('updatedProgram') ( _ => updateProgram (program) )
+		.bindto ('updatedProgram') ( $ => ($.updatedCore.isRefresh ? updateProgram ($.updatedCore) : unit.IO) (program) )
 
 		// -- Resizes the canvas if needed.
 		.also ( $ => when ($.updatedCore.isResizing && $.updatedCore.isRefresh) (setCanvasScalar ($.updatedCore.canvasScalar)) )
@@ -98,8 +150,45 @@ const loop = (core : Core) => (program : Program) : IO<null> =>
 
 /**` draw :: Core -> Program -> IO () `*/
 const draw = (core : Core) => (program : Program) : IO<null> =>
-	idle
+	Effect.clearCanvas
+		.then
+		(
+			cubeVertices
+				.fmap (projectVector3D (program.camera))
+				.fmap (Effect.Norm.fillCircleVector (0.01))
+				.fmap (Effect.beginPath.then)
+				.pipe (executeIOs)
+		)
 
-/**` updateProgram :: Program -> IO Program `*/
-const updateProgram = (program : Program) : IO<Program> =>
-	unit.IO (program)
+/**` updateProgram :: Core -> Program -> IO Program `*/
+const updateProgram = (core : Core) => (program : Program) : IO<Program> =>
+	Do.IO
+		/**` $.(keyW|keyA|keyS|keyD|space|lctrl) :: Vertical `*/
+		.bindto ('keyW')  ( _ => Import.keyboardKey ('KeyW') )
+		.bindto ('keyA')  ( _ => Import.keyboardKey ('KeyA') )
+		.bindto ('keyS')  ( _ => Import.keyboardKey ('KeyS') )
+		.bindto ('keyD')  ( _ => Import.keyboardKey ('KeyD') )
+		.bindto ('space') ( _ => Import.keyboardKey ('Space') )
+		.bindto ('lctrl') ( _ => Import.keyboardKey ('ControlLeft') )
+
+		/**` $.cameraMovement :: Vector3D `*/
+		.fmapto ('cameraMovement')
+		( $ =>
+			Vector3D (0) (0) (0)
+				.pipe ( translate3D (isDown ($.keyA) ? -1 : 0) (isDown ($.lctrl) ? -1 : 0) (isDown ($.keyW) ? -1 : 0) )
+				.pipe ( translate3D (isDown ($.keyD) ?  1 : 0) (isDown ($.space) ?  1 : 0) (isDown ($.keyS) ?  1 : 0) )
+				.pipe ( rescale3D (0.1) )
+		)
+
+		.fmap
+		( $ =>
+			ProgramInitial
+			({
+				time   : core.time,
+				camera :
+					Camera
+					({
+						position : translateVector3D ($.cameraMovement) (program.camera.position)
+					})
+			})
+		)

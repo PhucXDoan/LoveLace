@@ -718,24 +718,72 @@ const Vector2D = (x) => (y) => ({
     get pipe() { return (f) => f(this); },
     x, y
 });
+const origin2D = Vector2D(0)(0);
 const translate2D = (dx) => (dy) => (v) => Vector2D(v.x + dx)(v.y + dy);
 const translateVector2D = (dv) => (v) => Vector2D(v.x + dv.x)(v.y + dv.y);
+const abs2D = (v) => sqrt(v.x * v.x + v.y * v.y);
+const scale2D = (k) => (v) => Vector2D(v.x * k)(v.y * k);
+const invscale2D = (k) => (v) => Vector2D(v.x / k)(v.y / k);
+const normalize2D = (v) => {
+    if (v.x === 0 && v.y === 0)
+        return v;
+    const l = Math.sqrt(v.x * v.x + v.y * v.y);
+    return Vector2D(v.x * l)(v.y * l);
+};
+const rescale2D = (k) => (v) => {
+    if (v.x === 0 && v.y === 0)
+        return v;
+    const l = k * Math.sqrt(v.x * v.x + v.y * v.y);
+    return Vector2D(v.x * l)(v.y * l);
+};
 const Vector3D = (x) => (y) => (z) => ({
     CONS: 'Vector3D',
     eq: v => v.x === x && v.y === y && v.z === z,
     get pipe() { return (f) => f(this); },
     x, y, z
 });
+const origin3D = Vector3D(0)(0)(0);
 const translate3D = (dx) => (dy) => (dz) => (v) => Vector3D(v.x + dx)(v.y + dy)(v.z + dz);
 const translateVector3D = (dv) => (v) => Vector3D(v.x + dv.x)(v.y + dv.y)(v.z + dv.z);
+const abs3D = (v) => Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+const scale3D = (k) => (v) => Vector3D(v.x * k)(v.y * k)(v.z * k);
+const invscale3D = (k) => (v) => Vector3D(v.x / k)(v.y / k)(v.z / k);
+const normalize3D = (v) => {
+    if (v.x === 0 && v.y === 0 && v.z === 0)
+        return v;
+    const l = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+    return Vector3D(v.x * l)(v.y * l)(v.z * l);
+};
+const rescale3D = (k) => (v) => {
+    if (v.x === 0 && v.y === 0 && v.z === 0)
+        return v;
+    const l = k * Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+    return Vector3D(v.x * l)(v.y * l)(v.z * l);
+};
 const Vector4D = (x) => (y) => (z) => (w) => ({
     CONS: 'Vector4D',
     eq: v => v.x === x && v.y === y && v.z === z && v.w === w,
     get pipe() { return (f) => f(this); },
     x, y, z, w
 });
+const origin4D = Vector4D(0)(0)(0)(0);
 const translate4D = (dx) => (dy) => (dz) => (dw) => (v) => Vector4D(v.x + dx)(v.y + dy)(v.z + dz)(v.w + dw);
 const translateVector4D = (dv) => (v) => Vector4D(v.x + dv.x)(v.y + dv.y)(v.z + dv.z)(v.w + dv.w);
+const abs4D = (v) => sqrt(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);
+const scale4D = (k) => (v) => Vector4D(v.x * k)(v.y * k)(v.z * k)(v.w * k);
+const invscale4D = (k) => (v) => Vector4D(v.x / k)(v.y / k)(v.z / k)(v.w / k);
+const normalize4D = (v) => {
+    if (v.x === 0 && v.y === 0 && v.z === 0 && v.w === 0)
+        return v;
+    const l = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);
+    return Vector4D(v.x * l)(v.y * l)(v.z * l)(v.w * l);
+};
+const rescale4D = (k) => (v) => {
+    if (v.x === 0 && v.y === 0 && v.z === 0 && v.w === 0)
+        return v;
+    const l = k * Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);
+    return Vector4D(v.x * l)(v.y * l)(v.z * l)(v.w * l);
+};
 const Matrix2x2 = (ix) => (jx) => (iy) => (jy) => ({
     CONS: 'Matrix2x2',
     eq: m => m.ix === ix && m.jx === jx && m.iy === iy && m.jy === jy,
@@ -793,11 +841,7 @@ const Mapping = (...mappings) => ({
             : THROWRANGE(`'Mapping' was non-exhaustive; could not find codomain of '${x}'`);
     }
 });
-const Core = ({ time, refreshTime, canvasScalar, isRefresh, isResizing }) => ({
-    CONS: 'Core',
-    get pipe() { return (f) => f(this); },
-    time, refreshTime, canvasScalar, isRefresh, isResizing
-});
+const Core = (record) => (Object.assign({ CONS: 'Core', get pipe() { return (f) => f(this); } }, record));
 const updateCore = (core) => Do.IO
     .bindto('present')(_ => Import.timeSinceOpen)
     .bindto('maxCanvasScalar')(_ => fetchMaxCanvasScalar)
@@ -910,6 +954,12 @@ const relaxVertical = (direction) => direction === Vertical.Downward ? Vertical.
 const relaxLateral = (direction) => direction === Lateral.Backward ? Lateral.Back :
     direction === Lateral.Forward ? Lateral.Fore :
         direction;
+const isLeft = (direction) => direction === Horizontal.Left || direction === Horizontal.Leftward;
+const isRight = (direction) => direction === Horizontal.Right || direction === Horizontal.Rightward;
+const isDown = (direction) => direction === Vertical.Down || direction === Vertical.Downward;
+const isUp = (direction) => direction === Vertical.Up || direction === Vertical.Upward;
+const isBack = (direction) => direction === Lateral.Back || direction === Lateral.Backward;
+const isFore = (direction) => direction === Lateral.Fore || direction === Lateral.Forward;
 const mappingLineCap = Mapping([LineCap.Butt, 'butt'], [LineCap.Round, 'round'], [LineCap.Square, 'square']);
 const mappingLineJoin = Mapping([LineJoin.Round, 'round'], [LineJoin.Bevel, 'bevel'], [LineJoin.Miter, 'miter']);
 const mappingTextAlign = Mapping([TextAlign.Center, 'center'], [TextAlign.End, 'end'], [TextAlign.Left, 'left'], [TextAlign.Right, 'right'], [TextAlign.Start, 'start']);

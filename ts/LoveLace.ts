@@ -1436,6 +1436,9 @@ const Vector2D = (x : number) => (y : number) : Vector2D =>
 		x, y
 	})
 
+/**` origin2D :: Vector2D `*/
+const origin2D = Vector2D (0) (0)
+
 /**` translate2D :: Number -> Number -> Vector2D -> Vector2D `*/
 const translate2D = (dx : number) => (dy : number) => (v : Vector2D) : Vector2D =>
 	Vector2D
@@ -1447,6 +1450,31 @@ const translateVector2D = (dv : Vector2D) => (v : Vector2D) : Vector2D =>
 	Vector2D
 		(v.x + dv.x)
 		(v.y + dv.y)
+
+/**` abs2D :: Vector2D -> Number `*/
+const abs2D = (v : Vector2D) : number => sqrt (v.x * v.x + v.y * v.y)
+
+/**` scale2D :: Number -> Vector2D -> Vector2D `*/
+const scale2D = (k : number) => (v : Vector2D) : Vector2D => Vector2D (v.x * k) (v.y * k)
+
+/**` invscale2D :: Number -> Vector2D -> Vector2D `*/
+const invscale2D = (k : number) => (v : Vector2D) : Vector2D => Vector2D (v.x / k) (v.y / k)
+
+/**` normalize2D :: Vector2D -> Vector2D `*/
+const normalize2D = (v : Vector2D) : Vector2D =>
+{
+	if (v.x === 0 && v.y === 0) return v
+	const l = Math.sqrt (v.x * v.x + v.y * v.y)
+	return Vector2D (v.x * l) (v.y * l)
+}
+
+/**` rescale2D :: Number -> Vector2D -> Vector2D `*/
+const rescale2D = (k : number) => (v : Vector2D) : Vector2D =>
+{
+	if (v.x === 0 && v.y === 0) return v
+	const l = k * Math.sqrt (v.x * v.x + v.y * v.y)
+	return Vector2D (v.x * l) (v.y * l)
+}
 
 /**` Vector3D (Eq, Pipeable) `*/
 type Vector3D =
@@ -1478,6 +1506,9 @@ const Vector3D = (x : number) => (y : number) => (z : number) : Vector3D =>
 		x, y, z
 	})
 
+/**` origin3D :: Vector3D `*/
+const origin3D = Vector3D (0) (0) (0)
+
 /**` translate3D :: Number -> Number -> Number -> Vector3D -> Vector3D `*/
 const translate3D = (dx : number) => (dy : number) => (dz : number) => (v : Vector3D) : Vector3D =>
 	Vector3D
@@ -1491,6 +1522,31 @@ const translateVector3D = (dv : Vector3D) => (v : Vector3D) : Vector3D =>
 		(v.x + dv.x)
 		(v.y + dv.y)
 		(v.z + dv.z)
+
+/**` abs3D :: Vector3D -> Number `*/
+const abs3D = (v : Vector3D) : number => Math.sqrt (v.x * v.x + v.y * v.y + v.z * v.z)
+
+/**` scale3D :: Number -> Vector3D -> Vector3D `*/
+const scale3D = (k : number) => (v : Vector3D) : Vector3D => Vector3D (v.x * k) (v.y * k) (v.z * k)
+
+/**` invscale3D :: Number -> Vector3D -> Vector3D `*/
+const invscale3D = (k : number) => (v : Vector3D) : Vector3D => Vector3D (v.x / k) (v.y / k) (v.z / k)
+
+/**` normalize3D :: Vector3D -> Vector3D `*/
+const normalize3D = (v : Vector3D) : Vector3D =>
+{
+	if (v.x === 0 && v.y === 0 && v.z === 0) return v
+	const l = Math.sqrt (v.x * v.x + v.y * v.y + v.z * v.z)
+	return Vector3D (v.x * l) (v.y * l) (v.z * l)
+}
+
+/**` rescale3D :: Number -> Vector3D -> Vector3D `*/
+const rescale3D = (k : number) => (v : Vector3D) : Vector3D =>
+{
+	if (v.x === 0 && v.y === 0 && v.z === 0) return v
+	const l = k * Math.sqrt (v.x * v.x + v.y * v.y + v.z * v.z)
+	return Vector3D (v.x * l) (v.y * l) (v.z * l)
+}
 
 /**` Vector4D `*/
 type Vector4D =
@@ -1525,6 +1581,9 @@ const Vector4D = (x : number) => (y : number) => (z : number) => (w : number) : 
 		x, y, z, w
 	})
 
+/**` origin4D :: Vector4D `*/
+const origin4D = Vector4D (0) (0) (0) (0)
+
 /**` translate4D :: Number -> Number -> Number -> Number -> Vector4D -> Vector4D `*/
 const translate4D = (dx : number) => (dy : number) => (dz : number) => (dw : number) => (v : Vector4D) : Vector4D =>
 	Vector4D
@@ -1540,6 +1599,31 @@ const translateVector4D = (dv : Vector4D) => (v : Vector4D) : Vector4D =>
 		(v.y + dv.y)
 		(v.z + dv.z)
 		(v.w + dv.w)
+
+/**` abs4D :: Vector4D -> Number `*/
+const abs4D = (v : Vector4D) : number => sqrt (v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w)
+
+/**` scale4D :: Number -> Vector4D -> Vector4D `*/
+const scale4D = (k : number) => (v : Vector4D) : Vector4D => Vector4D (v.x * k) (v.y * k) (v.z * k) (v.w * k)
+
+/**` invscale4D :: Number -> Vector4D -> Vector4D `*/
+const invscale4D = (k : number) => (v : Vector4D) : Vector4D => Vector4D (v.x / k) (v.y / k) (v.z / k) (v.w / k)
+
+/**` normalize4D :: Vector4D -> Vector4D `*/
+const normalize4D = (v : Vector4D) : Vector4D =>
+{
+	if (v.x === 0 && v.y === 0 && v.z === 0 && v.w === 0) return v
+	const l = Math.sqrt (v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w)
+	return Vector4D (v.x * l) (v.y * l) (v.z * l) (v.w * l)
+}
+
+/**` rescale4D :: Number -> Vector4D -> Vector4D `*/
+const rescale4D = (k : number) => (v : Vector4D) : Vector4D =>
+{
+	if (v.x === 0 && v.y === 0 && v.z === 0 && v.w === 0) return v
+	const l = k * Math.sqrt (v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w)
+	return Vector4D (v.x * l) (v.y * l) (v.z * l) (v.w * l)
+}
 
 /********************************************************************************************************************************/
 
@@ -1882,20 +1966,17 @@ type Core =
 
 /**` Core :: { ... } -> Core `*/
 const Core =
-	(
-		{ time, refreshTime, canvasScalar, isRefresh, isResizing } :
-		{
-			time         : number
-			refreshTime  : number
-			canvasScalar : number
-			isRefresh    : boolean
-			isResizing   : boolean
-		}
-	) : Core =>
+	(record : {
+		time         : number
+		refreshTime  : number
+		canvasScalar : number
+		isRefresh    : boolean
+		isResizing   : boolean
+	}) : Core =>
 	({
 		CONS : 'Core',
 		get pipe() { return (f : any) => f (this) },
-		time, refreshTime, canvasScalar, isRefresh, isResizing
+		...record
 	})
 
 /**` updateCore :: Core -> IO Core `*/
@@ -2062,6 +2143,24 @@ const relaxLateral = (direction : Lateral) : Lateral =>
 	direction === Lateral.Backward ? Lateral.Back :
 	direction === Lateral.Forward  ? Lateral.Fore :
 	direction
+
+/**` isLeft :: Horizontal -> Boolean `*/
+const isLeft = (direction : Horizontal) : boolean => direction === Horizontal.Left || direction === Horizontal.Leftward
+
+/**` isRight :: Horizontal -> Boolean `*/
+const isRight = (direction : Horizontal) : boolean => direction === Horizontal.Right || direction === Horizontal.Rightward
+
+/**` isDown :: Vertical -> Boolean `*/
+const isDown = (direction : Vertical) : boolean => direction === Vertical.Down || direction === Vertical.Downward
+
+/**` isUp :: Vertical -> Boolean `*/
+const isUp = (direction : Vertical) : boolean => direction === Vertical.Up || direction === Vertical.Upward
+
+/**` isBack :: Lateral -> Boolean `*/
+const isBack = (direction : Lateral) : boolean => direction === Lateral.Back || direction === Lateral.Backward
+
+/**` isFore :: Lateral -> Boolean `*/
+const isFore = (direction : Lateral) : boolean => direction === Lateral.Fore || direction === Lateral.Forward
 
 /**` mappingLineCap :: Mapping LineCap String `*/
 const mappingLineCap : Mapping<LineCap, string> =
