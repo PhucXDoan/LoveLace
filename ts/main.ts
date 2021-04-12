@@ -1,15 +1,6 @@
 /**` ASPECT_RATIO :: Number `*/
 const ASPECT_RATIO = 16 / 9
 
-/**` RESIZING_THRESHOLD :: Number `*/
-const RESIZING_THRESHOLD = 1
-
-/**` RESIZING_SPEED :: Number `*/
-const RESIZING_SPEED = 0.1
-
-/**` REFRESH_TIME :: Number `*/
-const REFRESH_TIME = 15
-
 /********************************************************************************************************************************/
 
 /**` Program (Pipeable) `*/

@@ -1,4 +1,7 @@
 "use strict";
+const RESIZING_THRESHOLD = 1;
+const RESIZING_SPEED = 0.1;
+const REFRESH_TIME = 15;
 const THROW = (message) => { throw new Error(message); };
 const THROWTYPE = (message) => { throw new TypeError(message); };
 const THROWRANGE = (message) => { throw new RangeError(message); };

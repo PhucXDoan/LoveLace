@@ -1,8 +1,5 @@
 "use strict";
 const ASPECT_RATIO = 16 / 9;
-const RESIZING_THRESHOLD = 1;
-const RESIZING_SPEED = 0.1;
-const REFRESH_TIME = 15;
 const ProgramInitial = ({ time }) => ({
     CONS: 'ProgramInitial',
     get pipe() { return (f) => f(this); },

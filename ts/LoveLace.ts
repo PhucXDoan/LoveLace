@@ -32,6 +32,17 @@ class Monad m where
 
 /********************************************************************************************************************************/
 
+/**` RESIZING_THRESHOLD :: Number `*/
+const RESIZING_THRESHOLD = 1
+
+/**` RESIZING_SPEED :: Number `*/
+const RESIZING_SPEED = 0.1
+
+/**` REFRESH_TIME :: Number `*/
+const REFRESH_TIME = 15
+
+/********************************************************************************************************************************/
+
 // -- Throws am error via a function call.
 const THROW = (message : string) =>
 	{ throw new Error(message) }
