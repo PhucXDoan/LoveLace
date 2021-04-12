@@ -1845,6 +1845,84 @@ const Mapping = <a, b>(...mappings : Array<[a, b]>) : Mapping<a, b> =>
 
 /********************************************************************************************************************************/
 
+/**` Core (Pipeable) `*/
+type Core =
+	{
+		CONS : 'Core'
+
+		/**` (.pipe) :: Core -> (Core -> a) -> a `*/
+		pipe : <a>(morphism : (core : Core) => a) => a
+
+		/**` (.time) :: Core -> Number `*/
+		time : number
+
+		/**` (.refreshTime) :: Core -> Number `*/
+		refreshTime : number
+
+		/**` (.canvasScalar) :: Core -> Number `*/
+		canvasScalar : number
+
+		/**` (.isRefresh) :: Core -> Boolean `*/
+		isRefresh : boolean
+
+		/**` (.isResizing) :: Core -> Boolean `*/
+		isResizing : boolean
+	}
+
+/**` Core :: { ... } -> Core `*/
+const Core =
+	(
+		{ time, refreshTime, canvasScalar, isRefresh, isResizing } :
+		{
+			time         : number
+			refreshTime  : number
+			canvasScalar : number
+			isRefresh    : boolean
+			isResizing   : boolean
+		}
+	) : Core =>
+	({
+		CONS : 'Core',
+		get pipe() { return (f : any) => f (this) },
+		time, refreshTime, canvasScalar, isRefresh, isResizing
+	})
+
+/**` updateCore :: Core -> IO Core `*/
+const updateCore = (core : Core) =>
+	Do.IO
+		/**` $.present :: Number */
+		.bindto ('present') ( _ => Import.timeSinceOpen )
+
+		/**` $.maxCanvasScalar :: Number `*/
+		.bindto ('maxCanvasScalar') ( _ => fetchMaxCanvasScalar )
+
+		/**` $.isResizing :: Boolean `*/
+		.bindto ('isResizing')
+		( $ =>
+			Import.isWindowResized
+				.fmap (b => napprox (core.canvasScalar) ($.maxCanvasScalar) (RESIZING_THRESHOLD) && (core.isResizing || b))
+		)
+
+		/**` $.refreshTime :: Number `*/
+		.fmapto ('refreshTime') ( $ => (REFRESH_TIME < core.refreshTime ? 0 : core.refreshTime) + $.present - core.time )
+
+		.fmap
+		( $ =>
+			Core
+			({
+				time         : $.present,
+				isResizing   : $.isResizing,
+				refreshTime  : $.refreshTime,
+				isRefresh    : $.refreshTime > REFRESH_TIME,
+				canvasScalar :
+					$.isResizing && $.refreshTime > REFRESH_TIME
+						? lerp (RESIZING_SPEED) (core.canvasScalar) ($.maxCanvasScalar)
+						: core.canvasScalar
+			})
+		)
+
+/********************************************************************************************************************************/
+
 /**` unit :: (Monad m) => a -> m a `*/
 const unit =
 	{
