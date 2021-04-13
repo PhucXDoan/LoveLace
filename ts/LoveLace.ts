@@ -32,11 +32,18 @@ class Monad m where
 
 /**` plus :: (Monoid m on 'plus') => m -> m -> m `*/
 const plus :
+	& ((x : number) => (y : number) => number)
+	& ((x : string) => (y : string) => string)
 	& (<a>(xs : List<a>) => (ys : List<a>) => List<a>)
 	& ((v : Vector2D) => (w : Vector2D) => Vector2D)
 	& ((v : Vector3D) => (w : Vector3D) => Vector3D)
 	& ((v : Vector4D) => (w : Vector4D) => Vector4D)
 	= (x : any) => (y : any) => x .plus (y)
+
+/**` mult :: (Monoid m on 'mult') => m -> m -> m `*/
+const mult :
+	& ((x : number) => (y : number) => number)
+	= (x : any) => (y : any) => x .mult (y)
 
 /********************************************************************************************************************************/
 
@@ -383,11 +390,13 @@ Boolean.prototype.eq = function(x)
 Boolean.prototype.pipe = function(f)
 	{ return f(this as boolean) }
 
-/**` Boolean (Eq, Pipeable) `*/
+/**` Number (Eq, Pipeable, Monoid on 'plus|mult') `*/
 interface Number
 {
 	eq   : (value : number) => boolean
 	pipe : <a>(morphism : (num : number) => a) => a
+	plus : (n : number) => number
+	mult : (n : number) => number
 }
 
 Number.prototype.eq = function(x)
@@ -396,11 +405,18 @@ Number.prototype.eq = function(x)
 Number.prototype.pipe = function(f)
 	{ return f(this as number) }
 
-/**` String (Eq, Pipeable) `*/
+Number.prototype.plus = function(n)
+	{ return this as number + n }
+
+Number.prototype.mult = function(n)
+	{ return this as number * n }
+
+/**` String (Eq, Pipeable, Monoid on 'plus') `*/
 interface String
 {
 	eq   : (value : string) => boolean
 	pipe : <a>(morphism : (str : string) => a) => a
+	plus : (str : string) => string
 }
 
 String.prototype.eq = function(x)
@@ -408,6 +424,9 @@ String.prototype.eq = function(x)
 
 String.prototype.pipe = function(f)
 	{ return f(this as string) }
+
+String.prototype.plus = function(str)
+	{ return this as string + str }
 
 /********************************************************************************************************************************/
 

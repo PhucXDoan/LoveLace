@@ -1,5 +1,6 @@
 "use strict";
 const plus = (x) => (y) => x.plus(y);
+const mult = (x) => (y) => x.mult(y);
 const RESIZING_THRESHOLD = 1;
 const RESIZING_SPEED = 0.1;
 const REFRESH_TIME = 15;
@@ -110,8 +111,11 @@ Boolean.prototype.eq = function (x) { return this === x; };
 Boolean.prototype.pipe = function (f) { return f(this); };
 Number.prototype.eq = function (x) { return this === x; };
 Number.prototype.pipe = function (f) { return f(this); };
+Number.prototype.plus = function (n) { return this + n; };
+Number.prototype.mult = function (n) { return this * n; };
 String.prototype.eq = function (x) { return this === x; };
 String.prototype.pipe = function (f) { return f(this); };
+String.prototype.plus = function (str) { return this + str; };
 const Pair = (first, second) => ({
     CONS: 'Pair',
     eq: x => x.fst.eq(first) && x.snd.eq(second),
