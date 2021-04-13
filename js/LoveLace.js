@@ -794,6 +794,7 @@ const Matrix2x2 = (ix) => (jx) => (iy) => (jy) => ({
     x: Vector2D(ix)(jx), y: Vector2D(iy)(jy)
 });
 const Matrix2D = (i) => (j) => Matrix2x2(i.x)(j.x)(i.y)(j.y);
+const multiply2x2 = (m) => (n) => Matrix2x2(m.ix * n.ix + m.jx * n.iy)(m.ix * n.jx + m.jx * n.jy)(m.iy * n.ix + m.jy * n.iy)(m.iy * n.jx + m.jy * n.jy);
 const Matrix3x3 = (ix) => (jx) => (kx) => (iy) => (jy) => (ky) => (iz) => (jz) => (kz) => ({
     CONS: 'Matrix3x3',
     eq: m => m.ix === ix && m.jx === jx && m.kx === kx &&
@@ -807,6 +808,7 @@ const Matrix3x3 = (ix) => (jx) => (kx) => (iy) => (jy) => (ky) => (iz) => (jz) =
     x: Vector3D(ix)(jx)(kx), y: Vector3D(iy)(jy)(ky), z: Vector3D(iz)(jz)(kz)
 });
 const Matrix3D = (i) => (j) => (k) => Matrix3x3(i.x)(j.x)(k.x)(i.y)(j.y)(k.y)(i.z)(j.z)(k.z);
+const multiply3x3 = (m) => (n) => Matrix3x3(m.ix * n.ix + m.jx * n.iy + m.kx * n.iz)(m.ix * n.jx + m.jx * n.jy + m.kx * n.jz)(m.ix * n.kx + m.jx * n.ky + m.kx * n.kz)(m.iy * n.ix + m.jy * n.iy + m.ky * n.iz)(m.iy * n.jx + m.jy * n.jy + m.ky * n.jz)(m.iy * n.kx + m.jy * n.ky + m.ky * n.kz)(m.iz * n.ix + m.jz * n.iy + m.kz * n.iz)(m.iz * n.jx + m.jz * n.jy + m.kz * n.jz)(m.iz * n.kx + m.jz * n.ky + m.kz * n.kz);
 const Matrix4x4 = (ix) => (jx) => (kx) => (lx) => (iy) => (jy) => (ky) => (ly) => (iz) => (jz) => (kz) => (lz) => (iw) => (jw) => (kw) => (lw) => ({
     CONS: 'Matrix4x4',
     eq: m => m.ix === ix && m.jx === jx && m.kx === kx && m.lx === lx &&
@@ -822,6 +824,7 @@ const Matrix4x4 = (ix) => (jx) => (kx) => (lx) => (iy) => (jy) => (ky) => (ly) =
     x: Vector4D(ix)(jx)(kx)(lx), y: Vector4D(iy)(jy)(ky)(ly), z: Vector4D(iz)(jz)(kz)(lz), w: Vector4D(iw)(jw)(kw)(lw)
 });
 const Matrix4D = (i) => (j) => (k) => (l) => Matrix4x4(i.x)(j.x)(k.x)(l.x)(i.y)(j.y)(k.y)(l.y)(i.z)(j.z)(k.z)(l.z)(i.w)(j.w)(k.w)(l.w);
+const multiply4x4 = (m) => (n) => Matrix4x4(m.ix * n.ix + m.jx * n.iy + m.kx * n.iz + m.lx * n.iw)(m.ix * n.jx + m.jx * n.jy + m.kx * n.jz + m.lx * n.jw)(m.ix * n.kx + m.jx * n.ky + m.kx * n.kz + m.lx * n.kw)(m.ix * n.lx + m.jx * n.ly + m.kx * n.lz + m.lx * n.lw)(m.iy * n.ix + m.jy * n.iy + m.ky * n.iz + m.ly * n.iw)(m.iy * n.jx + m.jy * n.jy + m.ky * n.jz + m.ly * n.jw)(m.iy * n.kx + m.jy * n.ky + m.ky * n.kz + m.ly * n.kw)(m.iy * n.lx + m.jy * n.ly + m.ky * n.lz + m.ly * n.lw)(m.iz * n.ix + m.jz * n.iy + m.kz * n.iz + m.lz * n.iw)(m.iz * n.jx + m.jz * n.jy + m.kz * n.jz + m.lz * n.jw)(m.iz * n.kx + m.jz * n.ky + m.kz * n.kz + m.lz * n.kw)(m.iz * n.lx + m.jz * n.ly + m.kz * n.lz + m.lz * n.lw)(m.iw * n.ix + m.jw * n.iy + m.kw * n.iz + m.lw * n.iw)(m.iw * n.jx + m.jw * n.jy + m.kw * n.jz + m.lw * n.jw)(m.iw * n.kx + m.jw * n.ky + m.kw * n.kz + m.lw * n.kw)(m.iw * n.lx + m.jw * n.ly + m.kw * n.lz + m.lw * n.lw);
 const TextMeasurement = (text) => (width) => (height) => ({
     CONS: 'TextMeasurement',
     text, width, height

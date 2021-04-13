@@ -1683,6 +1683,12 @@ const Matrix2D = (i : Vector2D) => (j : Vector2D) : Matrix2x2 =>
 		(i.x)(j.x)
 		(i.y)(j.y)
 
+/**` multiply2x2 :: Matrix2x2 -> Matrix2x2 -> Matrix2x2 `*/
+const multiply2x2 = (m : Matrix2x2) => (n : Matrix2x2) : Matrix2x2 =>
+	Matrix2x2
+		(m.ix * n.ix + m.jx * n.iy) (m.ix * n.jx + m.jx * n.jy)
+		(m.iy * n.ix + m.jy * n.iy) (m.iy * n.jx + m.jy * n.jy)
+
 /**` Matrix3x3 (Eq, Pipeable) `*/
 type Matrix3x3 =
 	{
@@ -1766,6 +1772,19 @@ const Matrix3D = (i : Vector3D) => (j : Vector3D) => (k : Vector3D) : Matrix3x3 
 		(i.y)(j.y)(k.y)
 		(i.z)(j.z)(k.z)
 
+/**` multiply3x3 :: Matrix3x3 -> Matrix3x3 -> Matrix3x3 `*/
+const multiply3x3 = (m : Matrix3x3) => (n : Matrix3x3) : Matrix3x3 =>
+	Matrix3x3
+		(m.ix * n.ix + m.jx * n.iy + m.kx * n.iz)
+		(m.ix * n.jx + m.jx * n.jy + m.kx * n.jz)
+		(m.ix * n.kx + m.jx * n.ky + m.kx * n.kz)
+		(m.iy * n.ix + m.jy * n.iy + m.ky * n.iz)
+		(m.iy * n.jx + m.jy * n.jy + m.ky * n.jz)
+		(m.iy * n.kx + m.jy * n.ky + m.ky * n.kz)
+		(m.iz * n.ix + m.jz * n.iy + m.kz * n.iz)
+		(m.iz * n.jx + m.jz * n.jy + m.kz * n.jz)
+		(m.iz * n.kx + m.jz * n.ky + m.kz * n.kz)
+
 /**` Matrix4x4 (Eq, Pipeable) `*/
 type Matrix4x4 =
 	{
@@ -1777,52 +1796,52 @@ type Matrix4x4 =
 		/**` pipe :: Matrix4x4 -> (Matrix4x4 -> a) -> a `*/
 		pipe : <a>(morphism : (matrix : Matrix4x4) => a) => a
 
-		/**` (.i)x ::Matrix4x4 ->  Number `*/
+		/**` (.ix) ::Matrix4x4 ->  Number `*/
 		ix : number
 
-		/**` (.j)x ::Matrix4x4 ->  Number `*/
+		/**` (.jx) ::Matrix4x4 ->  Number `*/
 		jx : number
 
-		/**` (.k)x ::Matrix4x4 ->  Number `*/
+		/**` (.kx) ::Matrix4x4 ->  Number `*/
 		kx : number
 
-		/**` (.l)x ::Matrix4x4 ->  Number `*/
+		/**` (.lx) ::Matrix4x4 ->  Number `*/
 		lx : number
 
-		/**` (.i)y ::Matrix4x4 ->  Number `*/
+		/**` (.iy) ::Matrix4x4 ->  Number `*/
 		iy : number
 
-		/**` (.j)y ::Matrix4x4 ->  Number `*/
+		/**` (.jy) ::Matrix4x4 ->  Number `*/
 		jy : number
 
-		/**` (.k)y ::Matrix4x4 ->  Number `*/
+		/**` (.ky) ::Matrix4x4 ->  Number `*/
 		ky : number
 
-		/**` (.l)y ::Matrix4x4 ->  Number `*/
+		/**` (.ly) ::Matrix4x4 ->  Number `*/
 		ly : number
 
-		/**` (.i)z ::Matrix4x4 ->  Number `*/
+		/**` (.iz) ::Matrix4x4 ->  Number `*/
 		iz : number
 
-		/**` (.j)z ::Matrix4x4 ->  Number `*/
+		/**` (.jz) ::Matrix4x4 ->  Number `*/
 		jz : number
 
-		/**` (.k)z ::Matrix4x4 ->  Number `*/
+		/**` (.kz) ::Matrix4x4 ->  Number `*/
 		kz : number
 
-		/**` (.l)z ::Matrix4x4 ->  Number `*/
+		/**` (.lz) ::Matrix4x4 ->  Number `*/
 		lz : number
 
-		/**` (.i)w ::Matrix4x4 ->  Number `*/
+		/**` (.iw) ::Matrix4x4 ->  Number `*/
 		iw : number
 
-		/**` (.j)w ::Matrix4x4 ->  Number `*/
+		/**` (.jw) ::Matrix4x4 ->  Number `*/
 		jw : number
 
-		/**` (.k)w ::Matrix4x4 ->  Number `*/
+		/**` (.kw) ::Matrix4x4 ->  Number `*/
 		kw : number
 
-		/**` (.l)w ::Matrix4x4 ->  Number `*/
+		/**` (.lw) ::Matrix4x4 ->  Number `*/
 		lw : number
 
 		/**` (.i) :: Matrix4x4 -> Vector4D `*/
@@ -1879,6 +1898,18 @@ const Matrix4D = (i : Vector4D) => (j : Vector4D) => (k : Vector4D) => (l : Vect
 		(i.y)(j.y)(k.y)(l.y)
 		(i.z)(j.z)(k.z)(l.z)
 		(i.w)(j.w)(k.w)(l.w)
+
+/**` multiply4x4 :: Matrix4x4 -> Matrix4x4 -> Matrix4x4 `*/
+const multiply4x4 = (m : Matrix4x4) => (n : Matrix4x4) : Matrix4x4 =>
+	Matrix4x4
+		(m.ix * n.ix + m.jx * n.iy + m.kx * n.iz + m.lx * n.iw) (m.ix * n.jx + m.jx * n.jy + m.kx * n.jz + m.lx * n.jw)
+		(m.ix * n.kx + m.jx * n.ky + m.kx * n.kz + m.lx * n.kw) (m.ix * n.lx + m.jx * n.ly + m.kx * n.lz + m.lx * n.lw)
+		(m.iy * n.ix + m.jy * n.iy + m.ky * n.iz + m.ly * n.iw) (m.iy * n.jx + m.jy * n.jy + m.ky * n.jz + m.ly * n.jw)
+		(m.iy * n.kx + m.jy * n.ky + m.ky * n.kz + m.ly * n.kw) (m.iy * n.lx + m.jy * n.ly + m.ky * n.lz + m.ly * n.lw)
+		(m.iz * n.ix + m.jz * n.iy + m.kz * n.iz + m.lz * n.iw) (m.iz * n.jx + m.jz * n.jy + m.kz * n.jz + m.lz * n.jw)
+		(m.iz * n.kx + m.jz * n.ky + m.kz * n.kz + m.lz * n.kw) (m.iz * n.lx + m.jz * n.ly + m.kz * n.lz + m.lz * n.lw)
+		(m.iw * n.ix + m.jw * n.iy + m.kw * n.iz + m.lw * n.iw) (m.iw * n.jx + m.jw * n.jy + m.kw * n.jz + m.lw * n.jw)
+		(m.iw * n.kx + m.jw * n.ky + m.kw * n.kz + m.lw * n.kw) (m.iw * n.lx + m.jw * n.ly + m.kw * n.lz + m.lw * n.lw)
 
 /********************************************************************************************************************************/
 
