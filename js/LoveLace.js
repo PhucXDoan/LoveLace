@@ -796,6 +796,8 @@ const Matrix2x2 = (ix) => (jx) => (iy) => (jy) => ({
     CONS: 'Matrix2x2',
     eq: m => m.ix === ix && m.jx === jx && m.iy === iy && m.jy === jy,
     get pipe() { return (f) => f(this); },
+    plus: m => Matrix2x2(ix + m.ix)(jx + m.jx)(iy + m.iy)(jy + m.jy),
+    mult: m => Matrix2x2(ix * m.ix + jx * m.iy)(ix * m.jx + jx * m.jy)(iy * m.ix + jy * m.iy)(iy * m.jx + jy * m.jy),
     ix, jx,
     iy, jy,
     i: Vector2D(ix)(iy), j: Vector2D(jx)(jy),
@@ -807,6 +809,8 @@ const Matrix3x3 = (ix) => (jx) => (kx) => (iy) => (jy) => (ky) => (iz) => (jz) =
         m.iy === iy && m.jy === jy && m.ky === ky &&
         m.iz === iz && m.jz === jz && m.kz === kz,
     get pipe() { return (f) => f(this); },
+    plus: m => Matrix3x3(ix + m.ix)(jx + m.jx)(kx + m.kx)(iy + m.iy)(jy + m.jy)(ky + m.ky)(iz + m.iz)(jz + m.jz)(kz + m.kz),
+    mult: m => Matrix3x3(ix * m.ix + jx * m.iy + kx * m.iz)(ix * m.jx + jx * m.jy + kx * m.jz)(ix * m.kx + jx * m.ky + kx * m.kz)(iy * m.ix + jy * m.iy + ky * m.iz)(iy * m.jx + jy * m.jy + ky * m.jz)(iy * m.kx + jy * m.ky + ky * m.kz)(iz * m.ix + jz * m.iy + kz * m.iz)(iz * m.jx + jz * m.jy + kz * m.jz)(iz * m.kx + jz * m.ky + kz * m.kz),
     ix, jx, kx,
     iy, jy, ky,
     iz, jz, kz,
@@ -820,6 +824,8 @@ const Matrix4x4 = (ix) => (jx) => (kx) => (lx) => (iy) => (jy) => (ky) => (ly) =
         m.iz === iz && m.jz === jz && m.kz === kz && m.lz === lz &&
         m.iw === iw && m.jw === jw && m.kw === kw && m.lw === lw,
     get pipe() { return (f) => f(this); },
+    plus: m => Matrix4x4(ix + m.ix)(jx + m.jx)(kx + m.kx)(lx + m.lx)(iy + m.iy)(jy + m.jy)(ky + m.ky)(ly + m.ly)(iz + m.iz)(jz + m.jz)(kz + m.kz)(lz + m.lz)(iw + m.iw)(jw + m.jw)(kw + m.kw)(lw + m.lw),
+    mult: m => Matrix4x4(ix * m.ix + jx * m.iy + kx * m.iz + lx * m.iw)(ix * m.jx + jx * m.jy + kx * m.jz + lx * m.jw)(ix * m.kx + jx * m.ky + kx * m.kz + lx * m.kw)(ix * m.lx + jx * m.ly + kx * m.lz + lx * m.lw)(iy * m.ix + jy * m.iy + ky * m.iz + ly * m.iw)(iy * m.jx + jy * m.jy + ky * m.jz + ly * m.jw)(iy * m.kx + jy * m.ky + ky * m.kz + ly * m.kw)(iy * m.lx + jy * m.ly + ky * m.lz + ly * m.lw)(iz * m.ix + jz * m.iy + kz * m.iz + lz * m.iw)(iz * m.jx + jz * m.jy + kz * m.jz + lz * m.jw)(iz * m.kx + jz * m.ky + kz * m.kz + lz * m.kw)(iz * m.lx + jz * m.ly + kz * m.lz + lz * m.lw)(iw * m.ix + jw * m.iy + kw * m.iz + lw * m.iw)(iw * m.jx + jw * m.jy + kw * m.jz + lw * m.jw)(iw * m.kx + jw * m.ky + kw * m.kz + lw * m.kw)(iw * m.lx + jw * m.ly + kw * m.lz + lw * m.lw),
     ix, jx, kx, lx,
     iy, jy, ky, ly,
     iz, jz, kz, lz,
@@ -830,9 +836,6 @@ const Matrix4x4 = (ix) => (jx) => (kx) => (lx) => (iy) => (jy) => (ky) => (ly) =
 const Matrix2D = (i) => (j) => Matrix2x2(i.x)(j.x)(i.y)(j.y);
 const Matrix3D = (i) => (j) => (k) => Matrix3x3(i.x)(j.x)(k.x)(i.y)(j.y)(k.y)(i.z)(j.z)(k.z);
 const Matrix4D = (i) => (j) => (k) => (l) => Matrix4x4(i.x)(j.x)(k.x)(l.x)(i.y)(j.y)(k.y)(l.y)(i.z)(j.z)(k.z)(l.z)(i.w)(j.w)(k.w)(l.w);
-const multiply2x2 = (m) => (n) => Matrix2x2(m.ix * n.ix + m.jx * n.iy)(m.ix * n.jx + m.jx * n.jy)(m.iy * n.ix + m.jy * n.iy)(m.iy * n.jx + m.jy * n.jy);
-const multiply3x3 = (m) => (n) => Matrix3x3(m.ix * n.ix + m.jx * n.iy + m.kx * n.iz)(m.ix * n.jx + m.jx * n.jy + m.kx * n.jz)(m.ix * n.kx + m.jx * n.ky + m.kx * n.kz)(m.iy * n.ix + m.jy * n.iy + m.ky * n.iz)(m.iy * n.jx + m.jy * n.jy + m.ky * n.jz)(m.iy * n.kx + m.jy * n.ky + m.ky * n.kz)(m.iz * n.ix + m.jz * n.iy + m.kz * n.iz)(m.iz * n.jx + m.jz * n.jy + m.kz * n.jz)(m.iz * n.kx + m.jz * n.ky + m.kz * n.kz);
-const multiply4x4 = (m) => (n) => Matrix4x4(m.ix * n.ix + m.jx * n.iy + m.kx * n.iz + m.lx * n.iw)(m.ix * n.jx + m.jx * n.jy + m.kx * n.jz + m.lx * n.jw)(m.ix * n.kx + m.jx * n.ky + m.kx * n.kz + m.lx * n.kw)(m.ix * n.lx + m.jx * n.ly + m.kx * n.lz + m.lx * n.lw)(m.iy * n.ix + m.jy * n.iy + m.ky * n.iz + m.ly * n.iw)(m.iy * n.jx + m.jy * n.jy + m.ky * n.jz + m.ly * n.jw)(m.iy * n.kx + m.jy * n.ky + m.ky * n.kz + m.ly * n.kw)(m.iy * n.lx + m.jy * n.ly + m.ky * n.lz + m.ly * n.lw)(m.iz * n.ix + m.jz * n.iy + m.kz * n.iz + m.lz * n.iw)(m.iz * n.jx + m.jz * n.jy + m.kz * n.jz + m.lz * n.jw)(m.iz * n.kx + m.jz * n.ky + m.kz * n.kz + m.lz * n.kw)(m.iz * n.lx + m.jz * n.ly + m.kz * n.lz + m.lz * n.lw)(m.iw * n.ix + m.jw * n.iy + m.kw * n.iz + m.lw * n.iw)(m.iw * n.jx + m.jw * n.jy + m.kw * n.jz + m.lw * n.jw)(m.iw * n.kx + m.jw * n.ky + m.kw * n.kz + m.lw * n.kw)(m.iw * n.lx + m.jw * n.ly + m.kw * n.lz + m.lw * n.lw);
 const transform2D = (m) => (v) => Vector2D(m.ix * v.x + m.jx * v.y)(m.iy * v.x + m.jy * v.y);
 const transform3D = (m) => (v) => Vector3D(m.ix * v.x + m.jx * v.y + m.kx * v.z)(m.iy * v.x + m.jy * v.y + m.ky * v.z)(m.iz * v.x + m.jz * v.y + m.kz * v.z);
 const transform4D = (m) => (v) => Vector4D(m.ix * v.x + m.jx * v.y + m.kx * v.z + m.lx * v.w)(m.iy * v.x + m.jy * v.y + m.ky * v.z + m.ly * v.w)(m.iz * v.x + m.jz * v.y + m.kz * v.z + m.lz * v.w)(m.iw * v.x + m.jw * v.y + m.kw * v.z + m.lw * v.w);

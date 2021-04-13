@@ -38,11 +38,17 @@ const plus :
 	& ((v : Vector2D) => (w : Vector2D) => Vector2D)
 	& ((v : Vector3D) => (w : Vector3D) => Vector3D)
 	& ((v : Vector4D) => (w : Vector4D) => Vector4D)
+	& ((m : Matrix2x2) => (n : Matrix2x2) => Matrix2x2)
+	& ((m : Matrix3x3) => (n : Matrix3x3) => Matrix3x3)
+	& ((m : Matrix4x4) => (n : Matrix4x4) => Matrix4x4)
 	= (x : any) => (y : any) => x .plus (y)
 
 /**` mult :: (Monoid m on 'mult') => m -> m -> m `*/
 const mult :
 	& ((x : number) => (y : number) => number)
+	& ((m : Matrix2x2) => (n : Matrix2x2) => Matrix2x2)
+	& ((m : Matrix3x3) => (n : Matrix3x3) => Matrix3x3)
+	& ((m : Matrix4x4) => (n : Matrix4x4) => Matrix4x4)
 	= (x : any) => (y : any) => x .mult (y)
 
 /********************************************************************************************************************************/
@@ -1648,7 +1654,7 @@ const normalize4D = (v : Vector4D) : Vector4D =>
 
 /********************************************************************************************************************************/
 
-/**` Matrix2x2 (Eq, Pipeable) `*/
+/**` Matrix2x2 (Eq, Pipeable, Monoid on 'plus|mult') `*/
 type Matrix2x2 =
 	{
 		CONS : 'Matrix2x2'
@@ -1658,6 +1664,12 @@ type Matrix2x2 =
 
 		/**` pipe :: Matrix2x2 -> (Matrix2x2 -> a) -> a `*/
 		pipe : <a>(morphism : (matrix : Matrix2x2) => a) => a
+
+		/**` plus :: Matrix2x2 -> Matrix2x2 -> Matrix2x2 `*/
+		plus : (m : Matrix2x2) => Matrix2x2
+
+		/**` mult :: Matrix2x2 -> Matrix2x2 -> Matrix2x2 `*/
+		mult : (m : Matrix2x2) => Matrix2x2
 
 		/**` (.ix) :: Matrix2x2 -> Number `*/
 		ix : number
@@ -1684,7 +1696,7 @@ type Matrix2x2 =
 		y : Vector2D
 	}
 
-/**` Matrix3x3 (Eq, Pipeable) `*/
+/**` Matrix3x3 (Eq, Pipeable, Monoid on 'plus|mult') `*/
 type Matrix3x3 =
 	{
 		CONS : 'Matrix3x3'
@@ -1694,6 +1706,12 @@ type Matrix3x3 =
 
 		/**` pipe :: Matrix3x3 -> (Matrix3x3 -> a) -> a `*/
 		pipe : <a>(morphism : (matrix : Matrix3x3) => a) => a
+
+		/**` plus :: Matrix3x3 -> Matrix3x3 -> Matrix3x3 `*/
+		plus : (m : Matrix3x3) => Matrix3x3
+
+		/**` mult :: Matrix3x3 -> Matrix3x3 -> Matrix3x3 `*/
+		mult : (m : Matrix3x3) => Matrix3x3
 
 		/**` (.ix) :: Matrix3x3 -> Number `*/
 		ix : number
@@ -1741,7 +1759,7 @@ type Matrix3x3 =
 		z : Vector3D
 	}
 
-/**` Matrix4x4 (Eq, Pipeable) `*/
+/**` Matrix4x4 (Eq, Pipeable, Monoid on 'plus|mult') `*/
 type Matrix4x4 =
 	{
 		CONS : 'Matrix4x4'
@@ -1751,6 +1769,12 @@ type Matrix4x4 =
 
 		/**` pipe :: Matrix4x4 -> (Matrix4x4 -> a) -> a `*/
 		pipe : <a>(morphism : (matrix : Matrix4x4) => a) => a
+
+		/**` plus :: Matrix4x4 -> Matrix4x4 -> Matrix4x4 `*/
+		plus : (m : Matrix4x4) => Matrix4x4
+
+		/**` mult :: Matrix4x4 -> Matrix4x4 -> Matrix4x4 `*/
+		mult : (m : Matrix4x4) => Matrix4x4
 
 		/**` (.ix) ::Matrix4x4 ->  Number `*/
 		ix : number
@@ -1833,6 +1857,14 @@ const Matrix2x2 =
 		CONS : 'Matrix2x2',
 		eq : m => m.ix === ix && m.jx === jx && m.iy === iy && m.jy === jy,
 		get pipe() { return (f : any) => f (this) },
+		plus : m =>
+			Matrix2x2
+				(ix + m.ix) (jx + m.jx)
+				(iy + m.iy) (jy + m.jy),
+		mult : m =>
+			Matrix2x2
+				(ix * m.ix + jx * m.iy) (ix * m.jx + jx * m.jy)
+				(iy * m.ix + jy * m.iy) (iy * m.jx + jy * m.jy),
 		ix, jx,
 		iy, jy,
 		i : Vector2D(ix)(iy), j : Vector2D(jx)(jy),
@@ -1851,6 +1883,22 @@ const Matrix3x3 =
 			m.iy === iy && m.jy === jy && m.ky === ky &&
 			m.iz === iz && m.jz === jz && m.kz === kz,
 		get pipe() { return (f : any) => f (this) },
+		plus : m =>
+			Matrix3x3
+				(ix + m.ix) (jx + m.jx) (kx + m.kx)
+				(iy + m.iy) (jy + m.jy) (ky + m.ky)
+				(iz + m.iz) (jz + m.jz) (kz + m.kz),
+		mult : m =>
+			Matrix3x3
+				(ix * m.ix + jx * m.iy + kx * m.iz)
+				(ix * m.jx + jx * m.jy + kx * m.jz)
+				(ix * m.kx + jx * m.ky + kx * m.kz)
+				(iy * m.ix + jy * m.iy + ky * m.iz)
+				(iy * m.jx + jy * m.jy + ky * m.jz)
+				(iy * m.kx + jy * m.ky + ky * m.kz)
+				(iz * m.ix + jz * m.iy + kz * m.iz)
+				(iz * m.jx + jz * m.jy + kz * m.jz)
+				(iz * m.kx + jz * m.ky + kz * m.kz),
 		ix, jx, kx,
 		iy, jy, ky,
 		iz, jz, kz,
@@ -1872,6 +1920,22 @@ const Matrix4x4 =
 			m.iz === iz && m.jz === jz && m.kz === kz && m.lz === lz &&
 			m.iw === iw && m.jw === jw && m.kw === kw && m.lw === lw,
 		get pipe() { return (f : any) => f (this) },
+		plus : m =>
+			Matrix4x4
+				(ix + m.ix) (jx + m.jx) (kx + m.kx) (lx + m.lx)
+				(iy + m.iy) (jy + m.jy) (ky + m.ky) (ly + m.ly)
+				(iz + m.iz) (jz + m.jz) (kz + m.kz) (lz + m.lz)
+				(iw + m.iw) (jw + m.jw) (kw + m.kw) (lw + m.lw),
+		mult : m =>
+			Matrix4x4
+				(ix * m.ix + jx * m.iy + kx * m.iz + lx * m.iw) (ix * m.jx + jx * m.jy + kx * m.jz + lx * m.jw)
+				(ix * m.kx + jx * m.ky + kx * m.kz + lx * m.kw) (ix * m.lx + jx * m.ly + kx * m.lz + lx * m.lw)
+				(iy * m.ix + jy * m.iy + ky * m.iz + ly * m.iw) (iy * m.jx + jy * m.jy + ky * m.jz + ly * m.jw)
+				(iy * m.kx + jy * m.ky + ky * m.kz + ly * m.kw) (iy * m.lx + jy * m.ly + ky * m.lz + ly * m.lw)
+				(iz * m.ix + jz * m.iy + kz * m.iz + lz * m.iw) (iz * m.jx + jz * m.jy + kz * m.jz + lz * m.jw)
+				(iz * m.kx + jz * m.ky + kz * m.kz + lz * m.kw) (iz * m.lx + jz * m.ly + kz * m.lz + lz * m.lw)
+				(iw * m.ix + jw * m.iy + kw * m.iz + lw * m.iw) (iw * m.jx + jw * m.jy + kw * m.jz + lw * m.jw)
+				(iw * m.kx + jw * m.ky + kw * m.kz + lw * m.kw) (iw * m.lx + jw * m.ly + kw * m.lz + lw * m.lw),
 		ix, jx, kx, lx,
 		iy, jy, ky, ly,
 		iz, jz, kz, lz,
@@ -1900,37 +1964,6 @@ const Matrix4D = (i : Vector4D) => (j : Vector4D) => (k : Vector4D) => (l : Vect
 		(i.y)(j.y)(k.y)(l.y)
 		(i.z)(j.z)(k.z)(l.z)
 		(i.w)(j.w)(k.w)(l.w)
-
-/**` multiply2x2 :: Matrix2x2 -> Matrix2x2 -> Matrix2x2 `*/
-const multiply2x2 = (m : Matrix2x2) => (n : Matrix2x2) : Matrix2x2 =>
-	Matrix2x2
-		(m.ix * n.ix + m.jx * n.iy) (m.ix * n.jx + m.jx * n.jy)
-		(m.iy * n.ix + m.jy * n.iy) (m.iy * n.jx + m.jy * n.jy)
-
-/**` multiply3x3 :: Matrix3x3 -> Matrix3x3 -> Matrix3x3 `*/
-const multiply3x3 = (m : Matrix3x3) => (n : Matrix3x3) : Matrix3x3 =>
-	Matrix3x3
-		(m.ix * n.ix + m.jx * n.iy + m.kx * n.iz)
-		(m.ix * n.jx + m.jx * n.jy + m.kx * n.jz)
-		(m.ix * n.kx + m.jx * n.ky + m.kx * n.kz)
-		(m.iy * n.ix + m.jy * n.iy + m.ky * n.iz)
-		(m.iy * n.jx + m.jy * n.jy + m.ky * n.jz)
-		(m.iy * n.kx + m.jy * n.ky + m.ky * n.kz)
-		(m.iz * n.ix + m.jz * n.iy + m.kz * n.iz)
-		(m.iz * n.jx + m.jz * n.jy + m.kz * n.jz)
-		(m.iz * n.kx + m.jz * n.ky + m.kz * n.kz)
-
-/**` multiply4x4 :: Matrix4x4 -> Matrix4x4 -> Matrix4x4 `*/
-const multiply4x4 = (m : Matrix4x4) => (n : Matrix4x4) : Matrix4x4 =>
-	Matrix4x4
-		(m.ix * n.ix + m.jx * n.iy + m.kx * n.iz + m.lx * n.iw) (m.ix * n.jx + m.jx * n.jy + m.kx * n.jz + m.lx * n.jw)
-		(m.ix * n.kx + m.jx * n.ky + m.kx * n.kz + m.lx * n.kw) (m.ix * n.lx + m.jx * n.ly + m.kx * n.lz + m.lx * n.lw)
-		(m.iy * n.ix + m.jy * n.iy + m.ky * n.iz + m.ly * n.iw) (m.iy * n.jx + m.jy * n.jy + m.ky * n.jz + m.ly * n.jw)
-		(m.iy * n.kx + m.jy * n.ky + m.ky * n.kz + m.ly * n.kw) (m.iy * n.lx + m.jy * n.ly + m.ky * n.lz + m.ly * n.lw)
-		(m.iz * n.ix + m.jz * n.iy + m.kz * n.iz + m.lz * n.iw) (m.iz * n.jx + m.jz * n.jy + m.kz * n.jz + m.lz * n.jw)
-		(m.iz * n.kx + m.jz * n.ky + m.kz * n.kz + m.lz * n.kw) (m.iz * n.lx + m.jz * n.ly + m.kz * n.lz + m.lz * n.lw)
-		(m.iw * n.ix + m.jw * n.iy + m.kw * n.iz + m.lw * n.iw) (m.iw * n.jx + m.jw * n.jy + m.kw * n.jz + m.lw * n.jw)
-		(m.iw * n.kx + m.jw * n.ky + m.kw * n.kz + m.lw * n.kw) (m.iw * n.lx + m.jw * n.ly + m.kw * n.lz + m.lw * n.lw)
 
 /**` transform2D :: Matrix2x2 -> Vector2D -> Vector2D `*/
 const transform2D = (m : Matrix2x2) => (v : Vector2D) : Vector2D =>
