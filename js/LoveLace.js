@@ -716,43 +716,46 @@ const Vector2D = (x) => (y) => ({
     CONS: 'Vector2D',
     eq: v => v.x === x && v.y === y,
     get pipe() { return (f) => f(this); },
+    plus: v => Vector2D(x + v.x)(y + v.y),
     x, y
 });
+const Vector3D = (x) => (y) => (z) => ({
+    CONS: 'Vector3D',
+    eq: v => v.x === x && v.y === y && v.z === z,
+    get pipe() { return (f) => f(this); },
+    plus: v => Vector3D(x + v.x)(y + v.y)(z + v.z),
+    x, y, z
+});
+const Vector4D = (x) => (y) => (z) => (w) => ({
+    CONS: 'Vector4D',
+    eq: v => v.x === x && v.y === y && v.z === z && v.w === w,
+    get pipe() { return (f) => f(this); },
+    plus: v => Vector4D(x + v.x)(y + v.y)(z + v.z)(w + v.w),
+    x, y, z, w
+});
 const origin2D = Vector2D(0)(0);
+const origin3D = Vector3D(0)(0)(0);
+const origin4D = Vector4D(0)(0)(0)(0);
 const translate2D = (dx) => (dy) => (v) => Vector2D(v.x + dx)(v.y + dy);
+const translate3D = (dx) => (dy) => (dz) => (v) => Vector3D(v.x + dx)(v.y + dy)(v.z + dz);
+const translate4D = (dx) => (dy) => (dz) => (dw) => (v) => Vector4D(v.x + dx)(v.y + dy)(v.z + dz)(v.w + dw);
 const translateVector2D = (dv) => (v) => Vector2D(v.x + dv.x)(v.y + dv.y);
+const translateVector3D = (dv) => (v) => Vector3D(v.x + dv.x)(v.y + dv.y)(v.z + dv.z);
+const translateVector4D = (dv) => (v) => Vector4D(v.x + dv.x)(v.y + dv.y)(v.z + dv.z)(v.w + dv.w);
 const abs2D = (v) => sqrt(v.x * v.x + v.y * v.y);
+const abs3D = (v) => Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+const abs4D = (v) => sqrt(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);
 const scale2D = (k) => (v) => Vector2D(v.x * k)(v.y * k);
+const scale3D = (k) => (v) => Vector3D(v.x * k)(v.y * k)(v.z * k);
+const scale4D = (k) => (v) => Vector4D(v.x * k)(v.y * k)(v.z * k)(v.w * k);
 const invscale2D = (k) => (v) => Vector2D(v.x / k)(v.y / k);
-const normalize2D = (v) => {
-    if (v.x === 0 && v.y === 0)
-        return v;
-    const l = Math.sqrt(v.x * v.x + v.y * v.y);
-    return Vector2D(v.x * l)(v.y * l);
-};
+const invscale3D = (k) => (v) => Vector3D(v.x / k)(v.y / k)(v.z / k);
+const invscale4D = (k) => (v) => Vector4D(v.x / k)(v.y / k)(v.z / k)(v.w / k);
 const rescale2D = (k) => (v) => {
     if (v.x === 0 && v.y === 0)
         return v;
     const l = k * Math.sqrt(v.x * v.x + v.y * v.y);
     return Vector2D(v.x * l)(v.y * l);
-};
-const Vector3D = (x) => (y) => (z) => ({
-    CONS: 'Vector3D',
-    eq: v => v.x === x && v.y === y && v.z === z,
-    get pipe() { return (f) => f(this); },
-    x, y, z
-});
-const origin3D = Vector3D(0)(0)(0);
-const translate3D = (dx) => (dy) => (dz) => (v) => Vector3D(v.x + dx)(v.y + dy)(v.z + dz);
-const translateVector3D = (dv) => (v) => Vector3D(v.x + dv.x)(v.y + dv.y)(v.z + dv.z);
-const abs3D = (v) => Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-const scale3D = (k) => (v) => Vector3D(v.x * k)(v.y * k)(v.z * k);
-const invscale3D = (k) => (v) => Vector3D(v.x / k)(v.y / k)(v.z / k);
-const normalize3D = (v) => {
-    if (v.x === 0 && v.y === 0 && v.z === 0)
-        return v;
-    const l = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-    return Vector3D(v.x * l)(v.y * l)(v.z * l);
 };
 const rescale3D = (k) => (v) => {
     if (v.x === 0 && v.y === 0 && v.z === 0)
@@ -760,28 +763,28 @@ const rescale3D = (k) => (v) => {
     const l = k * Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
     return Vector3D(v.x * l)(v.y * l)(v.z * l);
 };
-const Vector4D = (x) => (y) => (z) => (w) => ({
-    CONS: 'Vector4D',
-    eq: v => v.x === x && v.y === y && v.z === z && v.w === w,
-    get pipe() { return (f) => f(this); },
-    x, y, z, w
-});
-const origin4D = Vector4D(0)(0)(0)(0);
-const translate4D = (dx) => (dy) => (dz) => (dw) => (v) => Vector4D(v.x + dx)(v.y + dy)(v.z + dz)(v.w + dw);
-const translateVector4D = (dv) => (v) => Vector4D(v.x + dv.x)(v.y + dv.y)(v.z + dv.z)(v.w + dv.w);
-const abs4D = (v) => sqrt(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);
-const scale4D = (k) => (v) => Vector4D(v.x * k)(v.y * k)(v.z * k)(v.w * k);
-const invscale4D = (k) => (v) => Vector4D(v.x / k)(v.y / k)(v.z / k)(v.w / k);
-const normalize4D = (v) => {
-    if (v.x === 0 && v.y === 0 && v.z === 0 && v.w === 0)
-        return v;
-    const l = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);
-    return Vector4D(v.x * l)(v.y * l)(v.z * l)(v.w * l);
-};
 const rescale4D = (k) => (v) => {
     if (v.x === 0 && v.y === 0 && v.z === 0 && v.w === 0)
         return v;
     const l = k * Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);
+    return Vector4D(v.x * l)(v.y * l)(v.z * l)(v.w * l);
+};
+const normalize2D = (v) => {
+    if (v.x === 0 && v.y === 0)
+        return v;
+    const l = Math.sqrt(v.x * v.x + v.y * v.y);
+    return Vector2D(v.x * l)(v.y * l);
+};
+const normalize3D = (v) => {
+    if (v.x === 0 && v.y === 0 && v.z === 0)
+        return v;
+    const l = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+    return Vector3D(v.x * l)(v.y * l)(v.z * l);
+};
+const normalize4D = (v) => {
+    if (v.x === 0 && v.y === 0 && v.z === 0 && v.w === 0)
+        return v;
+    const l = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);
     return Vector4D(v.x * l)(v.y * l)(v.z * l)(v.w * l);
 };
 const Matrix2x2 = (ix) => (jx) => (iy) => (jy) => ({
@@ -793,8 +796,6 @@ const Matrix2x2 = (ix) => (jx) => (iy) => (jy) => ({
     i: Vector2D(ix)(iy), j: Vector2D(jx)(jy),
     x: Vector2D(ix)(jx), y: Vector2D(iy)(jy)
 });
-const Matrix2D = (i) => (j) => Matrix2x2(i.x)(j.x)(i.y)(j.y);
-const multiply2x2 = (m) => (n) => Matrix2x2(m.ix * n.ix + m.jx * n.iy)(m.ix * n.jx + m.jx * n.jy)(m.iy * n.ix + m.jy * n.iy)(m.iy * n.jx + m.jy * n.jy);
 const Matrix3x3 = (ix) => (jx) => (kx) => (iy) => (jy) => (ky) => (iz) => (jz) => (kz) => ({
     CONS: 'Matrix3x3',
     eq: m => m.ix === ix && m.jx === jx && m.kx === kx &&
@@ -807,8 +808,6 @@ const Matrix3x3 = (ix) => (jx) => (kx) => (iy) => (jy) => (ky) => (iz) => (jz) =
     i: Vector3D(ix)(iy)(iz), j: Vector3D(jx)(jy)(jz), k: Vector3D(kx)(ky)(kz),
     x: Vector3D(ix)(jx)(kx), y: Vector3D(iy)(jy)(ky), z: Vector3D(iz)(jz)(kz)
 });
-const Matrix3D = (i) => (j) => (k) => Matrix3x3(i.x)(j.x)(k.x)(i.y)(j.y)(k.y)(i.z)(j.z)(k.z);
-const multiply3x3 = (m) => (n) => Matrix3x3(m.ix * n.ix + m.jx * n.iy + m.kx * n.iz)(m.ix * n.jx + m.jx * n.jy + m.kx * n.jz)(m.ix * n.kx + m.jx * n.ky + m.kx * n.kz)(m.iy * n.ix + m.jy * n.iy + m.ky * n.iz)(m.iy * n.jx + m.jy * n.jy + m.ky * n.jz)(m.iy * n.kx + m.jy * n.ky + m.ky * n.kz)(m.iz * n.ix + m.jz * n.iy + m.kz * n.iz)(m.iz * n.jx + m.jz * n.jy + m.kz * n.jz)(m.iz * n.kx + m.jz * n.ky + m.kz * n.kz);
 const Matrix4x4 = (ix) => (jx) => (kx) => (lx) => (iy) => (jy) => (ky) => (ly) => (iz) => (jz) => (kz) => (lz) => (iw) => (jw) => (kw) => (lw) => ({
     CONS: 'Matrix4x4',
     eq: m => m.ix === ix && m.jx === jx && m.kx === kx && m.lx === lx &&
@@ -823,8 +822,15 @@ const Matrix4x4 = (ix) => (jx) => (kx) => (lx) => (iy) => (jy) => (ky) => (ly) =
     i: Vector4D(ix)(iy)(iz)(iw), j: Vector4D(jx)(jy)(jz)(jw), k: Vector4D(kx)(ky)(kz)(kw), l: Vector4D(lx)(ly)(lz)(lw),
     x: Vector4D(ix)(jx)(kx)(lx), y: Vector4D(iy)(jy)(ky)(ly), z: Vector4D(iz)(jz)(kz)(lz), w: Vector4D(iw)(jw)(kw)(lw)
 });
+const Matrix2D = (i) => (j) => Matrix2x2(i.x)(j.x)(i.y)(j.y);
+const Matrix3D = (i) => (j) => (k) => Matrix3x3(i.x)(j.x)(k.x)(i.y)(j.y)(k.y)(i.z)(j.z)(k.z);
 const Matrix4D = (i) => (j) => (k) => (l) => Matrix4x4(i.x)(j.x)(k.x)(l.x)(i.y)(j.y)(k.y)(l.y)(i.z)(j.z)(k.z)(l.z)(i.w)(j.w)(k.w)(l.w);
+const multiply2x2 = (m) => (n) => Matrix2x2(m.ix * n.ix + m.jx * n.iy)(m.ix * n.jx + m.jx * n.jy)(m.iy * n.ix + m.jy * n.iy)(m.iy * n.jx + m.jy * n.jy);
+const multiply3x3 = (m) => (n) => Matrix3x3(m.ix * n.ix + m.jx * n.iy + m.kx * n.iz)(m.ix * n.jx + m.jx * n.jy + m.kx * n.jz)(m.ix * n.kx + m.jx * n.ky + m.kx * n.kz)(m.iy * n.ix + m.jy * n.iy + m.ky * n.iz)(m.iy * n.jx + m.jy * n.jy + m.ky * n.jz)(m.iy * n.kx + m.jy * n.ky + m.ky * n.kz)(m.iz * n.ix + m.jz * n.iy + m.kz * n.iz)(m.iz * n.jx + m.jz * n.jy + m.kz * n.jz)(m.iz * n.kx + m.jz * n.ky + m.kz * n.kz);
 const multiply4x4 = (m) => (n) => Matrix4x4(m.ix * n.ix + m.jx * n.iy + m.kx * n.iz + m.lx * n.iw)(m.ix * n.jx + m.jx * n.jy + m.kx * n.jz + m.lx * n.jw)(m.ix * n.kx + m.jx * n.ky + m.kx * n.kz + m.lx * n.kw)(m.ix * n.lx + m.jx * n.ly + m.kx * n.lz + m.lx * n.lw)(m.iy * n.ix + m.jy * n.iy + m.ky * n.iz + m.ly * n.iw)(m.iy * n.jx + m.jy * n.jy + m.ky * n.jz + m.ly * n.jw)(m.iy * n.kx + m.jy * n.ky + m.ky * n.kz + m.ly * n.kw)(m.iy * n.lx + m.jy * n.ly + m.ky * n.lz + m.ly * n.lw)(m.iz * n.ix + m.jz * n.iy + m.kz * n.iz + m.lz * n.iw)(m.iz * n.jx + m.jz * n.jy + m.kz * n.jz + m.lz * n.jw)(m.iz * n.kx + m.jz * n.ky + m.kz * n.kz + m.lz * n.kw)(m.iz * n.lx + m.jz * n.ly + m.kz * n.lz + m.lz * n.lw)(m.iw * n.ix + m.jw * n.iy + m.kw * n.iz + m.lw * n.iw)(m.iw * n.jx + m.jw * n.jy + m.kw * n.jz + m.lw * n.jw)(m.iw * n.kx + m.jw * n.ky + m.kw * n.kz + m.lw * n.kw)(m.iw * n.lx + m.jw * n.ly + m.kw * n.lz + m.lw * n.lw);
+const transform2D = (m) => (v) => Vector2D(m.ix * v.x + m.jx * v.y)(m.iy * v.x + m.jy * v.y);
+const transform3D = (m) => (v) => Vector3D(m.ix * v.x + m.jx * v.y + m.kx * v.z)(m.iy * v.x + m.jy * v.y + m.ky * v.z)(m.iz * v.x + m.jz * v.y + m.kz * v.z);
+const transform4D = (m) => (v) => Vector4D(m.ix * v.x + m.jx * v.y + m.kx * v.z + m.lx * v.w)(m.iy * v.x + m.jy * v.y + m.ky * v.z + m.ly * v.w)(m.iz * v.x + m.jz * v.y + m.kz * v.z + m.lz * v.w)(m.iw * v.x + m.jw * v.y + m.kw * v.z + m.lw * v.w);
 const TextMeasurement = (text) => (width) => (height) => ({
     CONS: 'TextMeasurement',
     text, width, height

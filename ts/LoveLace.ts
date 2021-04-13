@@ -19,8 +19,8 @@ class Chainable c where
 	side :: c a -> c b -> c a
 	also :: c a -> (a -> c b) -> c a
 
-class Monoid m where
-	(.plus) :: m a -> m a -> m a
+class Monoid m on '_' where
+	(._) :: m a -> m a -> m a
 
 class Monad m where
 	(.bind)   :: m a -> (a -> m b) -> m b
@@ -708,7 +708,7 @@ type LIST_CACHE<a> =
 		reverse : List<a>
 	}
 
-/** `List` (Eq, Pipeable, Monoid, Monad) */
+/** `List` (Eq, Pipeable, Monoid on 'plus', Monad) */
 type List<a> =
 	({
 		CONS : 'Nil'
@@ -1409,7 +1409,7 @@ const zipWith = <a, b, c> (zipper : (x : a) => (y : b) => c) => (xs : List<a>) =
 
 /********************************************************************************************************************************/
 
-/**` Vector2D (Eq, Pipeable) `*/
+/**` Vector2D (Eq, Pipeable, Monoid on 'plus') `*/
 type Vector2D =
 	{
 		CONS : 'Vector2D'
@@ -1420,6 +1420,9 @@ type Vector2D =
 		/**` (.pipe) :: Vector2D -> (Vector2D -> a) -> a `*/
 		pipe : <a>(morphism : (vector : Vector2D) => a) => a
 
+		/**` (.plus) :: Vector2D -> Vector2D -> Vector2D `*/
+		plus : (v : Vector2D) => Vector2D
+
 		/**` (.x) :: Vector2D -> Number `*/
 		x : number
 
@@ -1427,56 +1430,7 @@ type Vector2D =
 		y : number
 	}
 
-/**` Vector2D :: Number -> Number -> Vector2D `*/
-const Vector2D = (x : number) => (y : number) : Vector2D =>
-	({
-		CONS : 'Vector2D',
-		eq : v => v.x === x && v.y === y,
-		get pipe() { return (f : any) => f (this) },
-		x, y
-	})
-
-/**` origin2D :: Vector2D `*/
-const origin2D = Vector2D (0) (0)
-
-/**` translate2D :: Number -> Number -> Vector2D -> Vector2D `*/
-const translate2D = (dx : number) => (dy : number) => (v : Vector2D) : Vector2D =>
-	Vector2D
-		(v.x + dx)
-		(v.y + dy)
-
-/**` translateVector2D :: Vector2D -> Vector2D -> Vector2D `*/
-const translateVector2D = (dv : Vector2D) => (v : Vector2D) : Vector2D =>
-	Vector2D
-		(v.x + dv.x)
-		(v.y + dv.y)
-
-/**` abs2D :: Vector2D -> Number `*/
-const abs2D = (v : Vector2D) : number => sqrt (v.x * v.x + v.y * v.y)
-
-/**` scale2D :: Number -> Vector2D -> Vector2D `*/
-const scale2D = (k : number) => (v : Vector2D) : Vector2D => Vector2D (v.x * k) (v.y * k)
-
-/**` invscale2D :: Number -> Vector2D -> Vector2D `*/
-const invscale2D = (k : number) => (v : Vector2D) : Vector2D => Vector2D (v.x / k) (v.y / k)
-
-/**` normalize2D :: Vector2D -> Vector2D `*/
-const normalize2D = (v : Vector2D) : Vector2D =>
-{
-	if (v.x === 0 && v.y === 0) return v
-	const l = Math.sqrt (v.x * v.x + v.y * v.y)
-	return Vector2D (v.x * l) (v.y * l)
-}
-
-/**` rescale2D :: Number -> Vector2D -> Vector2D `*/
-const rescale2D = (k : number) => (v : Vector2D) : Vector2D =>
-{
-	if (v.x === 0 && v.y === 0) return v
-	const l = k * Math.sqrt (v.x * v.x + v.y * v.y)
-	return Vector2D (v.x * l) (v.y * l)
-}
-
-/**` Vector3D (Eq, Pipeable) `*/
+/**` Vector3D (Eq, Pipeable, Monoid on 'plus') `*/
 type Vector3D =
 	{
 		CONS : 'Vector3D'
@@ -1486,6 +1440,9 @@ type Vector3D =
 
 		/**` (.pipe) :: Vector3D -> (Vector3D -> a) -> a `*/
 		pipe : <a>(morphism : (vector : Vector3D) => a) => a
+
+		/**` (.plus) :: Vector3D -> Vector3D -> Vector3D `*/
+		plus : (v : Vector3D) => Vector3D
 
 		/**` (.x) :: Vector3D -> Number `*/
 		x : number
@@ -1497,58 +1454,7 @@ type Vector3D =
 		z : number
 	}
 
-/**` Vector3D :: Number -> Number -> Number -> Vector3D `*/
-const Vector3D = (x : number) => (y : number) => (z : number) : Vector3D =>
-	({
-		CONS : 'Vector3D',
-		eq : v => v.x === x && v.y === y && v.z === z,
-		get pipe() { return (f : any) => f (this) },
-		x, y, z
-	})
-
-/**` origin3D :: Vector3D `*/
-const origin3D = Vector3D (0) (0) (0)
-
-/**` translate3D :: Number -> Number -> Number -> Vector3D -> Vector3D `*/
-const translate3D = (dx : number) => (dy : number) => (dz : number) => (v : Vector3D) : Vector3D =>
-	Vector3D
-		(v.x + dx)
-		(v.y + dy)
-		(v.z + dz)
-
-/**` translateVector3D :: Vector3D -> Vector3D -> Vector3D `*/
-const translateVector3D = (dv : Vector3D) => (v : Vector3D) : Vector3D =>
-	Vector3D
-		(v.x + dv.x)
-		(v.y + dv.y)
-		(v.z + dv.z)
-
-/**` abs3D :: Vector3D -> Number `*/
-const abs3D = (v : Vector3D) : number => Math.sqrt (v.x * v.x + v.y * v.y + v.z * v.z)
-
-/**` scale3D :: Number -> Vector3D -> Vector3D `*/
-const scale3D = (k : number) => (v : Vector3D) : Vector3D => Vector3D (v.x * k) (v.y * k) (v.z * k)
-
-/**` invscale3D :: Number -> Vector3D -> Vector3D `*/
-const invscale3D = (k : number) => (v : Vector3D) : Vector3D => Vector3D (v.x / k) (v.y / k) (v.z / k)
-
-/**` normalize3D :: Vector3D -> Vector3D `*/
-const normalize3D = (v : Vector3D) : Vector3D =>
-{
-	if (v.x === 0 && v.y === 0 && v.z === 0) return v
-	const l = Math.sqrt (v.x * v.x + v.y * v.y + v.z * v.z)
-	return Vector3D (v.x * l) (v.y * l) (v.z * l)
-}
-
-/**` rescale3D :: Number -> Vector3D -> Vector3D `*/
-const rescale3D = (k : number) => (v : Vector3D) : Vector3D =>
-{
-	if (v.x === 0 && v.y === 0 && v.z === 0) return v
-	const l = k * Math.sqrt (v.x * v.x + v.y * v.y + v.z * v.z)
-	return Vector3D (v.x * l) (v.y * l) (v.z * l)
-}
-
-/**` Vector4D `*/
+/**` Vector4D (Eq, Pipeable, Monoid on 'plus') `*/
 type Vector4D =
 	{
 		CONS : 'Vector4D'
@@ -1558,6 +1464,9 @@ type Vector4D =
 
 		/**` (.pipe) :: Vector4D -> (Vector4D -> a) -> a `*/
 		pipe : <a>(morphism : (vector : Vector4D) => a) => a
+
+		/**` (.plus) :: Vector4D -> Vector4D -> Vector4D `*/
+		plus : (v : Vector4D) => Vector4D
 
 		/**` (.x) :: Vector4D -> Number `*/
 		x : number
@@ -1572,49 +1481,110 @@ type Vector4D =
 		w : number
 	}
 
+/**` Vector2D :: Number -> Number -> Vector2D `*/
+const Vector2D = (x : number) => (y : number) : Vector2D =>
+	({
+		CONS : 'Vector2D',
+		eq : v => v.x === x && v.y === y,
+		get pipe() { return (f : any) => f (this) },
+		plus : v => Vector2D (x + v.x) (y + v.y),
+		x, y
+	})
+
+/**` Vector3D :: Number -> Number -> Number -> Vector3D `*/
+const Vector3D = (x : number) => (y : number) => (z : number) : Vector3D =>
+	({
+		CONS : 'Vector3D',
+		eq : v => v.x === x && v.y === y && v.z === z,
+		get pipe() { return (f : any) => f (this) },
+		plus : v => Vector3D (x + v.x) (y + v.y) (z + v.z),
+		x, y, z
+	})
+
 /**` Vector4D :: Number -> Number -> Number -> Number -> Vector4D `*/
 const Vector4D = (x : number) => (y : number) => (z : number) => (w : number) : Vector4D =>
 	({
 		CONS : 'Vector4D',
 		eq : v => v.x === x && v.y === y && v.z === z && v.w === w,
 		get pipe() { return (f : any) => f (this) },
+		plus : v => Vector4D (x + v.x) (y + v.y) (z + v.z) (w + v.w),
 		x, y, z, w
 	})
+
+/**` origin2D :: Vector2D `*/
+const origin2D = Vector2D (0) (0)
+
+/**` origin3D :: Vector3D `*/
+const origin3D = Vector3D (0) (0) (0)
 
 /**` origin4D :: Vector4D `*/
 const origin4D = Vector4D (0) (0) (0) (0)
 
+/**` translate2D :: Number -> Number -> Vector2D -> Vector2D `*/
+const translate2D = (dx : number) => (dy : number) => (v : Vector2D) : Vector2D =>
+	Vector2D (v.x + dx) (v.y + dy)
+
+/**` translate3D :: Number -> Number -> Number -> Vector3D -> Vector3D `*/
+const translate3D = (dx : number) => (dy : number) => (dz : number) => (v : Vector3D) : Vector3D =>
+	Vector3D (v.x + dx) (v.y + dy) (v.z + dz)
+
 /**` translate4D :: Number -> Number -> Number -> Number -> Vector4D -> Vector4D `*/
 const translate4D = (dx : number) => (dy : number) => (dz : number) => (dw : number) => (v : Vector4D) : Vector4D =>
-	Vector4D
-		(v.x + dx)
-		(v.y + dy)
-		(v.z + dz)
-		(v.w + dw)
+	Vector4D (v.x + dx) (v.y + dy) (v.z + dz) (v.w + dw)
+
+/**` translateVector2D :: Vector2D -> Vector2D -> Vector2D `*/
+const translateVector2D = (dv : Vector2D) => (v : Vector2D) : Vector2D =>
+	Vector2D (v.x + dv.x) (v.y + dv.y)
+
+/**` translateVector3D :: Vector3D -> Vector3D -> Vector3D `*/
+const translateVector3D = (dv : Vector3D) => (v : Vector3D) : Vector3D =>
+	Vector3D (v.x + dv.x) (v.y + dv.y) (v.z + dv.z)
 
 /**` translateVector4D :: Vector4D -> Vector4D -> Vector4D `*/
 const translateVector4D = (dv : Vector4D) => (v : Vector4D) : Vector4D =>
-	Vector4D
-		(v.x + dv.x)
-		(v.y + dv.y)
-		(v.z + dv.z)
-		(v.w + dv.w)
+	Vector4D (v.x + dv.x) (v.y + dv.y) (v.z + dv.z) (v.w + dv.w)
+
+/**` abs2D :: Vector2D -> Number `*/
+const abs2D = (v : Vector2D) : number => sqrt (v.x * v.x + v.y * v.y)
+
+/**` abs3D :: Vector3D -> Number `*/
+const abs3D = (v : Vector3D) : number => Math.sqrt (v.x * v.x + v.y * v.y + v.z * v.z)
 
 /**` abs4D :: Vector4D -> Number `*/
 const abs4D = (v : Vector4D) : number => sqrt (v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w)
 
+/**` scale2D :: Number -> Vector2D -> Vector2D `*/
+const scale2D = (k : number) => (v : Vector2D) : Vector2D => Vector2D (v.x * k) (v.y * k)
+
+/**` scale3D :: Number -> Vector3D -> Vector3D `*/
+const scale3D = (k : number) => (v : Vector3D) : Vector3D => Vector3D (v.x * k) (v.y * k) (v.z * k)
+
 /**` scale4D :: Number -> Vector4D -> Vector4D `*/
 const scale4D = (k : number) => (v : Vector4D) : Vector4D => Vector4D (v.x * k) (v.y * k) (v.z * k) (v.w * k)
+
+/**` invscale2D :: Number -> Vector2D -> Vector2D `*/
+const invscale2D = (k : number) => (v : Vector2D) : Vector2D => Vector2D (v.x / k) (v.y / k)
+
+/**` invscale3D :: Number -> Vector3D -> Vector3D `*/
+const invscale3D = (k : number) => (v : Vector3D) : Vector3D => Vector3D (v.x / k) (v.y / k) (v.z / k)
 
 /**` invscale4D :: Number -> Vector4D -> Vector4D `*/
 const invscale4D = (k : number) => (v : Vector4D) : Vector4D => Vector4D (v.x / k) (v.y / k) (v.z / k) (v.w / k)
 
-/**` normalize4D :: Vector4D -> Vector4D `*/
-const normalize4D = (v : Vector4D) : Vector4D =>
+/**` rescale2D :: Number -> Vector2D -> Vector2D `*/
+const rescale2D = (k : number) => (v : Vector2D) : Vector2D =>
 {
-	if (v.x === 0 && v.y === 0 && v.z === 0 && v.w === 0) return v
-	const l = Math.sqrt (v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w)
-	return Vector4D (v.x * l) (v.y * l) (v.z * l) (v.w * l)
+	if (v.x === 0 && v.y === 0) return v
+	const l = k * Math.sqrt (v.x * v.x + v.y * v.y)
+	return Vector2D (v.x * l) (v.y * l)
+}
+
+/**` rescale3D :: Number -> Vector3D -> Vector3D `*/
+const rescale3D = (k : number) => (v : Vector3D) : Vector3D =>
+{
+	if (v.x === 0 && v.y === 0 && v.z === 0) return v
+	const l = k * Math.sqrt (v.x * v.x + v.y * v.y + v.z * v.z)
+	return Vector3D (v.x * l) (v.y * l) (v.z * l)
 }
 
 /**` rescale4D :: Number -> Vector4D -> Vector4D `*/
@@ -1622,6 +1592,30 @@ const rescale4D = (k : number) => (v : Vector4D) : Vector4D =>
 {
 	if (v.x === 0 && v.y === 0 && v.z === 0 && v.w === 0) return v
 	const l = k * Math.sqrt (v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w)
+	return Vector4D (v.x * l) (v.y * l) (v.z * l) (v.w * l)
+}
+
+/**` normalize2D :: Vector2D -> Vector2D `*/
+const normalize2D = (v : Vector2D) : Vector2D =>
+{
+	if (v.x === 0 && v.y === 0) return v
+	const l = Math.sqrt (v.x * v.x + v.y * v.y)
+	return Vector2D (v.x * l) (v.y * l)
+}
+
+/**` normalize3D :: Vector3D -> Vector3D `*/
+const normalize3D = (v : Vector3D) : Vector3D =>
+{
+	if (v.x === 0 && v.y === 0 && v.z === 0) return v
+	const l = Math.sqrt (v.x * v.x + v.y * v.y + v.z * v.z)
+	return Vector3D (v.x * l) (v.y * l) (v.z * l)
+}
+
+/**` normalize4D :: Vector4D -> Vector4D `*/
+const normalize4D = (v : Vector4D) : Vector4D =>
+{
+	if (v.x === 0 && v.y === 0 && v.z === 0 && v.w === 0) return v
+	const l = Math.sqrt (v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w)
 	return Vector4D (v.x * l) (v.y * l) (v.z * l) (v.w * l)
 }
 
