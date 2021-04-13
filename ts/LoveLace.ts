@@ -20,7 +20,7 @@ class Chainable c where
 	also :: c a -> (a -> c b) -> c a
 
 class Monoid m on '_' where
-	(._) :: m a -> m a -> m a
+	(._) :: m -> m -> m
 
 class Monad m where
 	(.bind)   :: m a -> (a -> m b) -> m b
@@ -29,6 +29,14 @@ class Monad m where
 	(.fmapto) :: m $ -> String -> ($ -> a) -> m $
 	(.cast)   :: m a -> b -> m b
 */
+
+/**` plus :: (Monoid m on 'plus') => m -> m -> m `*/
+const plus :
+	& (<a>(xs : List<a>) => (ys : List<a>) => List<a>)
+	& ((v : Vector2D) => (w : Vector2D) => Vector2D)
+	& ((v : Vector3D) => (w : Vector3D) => Vector3D)
+	& ((v : Vector4D) => (w : Vector4D) => Vector4D)
+	= (x : any) => (y : any) => x .plus (y)
 
 /********************************************************************************************************************************/
 

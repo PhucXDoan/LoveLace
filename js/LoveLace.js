@@ -1,4 +1,5 @@
 "use strict";
+const plus = (x) => (y) => x.plus(y);
 const RESIZING_THRESHOLD = 1;
 const RESIZING_SPEED = 0.1;
 const REFRESH_TIME = 15;
