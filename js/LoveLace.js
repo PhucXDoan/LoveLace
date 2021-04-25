@@ -419,7 +419,6 @@ const fsnd = (morphism) => (pair) => Pair(pair.fst, morphism(pair.snd));
 const fboth = (morphism) => (pair) => Pair(morphism(pair.fst), morphism(pair.snd));
 const pick = (bool) => bool ? fst : snd;
 const idle = IO(() => null);
-const when = (condition) => (io) => condition ? io.cast(null) : idle;
 const isNothing = (maybe) => maybe.CONS === 'Nothing';
 const isJust = (maybe) => maybe.CONS === 'Just';
 const ffromMaybe = (fallback) => (morphism) => (maybe) => maybe.CONS === 'Nothing'
@@ -1161,12 +1160,12 @@ const relaxY = (direction) => direction === Y.DD ? Y.D :
 const relaxZ = (direction) => direction === Z.BB ? Z.B :
     direction === Z.FF ? Z.F :
         direction;
-const isGoingLeft = (direction) => direction === X.L || direction === X.LL;
-const isGoingRight = (direction) => direction === X.R || direction === X.RR;
-const isGoingDown = (direction) => direction === Y.D || direction === Y.DD;
-const isGoingUp = (direction) => direction === Y.U || direction === Y.UU;
-const isGoingBack = (direction) => direction === Z.B || direction === Z.BB;
-const isGoingFor = (direction) => direction === Z.F || direction === Z.FF;
+const isL = (direction) => direction === X.L || direction === X.LL;
+const isR = (direction) => direction === X.R || direction === X.RR;
+const isD = (direction) => direction === Y.D || direction === Y.DD;
+const isU = (direction) => direction === Y.U || direction === Y.UU;
+const isB = (direction) => direction === Z.B || direction === Z.BB;
+const isF = (direction) => direction === Z.F || direction === Z.FF;
 const mappingLineCap = Mapping([LineCap.Butt, 'butt'], [LineCap.Round, 'round'], [LineCap.Square, 'square']);
 const mappingLineJoin = Mapping([LineJoin.Round, 'round'], [LineJoin.Bevel, 'bevel'], [LineJoin.Miter, 'miter']);
 const mappingTextAlign = Mapping([TextAlign.Center, 'center'], [TextAlign.End, 'end'], [TextAlign.Leftside, 'left'], [TextAlign.Rightside, 'right'], [TextAlign.Start, 'start']);
@@ -1204,6 +1203,7 @@ const λ = {
     isResized: false,
     isPointerLocked: false,
     seed: (Math.random() - 0.5) * Date.now(),
+    debugCounter: 0,
     image: Object.create(null),
     audio: Object.create(null),
     mouseScreenX: 0, mouseScreenY: 0,
@@ -1343,7 +1343,7 @@ const Reput = {
     },
     canvasW: (w) => IO(() => (λ.ctx.canvas.width = w, null)),
     canvasH: (h) => IO(() => (λ.ctx.canvas.height = h, null)),
-    canvasC: (w) => (h) => IO(() => (λ.ctx.canvas.width = w, λ.ctx.canvas.height = h, null)),
+    canvasWH: (w) => (h) => IO(() => (λ.ctx.canvas.width = w, λ.ctx.canvas.height = h, null)),
     canvasP: (p) => IO(() => (λ.ctx.canvas.width = p.fst, λ.ctx.canvas.height = p.snd, null)),
     canvasV: (v) => IO(() => (λ.ctx.canvas.width = v.x, λ.ctx.canvas.height = v.y, null)),
     lineThickness: (t) => IO(() => (λ.ctx.lineWidth = t, null)),
@@ -1358,18 +1358,18 @@ const Reput = {
     textAlign: (align) => IO(() => (λ.ctx.textAlign = mappingTextAlign.codomain(align), null)),
     textBaseline: (baseline) => IO(() => (λ.ctx.textBaseline = mappingTextBaseline.codomain(baseline), null)),
     fillColor: (color) => IO(() => (λ.ctx.fillStyle = color, null)),
-    fillRGBAC: (r) => (g) => (b) => (a) => IO(() => (λ.ctx.fillStyle = `rgba(${r},${g},${b},${a})`, null)),
+    fillRGBA: (r) => (g) => (b) => (a) => IO(() => (λ.ctx.fillStyle = `rgba(${r},${g},${b},${a})`, null)),
     fillRGBAV: (v) => IO(() => (λ.ctx.fillStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`, null)),
     strokeColor: (color) => IO(() => (λ.ctx.strokeStyle = color, null)),
-    strokeRGBAC: (r) => (g) => (b) => (a) => IO(() => (λ.ctx.strokeStyle = `rgba(${r},${g},${b},${a})`, null)),
+    strokeRGBA: (r) => (g) => (b) => (a) => IO(() => (λ.ctx.strokeStyle = `rgba(${r},${g},${b},${a})`, null)),
     strokeRGBAV: (v) => IO(() => (λ.ctx.strokeStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`, null)),
     shadowBlurAmount: (amount) => IO(() => (λ.ctx.shadowBlur = amount, null)),
     shadowColor: (color) => IO(() => (λ.ctx.shadowColor = color, null)),
-    shadowRGBAC: (r) => (g) => (b) => (a) => IO(() => (λ.ctx.shadowColor = `rgba(${r},${g},${b},${a})`, null)),
+    shadowRGBA: (r) => (g) => (b) => (a) => IO(() => (λ.ctx.shadowColor = `rgba(${r},${g},${b},${a})`, null)),
     shadowRGBAV: (v) => IO(() => (λ.ctx.shadowColor = `rgba(${v.x},${v.y},${v.z},${v.w})`, null)),
     shadowOffsetX: (x) => IO(() => (λ.ctx.shadowOffsetX = x, null)),
     shadowOffsetY: (y) => IO(() => (λ.ctx.shadowOffsetY = y, null)),
-    shadowOffsetC: (x) => (y) => IO(() => (λ.ctx.shadowOffsetX = x, λ.ctx.shadowOffsetY = y, null)),
+    shadowOffsetXY: (x) => (y) => IO(() => (λ.ctx.shadowOffsetX = x, λ.ctx.shadowOffsetY = y, null)),
     shadowOffsetV: (v) => IO(() => (λ.ctx.shadowOffsetX = v.x, λ.ctx.shadowOffsetY = v.y, null)),
     transformationMatrix: (m) => IO(() => (λ.ctx.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx, m.ky), null)),
     alpha: (opacity) => IO(() => (λ.ctx.globalAlpha = opacity, null)),
@@ -1529,6 +1529,13 @@ const Output = {
     log: (message) => IO(() => (console.log(message), null)),
     warn: (message) => IO(() => (console.warn(message), null)),
     flush: IO(() => (console.clear(), null)),
+    debug: (count) => (message) => IO(() => {
+        if (--λ.debugCounter < 0) {
+            λ.debugCounter = count;
+            console.debug(message);
+        }
+        return null;
+    }),
     queue: (io) => IO(() => (requestAnimationFrame(io.INFO), null)),
     tick: IO(() => {
         for (const k in λ.keyboard)
@@ -1714,7 +1721,6 @@ onload = () => {
     onwheel = ev => λ.mouseScroll =
         ev.deltaY < 0 ? Y.U :
             ev.deltaY > 0 ? Y.D : Y.Rest;
-    onresize = () => clearTimeout(λ.resizeID),
-        λ.resizeID = setTimeout(() => λ.isResized = true, 250);
+    onresize = () => (clearTimeout(λ.resizeID), λ.resizeID = setTimeout(() => λ.isResized = true, 250));
     document.onpointerlockchange = () => λ.isPointerLocked = document.pointerLockElement === λ.ctx.canvas;
 };

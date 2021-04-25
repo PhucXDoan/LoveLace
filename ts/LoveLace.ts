@@ -6,12 +6,12 @@
 /* eslint-disable no-multi-assign                   */
 
 /********************************************************************************************************************************/
-// Settings //
+// Settings | Esoterics //
 
 const THROW = (message : string) : never => { throw new Error (message) }
-const MAXARRAY     = 1024 // Maximum length of array when converting lists to primitive arrays
-const MAXSTRING    = 1024 // Maximum length of string when converting lists to primitive strings
-const MAX_LIST_OPS = 1024 // Maximum amount of operations that can be done on lists
+const MAXARRAY     = 1024 // -- Maximum length of array when converting lists to primitive arrays
+const MAXSTRING    = 1024 // -- Maximum length of string when converting lists to primitive strings
+const MAX_LIST_OPS = 1024 // -- Maximum amount of operations that can be done on lists
 const ERROR =
 {
 	MAX_LIST_OPS : (op : string, org? : string) =>
@@ -25,6 +25,8 @@ const ERROR =
 	ONLY_CONS : (org : string) =>
 	THROW(`'${org}' only accepts non-empty lists`)
 }
+
+type Rec <a> = Omit <a, 'CONS'>
 
 /********************************************************************************************************************************/
 // Typeclasses //
@@ -1201,10 +1203,6 @@ const pick = (bool : boolean) : (<a>(pair : Pair <a, a>) => a) =>
 /**` idle :: IO () `*/
 const idle =
 	IO (() => null)
-
-/**` when :: Boolean -> IO a -> IO () `*/
-const when = (condition : boolean) => <a>(io : IO <a>) =>
-	condition ? io .cast (null) : idle
 
 /********************************************************************************************************************************/
 // Implementation of Micro-Functions|Constants for 'Maybe' //
@@ -2577,6 +2575,7 @@ const λ =
 		isResized       : false,
 		isPointerLocked : false,
 		seed            : (Math.random() - 0.5) * Date.now(),
+		debugCounter    : 0,
 		image           : Object.create (null) as { [key : string] : HTMLImageElement },
 		audio           : Object.create (null) as { [key : string] : HTMLAudioElement },
 		mouseScreenX    : 0, mouseScreenY : 0,
@@ -2972,8 +2971,8 @@ const Reput =
 		canvasH : (h : number) : IO <null> =>
 			IO (() => (λ.ctx.canvas.height = h, null)),
 
-		/**` Reput.canvasC :: Number -> Number -> IO () `*/
-		canvasC : (w : number) => (h : number) : IO <null> =>
+		/**` Reput.canvasWH :: Number -> Number -> IO () `*/
+		canvasWH : (w : number) => (h : number) : IO <null> =>
 			IO (() => (λ.ctx.canvas.width = w, λ.ctx.canvas.height = h, null)),
 
 		/**` Reput.canvasP :: Pair Number Number -> IO () `*/
@@ -3032,8 +3031,8 @@ const Reput =
 		fillColor : (color : string) : IO <null> =>
 			IO (() => (λ.ctx.fillStyle = color, null)),
 
-		/**` Reput.fillRGBAC :: Number -> Number -> Number -> Number -> IO () `*/
-		fillRGBAC : (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
+		/**` Reput.fillRGBA :: Number -> Number -> Number -> Number -> IO () `*/
+		fillRGBA : (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
 			IO (() => (λ.ctx.fillStyle = `rgba(${r},${g},${b},${a})`, null)),
 
 		/**` Reput.fillRGBAV :: Vector4 -> IO () `*/
@@ -3044,8 +3043,8 @@ const Reput =
 		strokeColor : (color : string) : IO <null> =>
 			IO (() => (λ.ctx.strokeStyle = color, null)),
 
-		/**` Reput.strokeRGBAC :: Number -> Number -> Number -> Number -> IO () `*/
-		strokeRGBAC : (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
+		/**` Reput.strokeRGBA :: Number -> Number -> Number -> Number -> IO () `*/
+		strokeRGBA : (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
 			IO (() => (λ.ctx.strokeStyle = `rgba(${r},${g},${b},${a})`, null)),
 
 		/**` Reput.strokeRGBAV :: Vector4 -> IO () `*/
@@ -3060,8 +3059,8 @@ const Reput =
 		shadowColor : (color : string) : IO <null> =>
 			IO (() => (λ.ctx.shadowColor = color, null)),
 
-		/**` Reput.shadowRGBAC :: Number -> Number -> Number -> Number -> IO () `*/
-		shadowRGBAC : (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
+		/**` Reput.shadowRGBA :: Number -> Number -> Number -> Number -> IO () `*/
+		shadowRGBA : (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
 			IO (() => (λ.ctx.shadowColor = `rgba(${r},${g},${b},${a})`, null)),
 
 		/**` Reput.shadowRGBAV :: Vector4 -> IO () `*/
@@ -3076,8 +3075,8 @@ const Reput =
 		shadowOffsetY : (y : number) : IO <null> =>
 			IO (() => (λ.ctx.shadowOffsetY = y, null)),
 
-		/**` Reput.shadowOffsetC :: Number -> Number -> IO () `*/
-		shadowOffsetC : (x : number) => (y : number) : IO <null> =>
+		/**` Reput.shadowOffsetXY :: Number -> Number -> IO () `*/
+		shadowOffsetXY : (x : number) => (y : number) : IO <null> =>
 			IO (() => (λ.ctx.shadowOffsetX = x, λ.ctx.shadowOffsetY = y, null)),
 
 		/**` Reput.shadowOffsetV :: Vector2 -> IO () `*/
@@ -3881,6 +3880,17 @@ const Output =
 		/**` Output.flush :: IO () `*/
 		flush : IO (() => (console.clear(), null)),
 
+		/**` Output.debug :: Number -> a -> IO () `*/
+		debug : (count : number) => <a>(message : a) : IO <null> =>
+			IO (() => {
+				if (--λ.debugCounter < 0)
+				{
+					λ.debugCounter = count
+					console.debug (message)
+				}
+				return null
+			}),
+
 		/**` Output.queue :: IO a -> IO () `*/
 		queue : <a>(io : IO <a>) : IO <null> => IO (() => (requestAnimationFrame(io.INFO), null)),
 
@@ -4402,9 +4412,7 @@ onload = () =>
 			ev.deltaY < 0 ? Y.U   :
 			ev.deltaY > 0 ? Y.D : Y.Rest
 
-	onresize = () =>
-		clearTimeout(λ.resizeID),
-		λ.resizeID = setTimeout(() => λ.isResized = true, 250)
+	onresize = () => (clearTimeout(λ.resizeID), λ.resizeID = setTimeout(() => λ.isResized = true, 250))
 
 	document.onpointerlockchange = () =>
 		λ.isPointerLocked = document.pointerLockElement === λ.ctx.canvas
