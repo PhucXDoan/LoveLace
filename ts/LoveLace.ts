@@ -207,12 +207,17 @@ type List <a> =
 		link : (xs : List <a>) => List <a>
 
 		/**` (.head) :: a `*/
-		head   : a
-		$head ?: a
+		head : a
 
 		/**` (.tail) :: List a `*/
-		tail   : List <a>
-		$tail ?: List <a>
+		tail : List <a>
+
+		$head    ?: a
+		$tail    ?: List <a>
+		$last    ?: a
+		$init    ?: List <a>
+		$reverse ?: List <a>
+		$len     ?: number
 	}
 
 type Either <a, b> =
@@ -1337,8 +1342,10 @@ const chars = (str : string) : List <string> =>
 					return lprepend (str[0]!) (() => this .tail .link (xs))
 				},
 				head  : str[0]!,
+				get tail () { return this.$tail ??= chars (str .slice (1)) },
 				$head : str[0]!,
-				get tail () { return this.$tail ??= chars (str .slice (1)) }
+				$last : str[str.length - 1],
+				$len  : str.length
 			})
 		: Nil
 
@@ -1355,9 +1362,13 @@ const singleton = <a>(value : a) : List <a> =>
 		cast   : singleton,
 		link   : prepend (value),
 		head   : value,
-		$head  : value,
 		tail   : Nil,
-		$tail  : Nil
+		$head  : value,
+		$tail  : Nil,
+		$last  : value,
+		$init  : Nil,
+		get $reverse () { return this },
+		$len   : 1
 	})
 
 /**` prepend :: a -> List a -> List a `*/
@@ -1397,9 +1408,11 @@ const prepend = <a>(first : a) => (rest : List <a>) : List <a> =>
 		cast   : x  => lprepend (x)     (() => rest .cast (x )),
 		link   : xs => lprepend (first) (() => rest .link (xs)),
 		head  : first,
-		$head : first,
 		tail  : rest,
-		$tail : rest
+		$head : first,
+		$tail : rest,
+		$last : rest.CONS === 'Nil' ? first : rest.$last,
+		$len  : rest.$len === undefined ? undefined : 1 + rest.$len
 	})
 
 /**` lprepend :: a -> (() -> List a) -> List a `*/
@@ -1451,8 +1464,8 @@ const lprepend = <a>(first : a) => (lrest : () => List <a>) : List <a> =>
 			return lprepend (first) (() => this .tail .link (xs))
 		},
 		head  : first,
-		$head : first,
-		get tail () { return this.$tail ??= lrest () }
+		get tail () { return this.$tail ??= lrest () },
+		$head : first
 	})
 
 /**` llprepend :: (() -> a) -> List a -> List a `*/
@@ -1505,7 +1518,9 @@ const llprepend = <a>(lfirst : () => a) => (rest : List <a>) : List <a> =>
 		},
 		get head () { return this.$head ??= lfirst () },
 		tail  : rest,
-		$tail : rest
+		$tail : rest,
+		$last : rest.$last,
+		$len  : rest.$len === undefined ? undefined : 1 + rest.$len
 	})
 
 /**` repeat :: a -> List a `*/
@@ -1541,9 +1556,10 @@ const repeat = <a>(value : a) : List <a> =>
 		link   (_) { return this },
 		cast   : repeat,
 		head   : value,
-		$head  : value,
 		get tail  () { return this },
-		get $tail () { return this }
+		$head  : value,
+		get $tail () { return this },
+		get $init () { return this }
 	})
 
 /**` cycle :: List a -> List a `*/
@@ -1583,7 +1599,8 @@ const cycle = <a>(pattern : List <a>) : List <a> =>
 				link   (_) { return this },
 				cast   : repeat,
 				get head () { return this.$head ??= pattern .head },
-				get tail () { return this.$tail ??= pattern .tail .link (this) }
+				get tail () { return this.$tail ??= pattern .tail .link (this) },
+				get $init () { return this }
 			})
 
 /**` iterate :: (a -> a) -> a -> List a `*/
@@ -1626,8 +1643,9 @@ const iterate = <a>(endomorphism : (value : a) => a) => (initial : a) : List <a>
 		link   (_) { return this },
 		cast   : repeat,
 		head   : initial,
+		get tail () { return this.$tail ??= iterate (endomorphism) (endomorphism (initial)) },
 		$head  : initial,
-		get tail () { return this.$tail ??= iterate (endomorphism) (endomorphism (initial)) }
+		get $init () { return this }
 	})
 
 /**` replicate :: Number -> a -> List a `*/
@@ -1657,8 +1675,12 @@ const replicate = (amount : number) => <a>(value : a) : List <a> =>
 							: lprepend (value) (() => this .tail .link (xs))
 					},
 					head  : value,
+					get tail () { return this.$tail ??= replicate (amount - 1) (value) },
 					$head : value,
-					get tail () { return this.$tail ??= replicate (amount - 1) (value) }
+					$last : value,
+					get $init    () { return this .tail },
+					get $reverse () { return this },
+					$len  : amount
 				})
 			: Nil
 		: ERROR.ONLY_INTEGER ('replicate', amount)
@@ -1800,11 +1822,12 @@ const foldr1 = <a>(reducer : (leftside : a) => (rightside : a) => a) => (xs : Li
 
 /**` init :: List a -> List a `*/
 const init = <a>(xs : List <a>) : List <a> =>
-	xs.CONS === 'Nil'
-		? ERROR.ONLY_CONS ('init')
-		: xs .tail.CONS === 'Nil'
-			? Nil
-			: Cons (() => xs .head) (() => init (xs .tail))
+	xs.$init ??
+		xs.CONS === 'Nil'
+			? ERROR.ONLY_CONS ('init')
+			: xs .tail.CONS === 'Nil'
+				? Nil
+				: Cons (() => xs .head) (() => init (xs .tail))
 
 /**` inits :: List a -> List (List a) `*/
 const inits = <a>(xs : List <a>) : List <List <a>> =>
@@ -1823,6 +1846,8 @@ const intersperese = <a>(delimiter : a) => (xs : List <a>) : List <a> =>
 /**` last :: List a -> a `*/
 const last = <a>(xs : List <a>) : a =>
 {
+	if (xs.$last !== undefined)
+		return xs.$last
 	if (xs.CONS === 'Nil')
 		ERROR.ONLY_CONS ('last')
 	if (xs .tail.CONS === 'Nil')
@@ -1834,6 +1859,8 @@ const last = <a>(xs : List <a>) : a =>
 /**` len :: List a -> Number `*/
 const len = <a>(xs : List <a>) : number =>
 {
+	if (xs.$len !== undefined)
+		return xs.$len
 	let i = 0
 	while (xs.CONS === 'Cons')
 		if (i === MAX_LIST_OPS)
@@ -1867,6 +1894,8 @@ const partition = <a>(predicate : (element : a) => boolean) => (xs : List <a>) :
 /**` reverse :: List a -> List a `*/
 const reverse = <a>(xs : List <a>) : List <a> =>
 {
+	if (xs.$reverse !== undefined)
+		return xs.$reverse
 	let ys : List <a> = Nil
 	while (xs.CONS === 'Cons')
 		ys = prepend (xs .head) (ys),
