@@ -2436,23 +2436,23 @@ const relaxZ = (direction : Z) : Z =>
 	direction === Z.FF ? Z.F :
 	direction
 
-/**` isGoingLeft :: X -> Boolean `*/
-const isGoingLeft = (direction : X) : boolean => direction === X.L || direction === X.LL
+/**` isL :: X -> Boolean `*/
+const isL = (direction : X) : boolean => direction === X.L || direction === X.LL
 
-/**` isGoingRight :: X -> Boolean `*/
-const isGoingRight = (direction : X) : boolean => direction === X.R || direction === X.RR
+/**` isR :: X -> Boolean `*/
+const isR = (direction : X) : boolean => direction === X.R || direction === X.RR
 
-/**` isGoingDown :: Y -> Boolean `*/
-const isGoingDown = (direction : Y) : boolean => direction === Y.D || direction === Y.DD
+/**` isD :: Y -> Boolean `*/
+const isD = (direction : Y) : boolean => direction === Y.D || direction === Y.DD
 
-/**` isGoingUp :: Y -> Boolean `*/
-const isGoingUp = (direction : Y) : boolean => direction === Y.U || direction === Y.UU
+/**` isU :: Y -> Boolean `*/
+const isU = (direction : Y) : boolean => direction === Y.U || direction === Y.UU
 
-/**` isGoingBack :: Z -> Boolean `*/
-const isGoingBack = (direction : Z) : boolean => direction === Z.B || direction === Z.BB
+/**` isB :: Z -> Boolean `*/
+const isB = (direction : Z) : boolean => direction === Z.B || direction === Z.BB
 
-/**` isGoingFor :: Z -> Boolean `*/
-const isGoingFor = (direction : Z) : boolean => direction === Z.F || direction === Z.FF
+/**` isF :: Z -> Boolean `*/
+const isF = (direction : Z) : boolean => direction === Z.F || direction === Z.FF
 
 /**` mappingLineCap :: Mapping LineCap CanvasLineCap `*/
 const mappingLineCap : Mapping <LineCap, CanvasLineCap> =
