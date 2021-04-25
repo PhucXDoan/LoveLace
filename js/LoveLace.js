@@ -4,7 +4,7 @@ const MAXARRAY = 1024;
 const MAXSTRING = 1024;
 const MAX_LIST_OPS = 1024;
 const ERROR = {
-    MAX_LIST_OPS: (org, op) => THROW(`'${op}' reached the maximum amount of traversal (${MAX_LIST_OPS}) allowed in a list | origin : '${org}'`),
+    MAX_LIST_OPS: (op, org) => THROW(`'${op}' reached the max amount of traversal (${MAX_LIST_OPS}) allowed in a list ${org ? `| origin : '${org}'` : ''}`),
     BINDING_NILS: (org, op) => THROW(`'(${op})' was used on a infinite list with an operation that always return a nil | origin : '${org}'`),
     ONLY_INTEGER: (org, n) => THROW(`'${org}' only accepts integers as an amount; instead received '${n}'`),
     ONLY_NATURAL: (org, n) => THROW(`'${org}' only accepts natural numbers (0 inclusive); instead received '${n}'`),
@@ -493,8 +493,10 @@ const chars = (str) => str
                 return lprepend(str[0])(() => this.tail.link(xs));
             },
             head: str[0],
+            get tail() { var _a; return (_a = this.$tail) !== null && _a !== void 0 ? _a : (this.$tail = chars(str.slice(1))); },
             $head: str[0],
-            get tail() { var _a; return (_a = this.$tail) !== null && _a !== void 0 ? _a : (this.$tail = chars(str.slice(1))); }
+            $last: str[str.length - 1],
+            $len: str.length
         })
     : Nil;
 const singleton = (value) => ({
@@ -508,9 +510,13 @@ const singleton = (value) => ({
     cast: singleton,
     link: prepend(value),
     head: value,
-    $head: value,
     tail: Nil,
-    $tail: Nil
+    $head: value,
+    $tail: Nil,
+    $last: value,
+    $init: Nil,
+    get $reverse() { return this; },
+    $len: 1
 });
 const prepend = (first) => (rest) => ({
     CONS: 'Cons',
@@ -544,9 +550,11 @@ const prepend = (first) => (rest) => ({
     cast: x => lprepend(x)(() => rest.cast(x)),
     link: xs => lprepend(first)(() => rest.link(xs)),
     head: first,
-    $head: first,
     tail: rest,
-    $tail: rest
+    $head: first,
+    $tail: rest,
+    $last: rest.CONS === 'Nil' ? first : rest.$last,
+    $len: rest.$len === undefined ? undefined : 1 + rest.$len
 });
 const lprepend = (first) => (lrest) => ({
     CONS: 'Cons',
@@ -588,8 +596,8 @@ const lprepend = (first) => (lrest) => ({
         return lprepend(first)(() => this.tail.link(xs));
     },
     head: first,
-    $head: first,
-    get tail() { var _a; return (_a = this.$tail) !== null && _a !== void 0 ? _a : (this.$tail = lrest()); }
+    get tail() { var _a; return (_a = this.$tail) !== null && _a !== void 0 ? _a : (this.$tail = lrest()); },
+    $head: first
 });
 const llprepend = (lfirst) => (rest) => ({
     CONS: 'Cons',
@@ -632,7 +640,9 @@ const llprepend = (lfirst) => (rest) => ({
     },
     get head() { var _a; return (_a = this.$head) !== null && _a !== void 0 ? _a : (this.$head = lfirst()); },
     tail: rest,
-    $tail: rest
+    $tail: rest,
+    $last: rest.$last,
+    $len: rest.$len === undefined ? undefined : 1 + rest.$len
 });
 const repeat = (value) => ({
     CONS: 'Cons',
@@ -662,9 +672,10 @@ const repeat = (value) => ({
     link(_) { return this; },
     cast: repeat,
     head: value,
-    $head: value,
     get tail() { return this; },
-    get $tail() { return this; }
+    $head: value,
+    get $tail() { return this; },
+    get $init() { return this; }
 });
 const cycle = (pattern) => pattern.CONS === 'Nil'
     ? ERROR.ONLY_CONS('cycle')
@@ -698,7 +709,8 @@ const cycle = (pattern) => pattern.CONS === 'Nil'
             link(_) { return this; },
             cast: repeat,
             get head() { var _a; return (_a = this.$head) !== null && _a !== void 0 ? _a : (this.$head = pattern.head); },
-            get tail() { var _a; return (_a = this.$tail) !== null && _a !== void 0 ? _a : (this.$tail = pattern.tail.link(this)); }
+            get tail() { var _a; return (_a = this.$tail) !== null && _a !== void 0 ? _a : (this.$tail = pattern.tail.link(this)); },
+            get $init() { return this; }
         });
 const iterate = (endomorphism) => (initial) => ({
     CONS: 'Cons',
@@ -733,8 +745,9 @@ const iterate = (endomorphism) => (initial) => ({
     link(_) { return this; },
     cast: repeat,
     head: initial,
+    get tail() { var _a; return (_a = this.$tail) !== null && _a !== void 0 ? _a : (this.$tail = iterate(endomorphism)(endomorphism(initial))); },
     $head: initial,
-    get tail() { var _a; return (_a = this.$tail) !== null && _a !== void 0 ? _a : (this.$tail = iterate(endomorphism)(endomorphism(initial))); }
+    get $init() { return this; }
 });
 const replicate = (amount) => (value) => Number.isInteger(value)
     ? amount > 0
@@ -759,25 +772,31 @@ const replicate = (amount) => (value) => Number.isInteger(value)
                         : lprepend(value)(() => this.tail.link(xs));
                 },
                 head: value,
+                get tail() { var _a; return (_a = this.$tail) !== null && _a !== void 0 ? _a : (this.$tail = replicate(amount - 1)(value)); },
                 $head: value,
-                get tail() { var _a; return (_a = this.$tail) !== null && _a !== void 0 ? _a : (this.$tail = replicate(amount - 1)(value)); }
+                $last: value,
+                get $init() { return this.tail; },
+                get $reverse() { return this; },
+                $len: amount
             })
         : Nil
     : ERROR.ONLY_INTEGER('replicate', amount);
 const all = (predicate) => (xs) => {
-    while (xs.CONS === 'Cons')
-        if (predicate(xs.head))
+    for (let i = 0; xs.CONS === 'Cons'; ++i)
+        if (i === MAX_LIST_OPS)
+            ERROR.MAX_LIST_OPS('all');
+        else if (predicate(xs.head))
             xs = xs.tail;
         else
             return false;
     return true;
 };
 const any = (predicate) => (xs) => {
-    while (xs.CONS === 'Cons')
-        if (predicate(xs.head))
+    for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs.tail)
+        if (i === MAX_LIST_OPS)
+            ERROR.MAX_LIST_OPS('any');
+        else if (predicate(xs.head))
             return true;
-        else
-            xs = xs.tail;
     return false;
 };
 const at = (index) => (xs) => {
@@ -805,16 +824,17 @@ const drop = (amount) => (xs) => {
     return xs;
 };
 const dropWhile = (predicate) => (xs) => {
-    while (xs.CONS === 'Cons' && predicate(xs.head))
-        xs = xs.tail;
+    for (let i = 0; xs.CONS === 'Cons' && predicate(xs.head); ++i, xs = xs.tail)
+        if (i === MAX_LIST_OPS)
+            ERROR.MAX_LIST_OPS('dropWhile');
     return xs;
 };
 const elem = (value) => (xs) => {
-    while (xs.CONS === 'Cons')
-        if (xs.head.eq(value))
+    for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs.tail)
+        if (i === MAX_LIST_OPS)
+            ERROR.MAX_LIST_OPS('elem');
+        else if (xs.head.eq(value))
             return true;
-        else
-            xs = xs.tail;
     return false;
 };
 const elemIndices = (value) => (xs) => xs.CONS === 'Nil'
@@ -834,25 +854,26 @@ const findIndices = (predicate) => (xs) => xs.CONS === 'Nil'
         : findIndices(predicate)(xs.tail).fmap(x => x + 1);
 const foldl = (reducer) => (initial) => (xs) => {
     let x = initial;
-    while (xs.CONS === 'Cons')
-        x = reducer(x)(xs.head),
-            xs = xs.tail;
+    for (let i = 0; xs.CONS === 'Cons'; ++i, x = reducer(x)(xs.head), xs = xs.tail)
+        if (i === MAX_LIST_OPS)
+            ERROR.MAX_LIST_OPS('foldl');
     return x;
 };
 const foldl1 = (reducer) => (xs) => {
     if (xs.CONS === 'Nil')
         ERROR.ONLY_CONS('foldl1');
     let x = xs.head;
-    while ((xs = xs.tail).CONS === 'Cons')
-        x = reducer(x)(xs.head);
+    for (let i = 0; (xs = xs.tail).CONS === 'Cons'; ++i, x = reducer(x)(xs.head))
+        if (i === MAX_LIST_OPS)
+            ERROR.MAX_LIST_OPS('foldl1');
     return x;
 };
 const foldr = (reducer) => (initial) => (xs) => {
     xs = reverse(xs);
     let x = initial;
-    while (xs.CONS === 'Cons')
-        x = reducer(xs.head)(x),
-            xs = xs.tail;
+    for (let i = 0; xs.CONS === 'Cons'; ++i, x = reducer(xs.head)(x), xs = xs.tail)
+        if (i === MAX_LIST_OPS)
+            ERROR.MAX_LIST_OPS('foldr');
     return x;
 };
 const foldr1 = (reducer) => (xs) => {
@@ -860,15 +881,19 @@ const foldr1 = (reducer) => (xs) => {
         ERROR.ONLY_CONS('foldr1');
     xs = reverse(xs);
     let x = xs.head;
-    while ((xs = xs.tail).CONS === 'Cons')
-        x = reducer(xs.head)(x);
+    for (let i = 0; (xs = xs.tail).CONS === 'Cons'; ++i, x = reducer(xs.head)(x))
+        if (i === MAX_LIST_OPS)
+            ERROR.MAX_LIST_OPS('foldr1');
     return x;
 };
-const init = (xs) => xs.CONS === 'Nil'
-    ? ERROR.ONLY_CONS('init')
-    : xs.tail.CONS === 'Nil'
-        ? Nil
-        : Cons(() => xs.head)(() => init(xs.tail));
+const init = (xs) => {
+    var _a;
+    return ((_a = xs.$init) !== null && _a !== void 0 ? _a : xs.CONS === 'Nil')
+        ? ERROR.ONLY_CONS('init')
+        : xs.tail.CONS === 'Nil'
+            ? Nil
+            : Cons(() => xs.head)(() => init(xs.tail));
+};
 const inits = (xs) => xs.CONS === 'Nil'
     ? singleton(Nil)
     : lprepend(Nil)(() => inits(xs.tail).fmap(llprepend(() => xs.head)));
@@ -878,19 +903,24 @@ const intersperese = (delimiter) => (xs) => xs.CONS === 'Nil'
         ? xs
         : llprepend(() => xs.head)(lprepend(delimiter)(() => intersperese(delimiter)(xs.tail)));
 const last = (xs) => {
+    if (xs.$last !== undefined)
+        return xs.$last;
     if (xs.CONS === 'Nil')
         ERROR.ONLY_CONS('last');
     if (xs.tail.CONS === 'Nil')
         return xs.head;
-    while ((xs = xs.tail).tail.CONS === 'Cons')
-        ;
+    for (let i = 0; (xs = xs.tail).tail.CONS === 'Cons'; ++i)
+        if (i === MAX_LIST_OPS)
+            ERROR.MAX_LIST_OPS('last');
     return xs.head;
 };
 const len = (xs) => {
+    if (xs.$len !== undefined)
+        return xs.$len;
     let i = 0;
     while (xs.CONS === 'Cons')
         if (i === MAX_LIST_OPS)
-            ERROR.MAX_LIST_OPS('len', 'len');
+            ERROR.MAX_LIST_OPS('len');
         else
             ++i, xs = xs.tail;
     return i;
@@ -900,18 +930,22 @@ const nelem = (value) => (xs) => !elem(value)(xs);
 const partition = (predicate) => (xs) => {
     let ys = Nil;
     let zs = Nil;
-    while (xs.CONS === 'Cons')
-        (predicate(xs.head)
-            ? ys = prepend(xs.head)(ys)
-            : zs = prepend(xs.head)(zs)),
-            xs = xs.tail;
+    for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs.tail)
+        if (i === MAX_LIST_OPS)
+            ERROR.MAX_LIST_OPS('partition');
+        else if (predicate(xs.head))
+            ys = prepend(xs.head)(ys);
+        else
+            zs = prepend(xs.head)(zs);
     return Pair(reverse(ys), reverse(zs));
 };
 const reverse = (xs) => {
+    if (xs.$reverse !== undefined)
+        return xs.$reverse;
     let ys = Nil;
-    while (xs.CONS === 'Cons')
-        ys = prepend(xs.head)(ys),
-            xs = xs.tail;
+    for (let i = 0; xs.CONS === 'Cons'; ++i, ys = prepend(xs.head)(ys), xs = xs.tail)
+        if (i === MAX_LIST_OPS)
+            ERROR.MAX_LIST_OPS('reverse');
     return ys;
 };
 const scanl = (reducer) => (initial) => (xs) => xs.CONS === 'Nil'
@@ -923,30 +957,31 @@ const scanl1 = (reducer) => (xs) => xs.CONS === 'Nil'
 const scanr = (reducer) => (initial) => (xs) => {
     xs = reverse(xs);
     let ys = singleton(initial);
-    while (xs.CONS === 'Cons')
-        ys = prepend(reducer(xs.head)(ys.head))(ys),
-            xs = xs.tail;
+    for (let i = 0; xs.CONS === 'Cons'; ++i, ys = prepend(reducer(xs.head)(ys.head))(ys), xs = xs.tail)
+        if (i === MAX_LIST_OPS)
+            ERROR.MAX_LIST_OPS('scanr');
     return ys;
 };
 const scanr1 = (reducer) => (xs) => {
     xs = reverse(xs);
     let ys = singleton(xs.head);
-    while ((xs = xs.tail).CONS === 'Cons')
-        ys = prepend(reducer(xs.head)(ys.head))(ys);
+    for (let i = 0; (xs = xs.tail).CONS === 'Cons'; ++i, ys = prepend(reducer(xs.head)(ys.head))(ys))
+        if (i === MAX_LIST_OPS)
+            ERROR.MAX_LIST_OPS('scanr1');
     return ys;
 };
 const span = (predicate) => (xs) => {
     let ys = Nil;
-    while (xs.CONS === 'Cons' && predicate(xs.head))
-        ys = prepend(xs.head)(ys),
-            xs = xs.tail;
+    for (let i = 0; xs.CONS === 'Cons' && predicate(xs.head); ++i, ys = prepend(xs.head)(ys), xs = xs.tail)
+        if (i === MAX_LIST_OPS)
+            ERROR.MAX_LIST_OPS('span');
     return Pair(reverse(ys), xs);
 };
 const splitAt = (amount) => (xs) => {
     let ys = Nil;
-    for (let i = 0; i < amount && xs.CONS === 'Cons'; ++i)
-        ys = prepend(xs.head)(ys),
-            xs = xs.tail;
+    for (let i = 0; i < amount && xs.CONS === 'Cons'; ++i, ys = prepend(xs.head)(ys), xs = xs.tail)
+        if (i === MAX_LIST_OPS)
+            ERROR.MAX_LIST_OPS('splitAt');
     return Pair(reverse(ys), xs);
 };
 const tails = (xs) => xs.CONS === 'Nil'

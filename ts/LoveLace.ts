@@ -13,18 +13,18 @@ const MAXARRAY     = 1024 // Maximum length of array when converting lists to pr
 const MAXSTRING    = 1024 // Maximum length of string when converting lists to primitive strings
 const MAX_LIST_OPS = 1024 // Maximum amount of operations that can be done on lists
 const ERROR =
-	{
-		MAX_LIST_OPS : (org : string, op : string) =>
-			THROW (`'${op}' reached the maximum amount of traversal (${MAX_LIST_OPS}) allowed in a list | origin : '${org}'`),
-		BINDING_NILS : (org : string, op : string) =>
-			THROW (`'(${op})' was used on a infinite list with an operation that always return a nil | origin : '${org}'`),
-		ONLY_INTEGER : (org : string, n : number) =>
-			THROW (`'${org}' only accepts integers as an amount; instead received '${n}'`),
-		ONLY_NATURAL : (org : string, n : number) =>
-			THROW (`'${org}' only accepts natural numbers (0 inclusive); instead received '${n}'`),
-		ONLY_CONS : (org : string) =>
-			THROW (`'${org}' only accepts non-empty lists`)
-	}
+{
+	MAX_LIST_OPS : (op : string, org? : string) =>
+	THROW(`'${op}' reached the max amount of traversal (${MAX_LIST_OPS}) allowed in a list ${org ? `| origin : '${org}'` : ''}`),
+	BINDING_NILS : (org : string, op : string) =>
+	THROW(`'(${op})' was used on a infinite list with an operation that always return a nil | origin : '${org}'`),
+	ONLY_INTEGER : (org : string, n : number) =>
+	THROW(`'${org}' only accepts integers as an amount; instead received '${n}'`),
+	ONLY_NATURAL : (org : string, n : number) =>
+	THROW(`'${org}' only accepts natural numbers (0 inclusive); instead received '${n}'`),
+	ONLY_CONS : (org : string) =>
+	THROW(`'${org}' only accepts non-empty lists`)
+}
 
 /********************************************************************************************************************************/
 // Typeclasses //
@@ -1688,18 +1688,24 @@ const replicate = (amount : number) => <a>(value : a) : List <a> =>
 /**` all :: (a -> Boolean) -> List a -> Boolean `*/
 const all = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : boolean =>
 {
-	while (xs.CONS === 'Cons')
-		if (predicate (xs .head)) xs = xs .tail
-		else return false
+	for (let i = 0; xs.CONS === 'Cons'; ++i)
+		if (i === MAX_LIST_OPS)
+			ERROR.MAX_LIST_OPS ('all')
+		else if (predicate (xs .head))
+			xs = xs .tail
+		else
+			return false
 	return true
 }
 
 /**` any :: (a -> Boolean) -> List a -> Boolean `*/
 const any = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : boolean =>
 {
-	while (xs.CONS === 'Cons')
-		if (predicate (xs .head)) return true
-		else xs = xs .tail
+	for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs .tail)
+		if (i === MAX_LIST_OPS)
+			ERROR.MAX_LIST_OPS ('any')
+		else if (predicate (xs .head))
+			return true
 	return false
 }
 
@@ -1738,17 +1744,20 @@ const drop = (amount : number) => <a>(xs : List <a>) : List <a> =>
 /**` dropWhile :: (a -> Boolean) -> List a -> List a `*/
 const dropWhile = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : List <a> =>
 {
-	while (xs.CONS === 'Cons' && predicate (xs .head))
-		xs = xs .tail
+	for (let i = 0; xs.CONS === 'Cons' && predicate (xs .head); ++i, xs = xs .tail)
+		if (i === MAX_LIST_OPS)
+			ERROR.MAX_LIST_OPS ('dropWhile')
 	return xs
 }
 
 /**` elem :: (Eq a) => a -> List a -> Boolean `*/
 const elem = <a>(value : Eq <a>) => (xs : List <Eq <a>>) : boolean =>
 {
-	while (xs.CONS === 'Cons')
-		if (xs .head .eq (value)) return true
-		else xs = xs .tail
+	for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs .tail)
+		if (i === MAX_LIST_OPS)
+			ERROR.MAX_LIST_OPS ('elem')
+		else if (xs .head .eq (value))
+			return true
 	return false
 }
 
@@ -1780,9 +1789,9 @@ const findIndices = <a>(predicate : (element : a) => boolean) => (xs : List <a>)
 const foldl = <a, b>(reducer : (leftside : b) => (rightside : a) => b) => (initial : b) => (xs : List <a>) : b =>
 {
 	let x = initial
-	while (xs.CONS === 'Cons')
-		x = reducer (x) (xs .head),
-		xs = xs .tail
+	for (let i = 0; xs.CONS === 'Cons'; ++i, x = reducer (x) (xs .head), xs = xs .tail)
+		if (i === MAX_LIST_OPS)
+			ERROR.MAX_LIST_OPS ('foldl')
 	return x
 }
 
@@ -1792,8 +1801,9 @@ const foldl1 = <a>(reducer : (leftside : a) => (rightside : a) => a) => (xs : Li
 	if (xs.CONS === 'Nil')
 		ERROR.ONLY_CONS ('foldl1')
 	let x = xs .head
-	while ((xs = xs .tail).CONS === 'Cons')
-		x = reducer (x) (xs .head)
+	for (let i = 0; (xs = xs .tail).CONS === 'Cons'; ++i, x = reducer (x) (xs .head))
+		if (i === MAX_LIST_OPS)
+			ERROR.MAX_LIST_OPS ('foldl1')
 	return x
 }
 
@@ -1802,9 +1812,9 @@ const foldr = <a, b>(reducer : (leftside : a) => (rightside : b) => b) => (initi
 {
 	xs = reverse (xs)
 	let x = initial
-	while (xs.CONS === 'Cons')
-		x = reducer (xs .head) (x),
-		xs = xs .tail
+	for (let i = 0; xs.CONS === 'Cons'; ++i, x = reducer (xs .head) (x), xs = xs .tail)
+		if (i === MAX_LIST_OPS)
+			ERROR.MAX_LIST_OPS ('foldr')
 	return x
 }
 
@@ -1815,8 +1825,9 @@ const foldr1 = <a>(reducer : (leftside : a) => (rightside : a) => a) => (xs : Li
 		ERROR.ONLY_CONS ('foldr1')
 	xs = reverse (xs)
 	let x = xs .head
-	while ((xs = xs .tail).CONS === 'Cons')
-		x = reducer (xs .head) (x)
+	for (let i = 0; (xs = xs .tail).CONS === 'Cons'; ++i, x = reducer (xs .head) (x))
+		if (i === MAX_LIST_OPS)
+			ERROR.MAX_LIST_OPS ('foldr1')
 	return x
 }
 
@@ -1852,7 +1863,9 @@ const last = <a>(xs : List <a>) : a =>
 		ERROR.ONLY_CONS ('last')
 	if (xs .tail.CONS === 'Nil')
 		return xs .head
-	while ((xs = xs .tail) .tail.CONS === 'Cons');
+	for (let i = 0; (xs = xs .tail) .tail.CONS === 'Cons'; ++i)
+		if (i === MAX_LIST_OPS)
+			ERROR.MAX_LIST_OPS ('last')
 	return xs .head
 }
 
@@ -1864,7 +1877,7 @@ const len = <a>(xs : List <a>) : number =>
 	let i = 0
 	while (xs.CONS === 'Cons')
 		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('len', 'len')
+			ERROR.MAX_LIST_OPS ('len')
 		else
 			++i, xs = xs .tail
 	return i
@@ -1883,11 +1896,13 @@ const partition = <a>(predicate : (element : a) => boolean) => (xs : List <a>) :
 {
 	let ys : List <a> = Nil
 	let zs : List <a> = Nil
-	while (xs.CONS === 'Cons')
-		(predicate (xs .head)
-			? ys = prepend (xs .head) (ys)
-			: zs = prepend (xs .head) (zs)),
-		xs = xs .tail
+	for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs .tail)
+		if (i === MAX_LIST_OPS)
+			ERROR.MAX_LIST_OPS ('partition')
+		else if (predicate (xs .head))
+			ys = prepend (xs .head) (ys)
+		else
+			zs = prepend (xs .head) (zs)
 	return Pair (reverse (ys), reverse (zs))
 }
 
@@ -1897,9 +1912,9 @@ const reverse = <a>(xs : List <a>) : List <a> =>
 	if (xs.$reverse !== undefined)
 		return xs.$reverse
 	let ys : List <a> = Nil
-	while (xs.CONS === 'Cons')
-		ys = prepend (xs .head) (ys),
-		xs = xs .tail
+	for (let i = 0; xs.CONS === 'Cons'; ++i, ys = prepend (xs .head) (ys), xs = xs .tail)
+		if (i === MAX_LIST_OPS)
+			ERROR.MAX_LIST_OPS ('reverse')
 	return ys
 }
 
@@ -1920,9 +1935,9 @@ const scanr = <a, b>(reducer : (leftside : a) => (rightside : b) => b) => (initi
 {
 	xs = reverse (xs)
 	let ys = singleton (initial)
-	while (xs.CONS === 'Cons')
-		ys = prepend (reducer (xs .head) (ys .head)) (ys),
-		xs = xs .tail
+	for (let i = 0; xs.CONS === 'Cons'; ++i, ys = prepend (reducer (xs .head) (ys .head)) (ys), xs = xs .tail)
+		if (i === MAX_LIST_OPS)
+			ERROR.MAX_LIST_OPS ('scanr')
 	return ys
 }
 
@@ -1931,8 +1946,9 @@ const scanr1 = <a>(reducer : (leftside : a) => (rightside : a) => a) => (xs : Li
 {
 	xs = reverse (xs)
 	let ys = singleton (xs .head)
-	while ((xs = xs .tail).CONS === 'Cons')
-		ys = prepend (reducer (xs .head) (ys .head)) (ys)
+	for (let i = 0; (xs = xs .tail).CONS === 'Cons'; ++i, ys = prepend (reducer (xs .head) (ys .head)) (ys))
+		if (i === MAX_LIST_OPS)
+			ERROR.MAX_LIST_OPS ('scanr1')
 	return ys
 }
 
@@ -1940,9 +1956,9 @@ const scanr1 = <a>(reducer : (leftside : a) => (rightside : a) => a) => (xs : Li
 const span = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : Pair <List <a>, List <a>> =>
 {
 	let ys : List <a> = Nil
-	while (xs.CONS === 'Cons' && predicate (xs .head))
-		ys = prepend (xs .head) (ys),
-		xs = xs .tail
+	for (let i = 0; xs.CONS === 'Cons' && predicate (xs .head); ++i, ys = prepend (xs .head) (ys), xs = xs .tail)
+		if (i === MAX_LIST_OPS)
+			ERROR.MAX_LIST_OPS ('span')
 	return Pair (reverse (ys), xs)
 }
 
@@ -1950,11 +1966,9 @@ const span = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : Pair
 const splitAt = (amount : number) => <a>(xs : List <a>) : Pair <List <a>, List <a>> =>
 {
 	let ys : List <a> = Nil
-
-	for (let i = 0; i < amount && xs.CONS === 'Cons'; ++i)
-		ys = prepend (xs .head) (ys),
-		xs = xs .tail
-
+	for (let i = 0; i < amount && xs.CONS === 'Cons'; ++i, ys = prepend (xs .head) (ys), xs = xs .tail)
+		if (i === MAX_LIST_OPS)
+			ERROR.MAX_LIST_OPS ('splitAt')
 	return Pair (reverse (ys), xs)
 }
 
