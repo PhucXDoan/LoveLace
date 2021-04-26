@@ -1198,6 +1198,7 @@ const KEYBOARD = [
     'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ'
 ];
 const λ = {
+    ctxs: [],
     ctx: undefined,
     resizeID: undefined,
     isResized: false,
@@ -1237,6 +1238,7 @@ const Input = {
             return Matrix3(m.a, m.c, m.e / λ.ctx.canvas.width, m.b, m.d, m.f / λ.ctx.canvas.height, 0, 0, 1);
         })
     },
+    layer: IO(() => λ.ctxs.findIndex(ctx => ctx === λ.ctx)),
     isWindowResized: IO(() => λ.isResized),
     isPointerLocked: IO(() => λ.isPointerLocked),
     seed: unit.IO(λ.seed),
@@ -1341,11 +1343,18 @@ const Reput = {
         transformationMatrix: (m) => IO(() => (λ.ctx.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx * λ.ctx.canvas.width, m.ky * λ.ctx.canvas.height),
             null))
     },
-    canvasW: (w) => IO(() => (λ.ctx.canvas.width = w, null)),
-    canvasH: (h) => IO(() => (λ.ctx.canvas.height = h, null)),
-    canvasWH: (w) => (h) => IO(() => (λ.ctx.canvas.width = w, λ.ctx.canvas.height = h, null)),
-    canvasP: (p) => IO(() => (λ.ctx.canvas.width = p.fst, λ.ctx.canvas.height = p.snd, null)),
-    canvasV: (v) => IO(() => (λ.ctx.canvas.width = v.x, λ.ctx.canvas.height = v.y, null)),
+    layer: (index) => IO(() => {
+        if (λ.ctxs[index])
+            λ.ctx = λ.ctxs[index];
+        else
+            THROW(`'(Reput.layer)' only accepts integers in interval [0, ${λ.ctxs.length}); instead received '${index}'`);
+        return null;
+    }),
+    canvasW: (w) => IO(() => (λ.ctxs.forEach(ctx => ctx.canvas.width = w), null)),
+    canvasH: (h) => IO(() => (λ.ctxs.forEach(ctx => ctx.canvas.height = h), null)),
+    canvasWH: (w) => (h) => IO(() => (λ.ctxs.forEach(ctx => (ctx.canvas.width = w, ctx.canvas.height = h)), null)),
+    canvasP: (p) => IO(() => (λ.ctxs.forEach(ctx => (ctx.canvas.width = p.fst, ctx.canvas.height = p.snd)), null)),
+    canvasV: (v) => IO(() => (λ.ctxs.forEach(ctx => (ctx.canvas.width = v.x, ctx.canvas.height = v.y)), null)),
     lineThickness: (t) => IO(() => (λ.ctx.lineWidth = t, null)),
     lineCap: (cap) => IO(() => (λ.ctx.lineCap = mappingLineCap.codomain(cap), null)),
     lineJoin: (joining) => IO(() => (λ.ctx.lineJoin = mappingLineJoin.codomain(joining), null)),
@@ -1597,7 +1606,8 @@ const Output = {
     clearRectangle: (x) => (y) => (w) => (h) => IO(() => (λ.ctx.clearRect(x, y, w, h), null)),
     clearRectangleP: (xy) => (wh) => IO(() => (λ.ctx.clearRect(xy.fst, xy.snd, wh.fst, xy.snd), null)),
     clearRectangleV: (xy) => (wh) => IO(() => (λ.ctx.clearRect(xy.x, xy.y, wh.x, wh.y), null)),
-    clearCanvas: IO(() => (λ.ctx.clearRect(0, 0, λ.ctx.canvas.width, λ.ctx.canvas.height), null)),
+    clearLayer: IO(() => (λ.ctx.clearRect(0, 0, λ.ctx.canvas.width, λ.ctx.canvas.height), null)),
+    clearCanvas: IO(() => (λ.ctxs.forEach(ctx => ctx.clearRect(0, 0, λ.ctx.canvas.width, λ.ctx.canvas.height), null))),
     fill: IO(() => (λ.ctx.fill(), null)),
     stroke: IO(() => (λ.ctx.stroke(), null)),
     save: IO(() => (λ.ctx.save(), null)),
@@ -1700,7 +1710,8 @@ const Output = {
     fillAreaV: (xy0) => (xy1) => IO(() => (λ.ctx.fillRect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null))
 };
 onload = () => {
-    λ.ctx = document.querySelector('canvas').getContext('2d');
+    λ.ctxs = Array.from(document.querySelectorAll('canvas')).map(x => x.getContext('2d'));
+    λ.ctx = λ.ctxs[0];
     onmousemove = ev => {
         λ.mouseWindowX = ev.x,
             λ.mouseWindowY = ev.y,

@@ -2570,6 +2570,7 @@ type KeyboardKey = typeof KEYBOARD[number]
 
 const λ =
 	{
+		ctxs            : [] as Array <CanvasRenderingContext2D>,
 		ctx             : undefined as unknown as CanvasRenderingContext2D,
 		resizeID        : undefined as unknown as number,
 		isResized       : false,
@@ -2648,6 +2649,9 @@ const Input =
 						return Matrix3 (m.a, m.c, m.e / λ.ctx.canvas.width, m.b, m.d, m.f / λ.ctx.canvas.height, 0, 0, 1)
 					})
 				},
+
+		/**` Input.layer :: IO Number `*/
+		layer : IO (() => λ.ctxs .findIndex (ctx => ctx === λ.ctx)),
 
 		/**` Input.isWindowResized :: IO Boolean `*/
 		isWindowResized : IO (() => λ.isResized),
@@ -2963,25 +2967,35 @@ const Reput =
 					))
 			},
 
+		/**` Reput.layer :: Number -> IO () `*/
+		layer : (index : number) : IO <null> =>
+			IO (() => {
+				if (λ.ctxs[index])
+					λ.ctx = λ.ctxs[index]!
+				else
+					THROW (`'(Reput.layer)' only accepts integers in interval [0, ${λ.ctxs.length}); instead received '${index}'`)
+				return null
+			}),
+
 		/**` Reput.canvasW :: Number -> IO () `*/
 		canvasW : (w : number) : IO <null> =>
-			IO (() => (λ.ctx.canvas.width = w, null)),
+			IO (() => (λ.ctxs.forEach(ctx => ctx.canvas.width = w), null)),
 
 		/**` Reput.canvasH :: Number -> IO () `*/
 		canvasH : (h : number) : IO <null> =>
-			IO (() => (λ.ctx.canvas.height = h, null)),
+			IO (() => (λ.ctxs.forEach(ctx => ctx.canvas.height = h), null)),
 
 		/**` Reput.canvasWH :: Number -> Number -> IO () `*/
 		canvasWH : (w : number) => (h : number) : IO <null> =>
-			IO (() => (λ.ctx.canvas.width = w, λ.ctx.canvas.height = h, null)),
+			IO (() => (λ.ctxs.forEach(ctx => (ctx.canvas.width = w, ctx.canvas.height = h)), null)),
 
 		/**` Reput.canvasP :: Pair Number Number -> IO () `*/
 		canvasP : (p : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.canvas.width = p .fst, λ.ctx.canvas.height = p .snd, null)),
+			IO (() => (λ.ctxs.forEach(ctx => (ctx.canvas.width = p .fst, ctx.canvas.height = p .snd)), null)),
 
 		/**` Reput.canvasV :: Vector2 -> IO () `*/
 		canvasV : (v : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.canvas.width = v.x, λ.ctx.canvas.height = v.y, null)),
+			IO (() => (λ.ctxs.forEach(ctx => (ctx.canvas.width = v.x, ctx.canvas.height = v.y)), null)),
 
 		/**` Reput.lineThickness :: Number -> IO () `*/
 		lineThickness : (t : number) : IO <null> =>
@@ -4041,8 +4055,11 @@ const Output =
 		clearRectangleV : (xy : Vector2) => (wh : Vector2) : IO <null> =>
 			IO (() => (λ.ctx.clearRect(xy.x, xy.y, wh.x, wh.y), null)),
 
+		/**` Output.clearLayer :: IO () `*/
+		clearLayer : IO (() => (λ.ctx.clearRect(0, 0, λ.ctx.canvas.width, λ.ctx.canvas.height), null)),
+
 		/**` Output.clearCanvas :: IO () `*/
-		clearCanvas : IO (() => (λ.ctx.clearRect(0, 0, λ.ctx.canvas.width, λ.ctx.canvas.height), null)),
+		clearCanvas : IO (() => (λ.ctxs.forEach(ctx => ctx.clearRect(0, 0, λ.ctx.canvas.width, λ.ctx.canvas.height), null))),
 
 		/**` Output.fill :: IO () `*/
 		fill : IO (() => (λ.ctx.fill(), null)),
@@ -4384,7 +4401,8 @@ const Output =
 
 onload = () =>
 {
-	λ.ctx = document.querySelector('canvas')!.getContext('2d')!
+	λ.ctxs = Array.from (document.querySelectorAll('canvas')) .map (x => x.getContext('2d')!)
+	λ.ctx = λ.ctxs[0]!
 
 	onmousemove = ev =>
 	{
