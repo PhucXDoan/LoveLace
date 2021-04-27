@@ -2240,6 +2240,22 @@ const V3 =
 			return Vector3 (v.x * c - v.y * s, v.y * c + v.x * s, v.z)
 		},
 
+		/**` V3.rotateYXZ :: Number -> Number -> Number -> Vector3 `*/
+		rotateYXZ : (yaw : number) => (pitch : number) => (roll : number) => (v : Vector3) : Vector3 =>
+			v .pipe (V3.rotateY (yaw)) .pipe (V3.rotateX (pitch)) .pipe (V3.rotateZ (roll)),
+
+		/**` V3.rotateYXZv :: Vector3 -> Vector3 `*/
+		rotateYXZv : (angles : Vector3) => (v : Vector3) : Vector3 =>
+			v .pipe (V3.rotateY (angles.y)) .pipe (V3.rotateX (angles.x)) .pipe (V3.rotateZ (angles.z)),
+
+		/**` V3.unrotateYXZ :: Number -> Number -> Number -> Vector3 `*/
+		unrotateYXZ : (yaw : number) => (pitch : number) => (roll : number) => (v : Vector3) : Vector3 =>
+			v .pipe (V3.rotateZ (-roll)) .pipe (V3.rotateX (-pitch)) .pipe (V3.rotateY (-yaw)),
+
+		/**` V3.unrotateYXZv :: Vector3 -> Vector3 `*/
+		unrotateYXZv : (angles : Vector3) => (v : Vector3) : Vector3 =>
+			v .pipe (V3.rotateZ (-angles.z)) .pipe (V3.rotateX (-angles.x)) .pipe (V3.rotateY (-angles.y)),
+
 		/**` V3.translate :: Number -> Number -> Number -> Vector3 -> Vector3 `*/
 		translate : (dx : number) => (dy : number) => (dz : number) => (v : Vector3) : Vector3 =>
 			Vector3 (v.x + dx, v.y + dy, v.z + dz),
@@ -4197,7 +4213,7 @@ const Output =
 
 		/**` Output.activatePointerLock :: IO () `*/
 		activatePointerLock :
-			IO (() => (λ.ctx.canvas.onmouseup = () => λ.isPointerLocked && λ.ctx.canvas.requestPointerLock(), null)),
+			IO (() => (onmouseup = () => λ.isPointerLocked || λ.ctx.canvas.requestPointerLock(), null)),
 
 		/**` Output.deactivatePointerLock :: IO () `*/
 		deactivatePointerLock : IO (() => λ.ctx.canvas.onmousedown = null),
