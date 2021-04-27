@@ -69,7 +69,7 @@ const iterateGlobal = (global : Global) : IO <Global> =>
 		/**` $.maxScalar :: Number `*/
 		.bindto ('maxScalar', _ => maximumCanvasScalar)
 
-		/**` $.isResized :: Number `*/
+		/**` $.isResized :: Boolean `*/
 		.bindto ('isResized', _ => Input.isWindowResized)
 
 		/**` $.isResizing :: Boolean `*/
