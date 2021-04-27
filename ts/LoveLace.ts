@@ -1801,6 +1801,21 @@ const findIndices = <a>(predicate : (element : a) => boolean) => (xs : List <a>)
 			? lprepend (0) (() => findIndices (predicate) (xs .tail) .fmap (x => x + 1))
 			: findIndices (predicate) (xs .tail) .fmap (x => x + 1)
 
+/**` from :: List a -> Number -> a `*/
+const from = <a>(xs : List <a>) => (index : number) : a =>
+{
+	if (index < 0 || !Number.isInteger (index))
+		ERROR.ONLY_NATURAL ('from', index)
+	let ys = xs
+	for (let i = 0; i < index; ++i)
+		if (ys.CONS === 'Nil')
+			THROW (`'from' received an index beyond the list; stopped at index '${i}' with goal of '${index}'`)
+		else ys = ys .tail
+	if (ys.CONS === 'Nil')
+		THROW (`'from' received an off-by-one error; cannot get index '${index}' in list of length ${index}`)
+	return ys .head
+}
+
 /**` foldl :: (b -> a -> b) -> b -> List a -> b `*/
 const foldl = <a, b>(reducer : (leftside : b) => (rightside : a) => b) => (initial : b) => (xs : List <a>) : b =>
 {
@@ -2579,6 +2594,12 @@ const executeIOs = <a>(ios : List <IO <a>>) : IO <null> =>
 			i .head.INFO ()
 		return null
 	})
+
+/**` pairMaybes :: Pair (Maybe a) (Maybe b) -> Maybe (Pair a b) `*/
+const pairMaybes = <a, b>(pmaybes : Pair <Maybe <a>, Maybe <b>>) : Maybe <Pair <a, b>> =>
+	pmaybes .fst.CONS === 'Just' && pmaybes .snd.CONS === 'Just'
+		? Just (Pair (pmaybes .fst.INFO, pmaybes .snd.INFO))
+		: Nothing
 
 /**` maybeHead :: List a -> Maybe a `*/
 const maybeHead = <a>(xs : List <a>) : Maybe <a> =>
@@ -4174,6 +4195,57 @@ const Output =
 							(xy1.x - xy0.x) * λ.ctx.canvas.width, (xy1.y - xy0.y) * λ.ctx.canvas.height
 						)
 						return null
+					}),
+
+				/**` Output.Norm.line :: Number -> Number -> Number -> Number -> IO () `*/
+				line : (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+					IO (() => {
+						λ.ctx.moveTo(x0 * λ.ctx.canvas.width, y0 * λ.ctx.canvas.height)
+						λ.ctx.lineTo(x1 * λ.ctx.canvas.width, y1 * λ.ctx.canvas.height)
+						return null
+					}),
+
+				/**` Output.Norm.lineP :: Pair Number Number -> Pair Number Number -> IO () `*/
+				lineP : (xy0 : Pair <number, number>) => (xy1 : Pair <number, number>) : IO <null> =>
+					IO (() => {
+						λ.ctx.moveTo(xy0 .fst * λ.ctx.canvas.width, xy0 .snd * λ.ctx.canvas.height)
+						λ.ctx.lineTo(xy1 .fst * λ.ctx.canvas.width, xy1 .snd * λ.ctx.canvas.height)
+						return null
+					}),
+
+				/**` Output.Norm.lineV :: Vector2 -> Vector2 -> IO () `*/
+				lineV : (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+					IO (() => {
+						λ.ctx.moveTo(xy0.x * λ.ctx.canvas.width, xy0.y * λ.ctx.canvas.height)
+						λ.ctx.lineTo(xy1.x * λ.ctx.canvas.width, xy1.y * λ.ctx.canvas.height)
+						return null
+					}),
+
+				/**` Output.Norm.strokeLine :: Number -> Number -> Number -> Number -> IO () `*/
+				strokeLine : (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+					IO (() => {
+						λ.ctx.moveTo(x0 * λ.ctx.canvas.width, y0 * λ.ctx.canvas.height)
+						λ.ctx.lineTo(x1 * λ.ctx.canvas.width, y1 * λ.ctx.canvas.height)
+						λ.ctx.stroke()
+						return null
+					}),
+
+				/**` Output.Norm.strokeLineP :: Pair Number Number -> Pair Number Number -> IO () `*/
+				strokeLineP : (xy0 : Pair <number, number>) => (xy1 : Pair <number, number>) : IO <null> =>
+					IO (() => {
+						λ.ctx.moveTo(xy0 .fst * λ.ctx.canvas.width, xy0 .snd * λ.ctx.canvas.height)
+						λ.ctx.lineTo(xy1 .fst * λ.ctx.canvas.width, xy1 .snd * λ.ctx.canvas.height)
+						λ.ctx.stroke()
+						return null
+					}),
+
+				/**` Output.Norm.strokeLineV :: Vector2 -> Vector2 -> IO () `*/
+				strokeLineV : (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+					IO (() => {
+						λ.ctx.moveTo(xy0.x * λ.ctx.canvas.width, xy0.y * λ.ctx.canvas.height)
+						λ.ctx.lineTo(xy1.x * λ.ctx.canvas.width, xy1.y * λ.ctx.canvas.height)
+						λ.ctx.stroke()
+						return null
 					})
 			},
 
@@ -4688,7 +4760,58 @@ const Output =
 
 		/**` Output.fillAreaV :: Vector2 -> Vector2 -> IO () `*/
 		fillAreaV : (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.fillRect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null))
+			IO (() => (λ.ctx.fillRect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null)),
+
+		/**` Output.line :: Number -> Number -> Number -> Number -> IO () `*/
+		line : (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+			IO (() => {
+				λ.ctx.moveTo(x0, y0)
+				λ.ctx.lineTo(x1, y1)
+				return null
+			}),
+
+		/**` Output.lineP :: Pair Number Number -> Pair Number Number -> IO () `*/
+		lineP : (xy0 : Pair <number, number>) => (xy1 : Pair <number, number>) : IO <null> =>
+			IO (() => {
+				λ.ctx.moveTo(xy0 .fst, xy0 .snd)
+				λ.ctx.lineTo(xy1 .fst, xy1 .snd)
+				return null
+			}),
+
+		/**` Output.lineV :: Vector2 -> Vector2 -> IO () `*/
+		lineV : (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+			IO (() => {
+				λ.ctx.moveTo(xy0.x, xy0.y)
+				λ.ctx.lineTo(xy1.x, xy1.y)
+				return null
+			}),
+
+		/**` Output.strokeLine :: Number -> Number -> Number -> Number -> IO () `*/
+		strokeLine : (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+			IO (() => {
+				λ.ctx.moveTo(x0, y0)
+				λ.ctx.lineTo(x1, y1)
+				λ.ctx.stroke()
+				return null
+			}),
+
+		/**` Output.strokeLineP :: Pair Number Number -> Pair Number Number -> IO () `*/
+		strokeLineP : (xy0 : Pair <number, number>) => (xy1 : Pair <number, number>) : IO <null> =>
+			IO (() => {
+				λ.ctx.moveTo(xy0 .fst, xy0 .snd)
+				λ.ctx.lineTo(xy1 .fst, xy1 .snd)
+				λ.ctx.stroke()
+				return null
+			}),
+
+		/**` Output.strokeLineV :: Vector2 -> Vector2 -> IO () `*/
+		strokeLineV : (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+			IO (() => {
+				λ.ctx.moveTo(xy0.x, xy0.y)
+				λ.ctx.lineTo(xy1.x, xy1.y)
+				λ.ctx.stroke()
+				return null
+			})
 	}
 
 onload = () =>

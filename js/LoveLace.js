@@ -1091,6 +1091,19 @@ var findIndices = function (predicate) { return function (xs) {
             ? lprepend(0)(function () { return findIndices(predicate)(xs.tail).fmap(function (x) { return x + 1; }); })
             : findIndices(predicate)(xs.tail).fmap(function (x) { return x + 1; });
 }; };
+var from = function (xs) { return function (index) {
+    if (index < 0 || !Number.isInteger(index))
+        ERROR.ONLY_NATURAL('from', index);
+    var ys = xs;
+    for (var i = 0; i < index; ++i)
+        if (ys.CONS === 'Nil')
+            THROW("'from' received an index beyond the list; stopped at index '" + i + "' with goal of '" + index + "'");
+        else
+            ys = ys.tail;
+    if (ys.CONS === 'Nil')
+        THROW("'from' received an off-by-one error; cannot get index '" + index + "' in list of length " + index);
+    return ys.head;
+}; };
 var foldl = function (reducer) { return function (initial) { return function (xs) {
     var x = initial;
     for (var i = 0; xs.CONS === 'Cons'; ++i, x = reducer(x)(xs.head), xs = xs.tail)
@@ -1627,6 +1640,11 @@ var executeIOs = function (ios) {
             i.head.INFO();
         return null;
     });
+};
+var pairMaybes = function (pmaybes) {
+    return pmaybes.fst.CONS === 'Just' && pmaybes.snd.CONS === 'Just'
+        ? Just(Pair(pmaybes.fst.INFO, pmaybes.snd.INFO))
+        : Nothing;
 };
 var maybeHead = function (xs) {
     return xs.CONS === 'Nil'
@@ -2422,6 +2440,51 @@ var Output = {
                 λ.ctx.fillRect(xy0.x * λ.ctx.canvas.width, xy0.y * λ.ctx.canvas.height, (xy1.x - xy0.x) * λ.ctx.canvas.width, (xy1.y - xy0.y) * λ.ctx.canvas.height);
                 return null;
             });
+        }; },
+        line: function (x0) { return function (y0) { return function (x1) { return function (y1) {
+            return IO(function () {
+                λ.ctx.moveTo(x0 * λ.ctx.canvas.width, y0 * λ.ctx.canvas.height);
+                λ.ctx.lineTo(x1 * λ.ctx.canvas.width, y1 * λ.ctx.canvas.height);
+                return null;
+            });
+        }; }; }; },
+        lineP: function (xy0) { return function (xy1) {
+            return IO(function () {
+                λ.ctx.moveTo(xy0.fst * λ.ctx.canvas.width, xy0.snd * λ.ctx.canvas.height);
+                λ.ctx.lineTo(xy1.fst * λ.ctx.canvas.width, xy1.snd * λ.ctx.canvas.height);
+                return null;
+            });
+        }; },
+        lineV: function (xy0) { return function (xy1) {
+            return IO(function () {
+                λ.ctx.moveTo(xy0.x * λ.ctx.canvas.width, xy0.y * λ.ctx.canvas.height);
+                λ.ctx.lineTo(xy1.x * λ.ctx.canvas.width, xy1.y * λ.ctx.canvas.height);
+                return null;
+            });
+        }; },
+        strokeLine: function (x0) { return function (y0) { return function (x1) { return function (y1) {
+            return IO(function () {
+                λ.ctx.moveTo(x0 * λ.ctx.canvas.width, y0 * λ.ctx.canvas.height);
+                λ.ctx.lineTo(x1 * λ.ctx.canvas.width, y1 * λ.ctx.canvas.height);
+                λ.ctx.stroke();
+                return null;
+            });
+        }; }; }; },
+        strokeLineP: function (xy0) { return function (xy1) {
+            return IO(function () {
+                λ.ctx.moveTo(xy0.fst * λ.ctx.canvas.width, xy0.snd * λ.ctx.canvas.height);
+                λ.ctx.lineTo(xy1.fst * λ.ctx.canvas.width, xy1.snd * λ.ctx.canvas.height);
+                λ.ctx.stroke();
+                return null;
+            });
+        }; },
+        strokeLineV: function (xy0) { return function (xy1) {
+            return IO(function () {
+                λ.ctx.moveTo(xy0.x * λ.ctx.canvas.width, xy0.y * λ.ctx.canvas.height);
+                λ.ctx.lineTo(xy1.x * λ.ctx.canvas.width, xy1.y * λ.ctx.canvas.height);
+                λ.ctx.stroke();
+                return null;
+            });
         }; }
     },
     log: function (message) { return IO(function () { return (console.log(message), null); }); },
@@ -2784,6 +2847,51 @@ var Output = {
     }; },
     fillAreaV: function (xy0) { return function (xy1) {
         return IO(function () { return (λ.ctx.fillRect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null); });
+    }; },
+    line: function (x0) { return function (y0) { return function (x1) { return function (y1) {
+        return IO(function () {
+            λ.ctx.moveTo(x0, y0);
+            λ.ctx.lineTo(x1, y1);
+            return null;
+        });
+    }; }; }; },
+    lineP: function (xy0) { return function (xy1) {
+        return IO(function () {
+            λ.ctx.moveTo(xy0.fst, xy0.snd);
+            λ.ctx.lineTo(xy1.fst, xy1.snd);
+            return null;
+        });
+    }; },
+    lineV: function (xy0) { return function (xy1) {
+        return IO(function () {
+            λ.ctx.moveTo(xy0.x, xy0.y);
+            λ.ctx.lineTo(xy1.x, xy1.y);
+            return null;
+        });
+    }; },
+    strokeLine: function (x0) { return function (y0) { return function (x1) { return function (y1) {
+        return IO(function () {
+            λ.ctx.moveTo(x0, y0);
+            λ.ctx.lineTo(x1, y1);
+            λ.ctx.stroke();
+            return null;
+        });
+    }; }; }; },
+    strokeLineP: function (xy0) { return function (xy1) {
+        return IO(function () {
+            λ.ctx.moveTo(xy0.fst, xy0.snd);
+            λ.ctx.lineTo(xy1.fst, xy1.snd);
+            λ.ctx.stroke();
+            return null;
+        });
+    }; },
+    strokeLineV: function (xy0) { return function (xy1) {
+        return IO(function () {
+            λ.ctx.moveTo(xy0.x, xy0.y);
+            λ.ctx.lineTo(xy1.x, xy1.y);
+            λ.ctx.stroke();
+            return null;
+        });
     }; }
 };
 onload = function () {
