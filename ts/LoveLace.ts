@@ -2592,29 +2592,29 @@ const Input =
 	{
 		Norm :
 			{
-				/**` Input.Norm.mouseCanvasX :: IO Number `*/
-				mouseCanvasX : IO (() => λ.mouseCanvasX / λ.ctx.canvas.width),
+				/**` Input.Norm.mouseX :: IO Number `*/
+				mouseX : IO (() => λ.mouseCanvasX / λ.ctx.canvas.width),
 
-				/**` Input.Norm.mouseCanvasY :: IO Number `*/
-				mouseCanvasY : IO (() => λ.mouseCanvasY / λ.ctx.canvas.height),
+				/**` Input.Norm.mouseY :: IO Number `*/
+				mouseY : IO (() => λ.mouseCanvasY / λ.ctx.canvas.height),
 
-				/**` Input.Norm.mouseCanvasP :: IO (Pair Number Number) `*/
-				mouseCanvasP : IO (() => Pair (λ.mouseCanvasX / λ.ctx.canvas.width, λ.mouseCanvasY / λ.ctx.canvas.height)),
+				/**` Input.Norm.mouseP :: IO (Pair Number Number) `*/
+				mouseP : IO (() => Pair (λ.mouseCanvasX / λ.ctx.canvas.width, λ.mouseCanvasY / λ.ctx.canvas.height)),
 
-				/**` Input.Norm.mouseCanvasV :: IO Vector2 `*/
-				mouseCanvasV : IO (() => Vector2 (λ.mouseCanvasX / λ.ctx.canvas.width, λ.mouseCanvasY / λ.ctx.canvas.height)),
+				/**` Input.Norm.mouseV :: IO Vector2 `*/
+				mouseV : IO (() => Vector2 (λ.mouseCanvasX / λ.ctx.canvas.width, λ.mouseCanvasY / λ.ctx.canvas.height)),
 
-				/**` Input.Norm.mouseDeltaX :: IO Number `*/
-				mouseDeltaX : IO (() => λ.mouseDeltaX / λ.ctx.canvas.width),
+				/**` Input.Norm.mouseDX :: IO Number `*/
+				mouseDX : IO (() => λ.mouseDeltaX / λ.ctx.canvas.width),
 
-				/**` Input.Norm.mouseDeltaY :: IO Number `*/
-				mouseDeltaY : IO (() => λ.mouseDeltaY / λ.ctx.canvas.height),
+				/**` Input.Norm.mouseDY :: IO Number `*/
+				mouseDY : IO (() => λ.mouseDeltaY / λ.ctx.canvas.height),
 
-				/**` Input.Norm.mouseDeltaP :: IO (Pair Number Number) `*/
-				mouseDeltaP : IO (() => Pair (λ.mouseDeltaX / λ.ctx.canvas.width, λ.mouseDeltaY / λ.ctx.canvas.height)),
+				/**` Input.Norm.mouseDP :: IO (Pair Number Number) `*/
+				mouseDP : IO (() => Pair (λ.mouseDeltaX / λ.ctx.canvas.width, λ.mouseDeltaY / λ.ctx.canvas.height)),
 
-				/**` Input.Norm.mouseDeltaV :: IO Vector2 `*/
-				mouseDeltaV : IO (() => Vector2 (λ.mouseDeltaX / λ.ctx.canvas.width, λ.mouseDeltaY / λ.ctx.canvas.height)),
+				/**` Input.Norm.mouseDV :: IO Vector2 `*/
+				mouseDV : IO (() => Vector2 (λ.mouseDeltaX / λ.ctx.canvas.width, λ.mouseDeltaY / λ.ctx.canvas.height)),
 
 				/**` Input.Norm.lineThickness :: IO Number `*/
 				lineThickness : IO (() => λ.ctx.lineWidth / λ.ctx.canvas.width),
@@ -2628,18 +2628,18 @@ const Input =
 				/**` Input.Norm.fontSize :: IO Number `*/
 				fontSize : IO (() => parseFloat (λ.ctx.font) / λ.ctx.canvas.width),
 
-				/**` Input.Norm.shadowOffsetX :: IO Number `*/
-				shadowOffsetX : IO (() => λ.ctx.shadowOffsetX / λ.ctx.canvas.width),
+				/**` Input.Norm.shadowDX :: IO Number `*/
+				shadowDX : IO (() => λ.ctx.shadowOffsetX / λ.ctx.canvas.width),
 
-				/**` Input.Norm.shadowOffsetY :: IO Number `*/
-				shadowOffsetY : IO (() => λ.ctx.shadowOffsetY / λ.ctx.canvas.height),
+				/**` Input.Norm.shadowDY :: IO Number `*/
+				shadowDY : IO (() => λ.ctx.shadowOffsetY / λ.ctx.canvas.height),
 
-				/**` Input.Norm.shadowOffsetP :: IO (Pair Number Number) `*/
-				shadowOffsetP :
+				/**` Input.Norm.shadowDP :: IO (Pair Number Number) `*/
+				shadowDP :
 					IO (() => Pair (λ.ctx.shadowOffsetX / λ.ctx.canvas.width, λ.ctx.shadowOffsetY / λ.ctx.canvas.height)),
 
-				/**` Input.Norm.shadowOffsetV :: IO Vector2 `*/
-				shadowOffsetV :
+				/**` Input.Norm.shadowDV :: IO Vector2 `*/
+				shadowDV :
 					IO (() => Vector2 (λ.ctx.shadowOffsetX / λ.ctx.canvas.width, λ.ctx.shadowOffsetY / λ.ctx.canvas.height)),
 
 				/**` Input.Norm.transformationMatrix :: IO Matrix3 `*/
@@ -2722,47 +2722,47 @@ const Input =
 		/**` Input.mouseWindowV :: IO Vector2 `*/
 		mouseWindowV : IO (() => Vector2 (λ.mouseWindowX, λ.mouseWindowY)),
 
-		/**` Input.mouseCanvasX :: IO Number `*/
-		mouseCanvasX : IO (() => λ.mouseCanvasX),
+		/**` Input.mouseX :: IO Number `*/
+		mouseX : IO (() => λ.mouseCanvasX),
 
-		/**` Input.mouseCanvasY :: IO Number `*/
-		mouseCanvasY : IO (() => λ.mouseCanvasY),
+		/**` Input.mouseY :: IO Number `*/
+		mouseY : IO (() => λ.mouseCanvasY),
 
-		/**` Input.mouseCanvasP :: IO (Pair Number Number) `*/
-		mouseCanvasP : IO (() => Pair (λ.mouseCanvasX, λ.mouseCanvasY)),
+		/**` Input.mouseP :: IO (Pair Number Number) `*/
+		mouseP : IO (() => Pair (λ.mouseCanvasX, λ.mouseCanvasY)),
 
-		/**` Input.mouseCanvasV :: IO Vector2 `*/
-		mouseCanvasV : IO (() => Vector2 (λ.mouseCanvasX, λ.mouseCanvasY)),
+		/**` Input.mouseV :: IO Vector2 `*/
+		mouseV : IO (() => Vector2 (λ.mouseCanvasX, λ.mouseCanvasY)),
 
-		/**` Input.mouseDeltaX :: IO Number `*/
-		mouseDeltaX : IO (() => λ.mouseDeltaX),
+		/**` Input.mouseDX :: IO Number `*/
+		mouseDX : IO (() => λ.mouseDeltaX),
 
-		/**` Input.mouseDeltaY :: IO Number `*/
-		mouseDeltaY : IO (() => λ.mouseDeltaY),
+		/**` Input.mouseDY :: IO Number `*/
+		mouseDY : IO (() => λ.mouseDeltaY),
 
-		/**` Input.mouseDeltaP :: IO (Pair Number Number) `*/
-		mouseDeltaP : IO (() => Pair (λ.mouseDeltaX, λ.mouseDeltaY)),
+		/**` Input.mouseDP :: IO (Pair Number Number) `*/
+		mouseDP : IO (() => Pair (λ.mouseDeltaX, λ.mouseDeltaY)),
 
-		/**` Input.mouseDeltaV :: IO Vector2 `*/
-		mouseDeltaV : IO (() => Vector2 (λ.mouseDeltaX, λ.mouseDeltaY)),
+		/**` Input.mouseDV :: IO Vector2 `*/
+		mouseDV : IO (() => Vector2 (λ.mouseDeltaX, λ.mouseDeltaY)),
 
 		/**` Input.mouseScroll :: IO Y `*/
 		mouseScroll : IO (() => λ.mouseScroll),
 
-		/**` Input.mouseButtonLeft :: IO Y `*/
-		mouseButtonLeft : IO (() => λ.mouseButtons[0]),
+		/**` Input.mouseLeft :: IO Y `*/
+		mouseLeft : IO (() => λ.mouseButtons[0]),
 
-		/**` Input.mouseButtonMiddle :: IO Y `*/
-		mouseButtonMiddle : IO (() => λ.mouseButtons[1]),
+		/**` Input.mouseMiddle :: IO Y `*/
+		mouseMiddle : IO (() => λ.mouseButtons[1]),
 
-		/**` Input.mouseButtonRight :: IO Y `*/
-		mouseButtonRight : IO (() => λ.mouseButtons[2]),
+		/**` Input.mouseRight :: IO Y `*/
+		mouseRight : IO (() => λ.mouseButtons[2]),
 
-		/**` Input.mouseButtonEsotericX :: IO Y `*/
-		mouseButtonEsotericX : IO (() => λ.mouseButtons[3]),
+		/**` Input.mouseA :: IO Y `*/
+		mouseA : IO (() => λ.mouseButtons[3]),
 
-		/**` Input.mouseButtonEsotericY :: IO Y `*/
-		mouseButtonEsotericY : IO (() => λ.mouseButtons[4]),
+		/**` Input.mouseB :: IO Y `*/
+		mouseB : IO (() => λ.mouseButtons[4]),
 
 		/**` Input.keyboard :: KeyboardKey -> IO Y `*/
 		keyboard : (key : KeyboardKey) : IO <Y> => IO (() => λ.keyboard[key]),
@@ -2819,17 +2819,17 @@ const Input =
 		/**` Input.shadowColor :: IO String `*/
 		shadowColor : IO (() => λ.ctx.shadowColor),
 
-		/**` Input.shadowOffsetX :: IO Number `*/
-		shadowOffsetX : IO (() => λ.ctx.shadowOffsetX),
+		/**` Input.shadowDX :: IO Number `*/
+		shadowDX : IO (() => λ.ctx.shadowOffsetX),
 
-		/**` Input.shadowOffsetY :: IO Number `*/
-		shadowOffsetY : IO (() => λ.ctx.shadowOffsetY),
+		/**` Input.shadowDY :: IO Number `*/
+		shadowDY : IO (() => λ.ctx.shadowOffsetY),
 
-		/**` Input.shadowOffsetP :: IO (Pair Number Number) `*/
-		shadowOffsetP : IO (() => Pair (λ.ctx.shadowOffsetX, λ.ctx.shadowOffsetY)),
+		/**` Input.shadowDP :: IO (Pair Number Number) `*/
+		shadowDP : IO (() => Pair (λ.ctx.shadowOffsetX, λ.ctx.shadowOffsetY)),
 
-		/**` Input.shadowOffsetV :: IO Vector2 `*/
-		shadowOffsetV : IO (() => Vector2 (λ.ctx.shadowOffsetX, λ.ctx.shadowOffsetY)),
+		/**` Input.shadowDV :: IO Vector2 `*/
+		shadowDV : IO (() => Vector2 (λ.ctx.shadowOffsetX, λ.ctx.shadowOffsetY)),
 
 		/**` Input.isInEvenOddPathP :: Number -> Number -> IO Boolean `*/
 		isInEvenOddPathP : (x : number) => (y : number) : IO <boolean> => IO (() => λ.ctx.isPointInPath(x, y, 'evenodd')),
