@@ -106,6 +106,8 @@ const LN10 = 2.302585092994046;
 const LOG2E = 1.4426950408889634;
 const LOG10E = 0.4342944819032518;
 const PI = 3.141592653589793;
+const PIDIV180 = 0.017453292519943295;
+const PIDIV180INV = 57.29577951308232;
 const TAU = 6.283185307179586;
 const INVSQRT2 = 0.7071067811865476;
 const SQRT2 = 1.4142135623730951;
@@ -189,7 +191,9 @@ const sub = (x) => (y) => x - y;
 const rsub = (y) => (x) => x - y;
 const tan = Math.tan;
 const tanh = Math.tanh;
+const toDegrees = (degrees) => degrees * PIDIV180INV;
 const toHexColor = (decimal) => `#${((~~Math.abs(decimal)) % 16777216).toString(16).padStart(6, '0')}`;
+const toRadians = (degrees) => degrees * PIDIV180;
 const trunc = (x) => ~~x;
 const URSHIFT = (x) => (y) => x >>> y;
 const rURSHIFT = (y) => (x) => x >>> y;
@@ -430,6 +434,9 @@ const fromJust = (maybe) => maybe.CONS === 'Nothing'
 const fromMaybe = (fallback) => (maybe) => maybe.CONS === 'Nothing'
     ? fallback
     : maybe.INFO;
+const ensure = (predicate) => (value) => predicate(value)
+    ? Just(value)
+    : Nothing;
 const put = (replacement) => (process) => Process(s => Pair(replacement, process.INFO(s).snd));
 const get = (process) => Process(s => {
     const x = process.INFO(s).fst;
@@ -1027,6 +1034,16 @@ const fromRight = (either) => either.CONS === 'Right'
     : THROW(`'fromRight' was used on a left-value`);
 const V2 = {
     origin: Vector2(0, 0),
+    half: Vector2(0.5, 0.5),
+    demoteV3: (v) => Vector2(v.x, v.y),
+    demoteV4: (v) => Vector2(v.x, v.y),
+    displace: (delta) => (v) => Vector2(v.x + delta, v.y + delta),
+    undisplace: (delta) => (v) => Vector2(v.x - delta, v.y - delta),
+    conjugate: (v) => Vector2(v.x, -v.y),
+    rotate: (angle) => (v) => {
+        const c = Math.cos(angle), s = Math.sin(angle);
+        return Vector2(v.x * c - v.y * s, v.y * c + v.x * s);
+    },
     translate: (dx) => (dy) => (v) => Vector2(v.x + dx, v.y + dy),
     untranslate: (dx) => (dy) => (v) => Vector2(v.x - dx, v.y - dy),
     add: (v) => (w) => Vector2(v.x + w.x, v.y + w.y),
@@ -1038,10 +1055,35 @@ const V2 = {
         ? V2.origin
         : V2.unscale(Math.sqrt(Math.pow(v.x, 2) + Math.pow(v.y, 2)))(v),
     dot: (v) => (w) => v.x * w.x + v.y * w.y,
-    transform: (m) => (v) => Vector2(m.ix * v.x + m.jx * v.y, m.iy * v.x + m.jy * v.y)
+    transform: (m) => (v) => Vector2(m.ix * v.x + m.jx * v.y, m.iy * v.x + m.jy * v.y),
+    translateX: (delta) => (v) => Vector2(v.x + delta, v.y),
+    translateY: (delta) => (v) => Vector2(v.x, v.y + delta),
+    untranslateX: (delta) => (v) => Vector2(v.x - delta, v.y),
+    untranslateY: (delta) => (v) => Vector2(v.x, v.y - delta),
+    scaleX: (scalar) => (v) => Vector2(v.x * scalar, v.y),
+    scaleY: (scalar) => (v) => Vector2(v.x, v.y * scalar),
+    unscaleX: (scalar) => (v) => Vector2(v.x / scalar, v.y),
+    unscaleY: (scalar) => (v) => Vector2(v.x, v.y / scalar)
 };
 const V3 = {
     origin: Vector3(0, 0, 0),
+    half: Vector3(0.5, 0.5, 0.5),
+    promoteV2: (v) => Vector3(v.x, v.y, 0),
+    demoteV4: (v) => Vector3(v.x, v.y, v.z),
+    displace: (delta) => (v) => Vector3(v.x + delta, v.y + delta, v.z + delta),
+    undisplace: (delta) => (v) => Vector3(v.x - delta, v.y - delta, v.z - delta),
+    rotateX: (angle) => (v) => {
+        const c = Math.cos(angle), s = Math.sin(angle);
+        return Vector3(v.x, v.y * c - v.z * s, v.z * c + v.y * s);
+    },
+    rotateY: (angle) => (v) => {
+        const c = Math.cos(angle), s = Math.sin(angle);
+        return Vector3(v.x * c - v.z * s, v.y, v.z * c + v.x * s);
+    },
+    rotateZ: (angle) => (v) => {
+        const c = Math.cos(angle), s = Math.sin(angle);
+        return Vector3(v.x * c - v.y * s, v.y * c + v.x * s, v.z);
+    },
     translate: (dx) => (dy) => (dz) => (v) => Vector3(v.x + dx, v.y + dy, v.z + dz),
     untranslate: (dx) => (dy) => (dz) => (v) => Vector3(v.x - dx, v.y - dy, v.z - dz),
     add: (v) => (w) => Vector3(v.x + w.x, v.y + w.y, v.z + w.z),
@@ -1054,10 +1096,27 @@ const V3 = {
         : V3.unscale(Math.sqrt(Math.pow(v.x, 2) + Math.pow(v.y, 2) + Math.pow(v.z, 2)))(v),
     dot: (v) => (w) => v.x * w.x + v.y * w.y + v.z * w.z,
     cross: (v) => (w) => Vector3(v.y * w.z - v.z * w.y, v.z * w.x - v.x * w.z, v.x * w.y - v.y * w.x),
-    transform: (m) => (v) => Vector3(m.ix * v.x + m.jx * v.y + m.kx * v.z, m.iy * v.x + m.jy * v.y + m.ky * v.z, m.iz * v.x + m.jz * v.y + m.kz * v.z)
+    transform: (m) => (v) => Vector3(m.ix * v.x + m.jx * v.y + m.kx * v.z, m.iy * v.x + m.jy * v.y + m.ky * v.z, m.iz * v.x + m.jz * v.y + m.kz * v.z),
+    translateX: (delta) => (v) => Vector3(v.x + delta, v.y, v.z),
+    translateY: (delta) => (v) => Vector3(v.x, v.y + delta, v.z),
+    translateZ: (delta) => (v) => Vector3(v.x, v.y, v.z + delta),
+    untranslateX: (delta) => (v) => Vector3(v.x - delta, v.y, v.z),
+    untranslateY: (delta) => (v) => Vector3(v.x, v.y - delta, v.z),
+    untranslateZ: (delta) => (v) => Vector3(v.x, v.y, v.z - delta),
+    scaleX: (scalar) => (v) => Vector3(v.x * scalar, v.y, v.z),
+    scaleY: (scalar) => (v) => Vector3(v.x, v.y * scalar, v.z),
+    scaleZ: (scalar) => (v) => Vector3(v.x, v.y, v.z * scalar),
+    unscaleX: (scalar) => (v) => Vector3(v.x / scalar, v.y, v.z),
+    unscaleY: (scalar) => (v) => Vector3(v.x, v.y / scalar, v.z),
+    unscaleZ: (scalar) => (v) => Vector3(v.x, v.y, v.z / scalar)
 };
 const V4 = {
     origin: Vector4(0, 0, 0, 0),
+    half: Vector4(0.5, 0.5, 0.5, 0.5),
+    promoteV2: (v) => Vector4(v.x, v.y, 0, 0),
+    promoteV3: (v) => Vector4(v.x, v.y, v.y, 0),
+    displace: (delta) => (v) => Vector4(v.x + delta, v.y + delta, v.z + delta, v.w + delta),
+    undisplace: (delta) => (v) => Vector4(v.x - delta, v.y - delta, v.z - delta, v.w - delta),
     translate: (dx) => (dy) => (dz) => (dw) => (v) => Vector4(v.x + dx, v.y + dy, v.z + dz, v.w + dw),
     untranslate: (dx) => (dy) => (dz) => (dw) => (v) => Vector4(v.x - dx, v.y - dy, v.z - dz, v.w - dw),
     add: (v) => (w) => Vector4(v.x + w.x, v.y + w.y, v.z + w.z, v.w + w.w),
@@ -1069,7 +1128,23 @@ const V4 = {
         ? V4.origin
         : V4.unscale(Math.sqrt(Math.pow(v.x, 2) + Math.pow(v.y, 2) + Math.pow(v.z, 2) + Math.pow(v.w, 2)))(v),
     dot: (v) => (w) => v.x * w.x + v.y * w.y + v.z * w.z + v.w * w.w,
-    transform: (m) => (v) => Vector4(m.ix * v.x + m.jx * v.y + m.kx * v.z + m.lx * v.w, m.iy * v.x + m.jy * v.y + m.ky * v.z + m.ly * v.w, m.iz * v.x + m.jz * v.y + m.kz * v.z + m.lz * v.w, m.iw * v.x + m.jw * v.y + m.kw * v.z + m.lw * v.w)
+    transform: (m) => (v) => Vector4(m.ix * v.x + m.jx * v.y + m.kx * v.z + m.lx * v.w, m.iy * v.x + m.jy * v.y + m.ky * v.z + m.ly * v.w, m.iz * v.x + m.jz * v.y + m.kz * v.z + m.lz * v.w, m.iw * v.x + m.jw * v.y + m.kw * v.z + m.lw * v.w),
+    translateX: (delta) => (v) => Vector4(v.x + delta, v.y, v.z, v.w),
+    translateY: (delta) => (v) => Vector4(v.x, v.y + delta, v.z, v.w),
+    translateZ: (delta) => (v) => Vector4(v.x, v.y, v.z + delta, v.w),
+    translateW: (delta) => (v) => Vector4(v.x, v.y, v.z, v.w + delta),
+    untranslateX: (delta) => (v) => Vector4(v.x - delta, v.y, v.z, v.w),
+    untranslateY: (delta) => (v) => Vector4(v.x, v.y - delta, v.z, v.w),
+    untranslateZ: (delta) => (v) => Vector4(v.x, v.y, v.z - delta, v.w),
+    untranslateW: (delta) => (v) => Vector4(v.x, v.y, v.z, v.w - delta),
+    scaleX: (scalar) => (v) => Vector4(v.x * scalar, v.y, v.z, v.w),
+    scaleY: (scalar) => (v) => Vector4(v.x, v.y * scalar, v.z, v.w),
+    scaleZ: (scalar) => (v) => Vector4(v.x, v.y, v.z * scalar, v.w),
+    scaleW: (scalar) => (v) => Vector4(v.x, v.y, v.z, v.w * scalar),
+    unscaleX: (scalar) => (v) => Vector4(v.x / scalar, v.y, v.z, v.w),
+    unscaleY: (scalar) => (v) => Vector4(v.x, v.y / scalar, v.z, v.w),
+    unscaleZ: (scalar) => (v) => Vector4(v.x, v.y, v.z / scalar, v.w),
+    unscaleW: (scalar) => (v) => Vector4(v.x, v.y, v.z, v.w / scalar)
 };
 const M2 = {
     id: Matrix2(1, 0, 0, 1),
@@ -1198,6 +1273,7 @@ const KEYBOARD = [
     'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ'
 ];
 const λ = {
+    MUTABLE: {},
     ctxs: [],
     ctx: undefined,
     resizeID: undefined,
@@ -1310,7 +1386,10 @@ const Input = {
         return Matrix3(m.a, m.c, m.e, m.b, m.d, m.f, 0, 0, 1);
     }),
     alpha: IO(() => λ.ctx.globalAlpha),
-    composition: IO(() => mappingComposition.domain(λ.ctx.globalCompositeOperation))
+    composition: IO(() => mappingComposition.domain(λ.ctx.globalCompositeOperation)),
+    wasd: IO(() => Vector2(BIT(isD(λ.keyboard['KeyD'])) - BIT(isD(λ.keyboard['KeyA'])), BIT(isD(λ.keyboard['KeyS'])) - BIT(isD(λ.keyboard['KeyW']))).pipe(V2.normalize)),
+    wasdY: IO(() => Vector3(BIT(isD(λ.keyboard['KeyD'])) - BIT(isD(λ.keyboard['KeyA'])), BIT(isD(λ.keyboard['Space'])) - BIT(isD(λ.keyboard['ShiftLeft'])), BIT(isD(λ.keyboard['KeyS'])) - BIT(isD(λ.keyboard['KeyW']))).pipe(V3.normalize)),
+    arrows: IO(() => Vector2(BIT(isD(λ.keyboard['ArrowRight'])) - BIT(isD(λ.keyboard['ArrowLeft'])), BIT(isD(λ.keyboard['ArrowDown'])) - BIT(isD(λ.keyboard['ArrowUp']))).pipe(V2.normalize))
 };
 const Reput = {
     Norm: {

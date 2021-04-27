@@ -593,6 +593,12 @@ const LOG10E = 0.4342944819032518
 /**` PI :: Number `*/
 const PI = 3.141592653589793
 
+/**` PIDIV180 :: Number `*/
+const PIDIV180 = 0.017453292519943295
+
+/**` PIDIV180INV :: Number `*/
+const PIDIV180INV = 57.29577951308232
+
 /**` TAU :: Number `*/
 const TAU = 6.283185307179586
 
@@ -842,8 +848,14 @@ const tan = Math.tan
 /**` tanh :: Number -> Number `*/
 const tanh = Math.tanh
 
+/**` toDegrees :: Number -> Number `*/
+const toDegrees = (degrees : number) : number => degrees * PIDIV180INV
+
 /**` toHexColor :: Number -> String `*/
 const toHexColor = (decimal : number) : string => `#${((~~Math.abs (decimal)) % 16777216) .toString (16) .padStart (6, '0')}`
+
+/**` toRadians :: Number -> Number `*/
+const toRadians = (degrees : number) : number => degrees * PIDIV180
 
 /**` trunc :: Number -> Number `*/
 const trunc = (x : number) : number => ~~x
@@ -1230,6 +1242,12 @@ const fromMaybe = <a>(fallback : a) => (maybe : Maybe <a>) : a =>
 	maybe.CONS === 'Nothing'
 		? fallback
 		: maybe.INFO
+
+/**` ensure :: (a -> Boolean) -> a -> Maybe a `*/
+const ensure = <a>(predicate : (value : a) => boolean) => (value : a) : Maybe <a> =>
+	predicate (value)
+		? Just (value)
+		: Nothing
 
 /********************************************************************************************************************************/
 // Implementation of Micro-Functions|Constants for 'Process' //
@@ -2069,6 +2087,36 @@ const V2 =
 		/**` V2.origin :: Vector2 `*/
 		origin : Vector2 (0, 0),
 
+		/**` V2.half :: Vector2 `*/
+		half : Vector2 (0.5, 0.5),
+
+		/**` V3.demoteV3 :: Vector3 -> Vector2 `*/
+		demoteV3 : (v : Vector3) : Vector2 =>
+			Vector2 (v.x, v.y),
+
+		/**` V3.demoteV4 :: Vector4 -> Vector2 `*/
+		demoteV4 : (v : Vector4) : Vector2 =>
+			Vector2 (v.x, v.y),
+
+		/**` V2.displace :: Number -> Vector2 -> Vector2 `*/
+		displace : (delta : number) => (v : Vector2) : Vector2 =>
+			Vector2 (v.x + delta, v.y + delta),
+
+		/**` V2.undisplace :: Number -> Vector2 -> Vector2 `*/
+		undisplace : (delta : number) => (v : Vector2) : Vector2 =>
+			Vector2 (v.x - delta, v.y - delta),
+
+		/**` V2.conjugate :: Vector2 -> Vector2 `*/
+		conjugate : (v : Vector2) : Vector2 =>
+			Vector2 (v.x, -v.y),
+
+		/**` V2.rotate :: Number -> Vector2 -> Vector2 `*/
+		rotate : (angle : number) => (v : Vector2) : Vector2 =>
+		{
+			const c = Math.cos (angle), s = Math.sin (angle)
+			return Vector2 (v.x * c - v.y * s, v.y * c + v.x * s)
+		},
+
 		/**` V2.translate :: Number -> Number -> Vector2 -> Vector2 `*/
 		translate : (dx : number) => (dy : number) => (v : Vector2) : Vector2 =>
 			Vector2 (v.x + dx, v.y + dy),
@@ -2112,13 +2160,85 @@ const V2 =
 			Vector2 (
 				m.ix * v.x + m.jx * v.y,
 				m.iy * v.x + m.jy * v.y
-			)
+			),
+
+		/**` V2.translateX :: Number -> Vector2 -> Vector2 `*/
+		translateX : (delta : number) => (v : Vector2) : Vector2 =>
+			Vector2 (v.x + delta, v.y),
+
+		/**` V2.translateY :: Number -> Vector2 -> Vector2 `*/
+		translateY : (delta : number) => (v : Vector2) : Vector2 =>
+			Vector2 (v.x, v.y + delta),
+
+		/**` V2.untranslateX :: Number -> Vector2 -> Vector2 `*/
+		untranslateX : (delta : number) => (v : Vector2) : Vector2 =>
+			Vector2 (v.x - delta, v.y),
+
+		/**` V2.untranslateY :: Number -> Vector2 -> Vector2 `*/
+		untranslateY : (delta : number) => (v : Vector2) : Vector2 =>
+			Vector2 (v.x, v.y - delta),
+
+		/**` V2.scaleX :: Number -> Vector2 -> Vector2 `*/
+		scaleX : (scalar : number) => (v : Vector2) : Vector2 =>
+			Vector2 (v.x * scalar, v.y),
+
+		/**` V2.scaleY :: Number -> Vector2 -> Vector2 `*/
+		scaleY : (scalar : number) => (v : Vector2) : Vector2 =>
+			Vector2 (v.x, v.y * scalar),
+
+		/**` V2.unscaleX :: Number -> Vector2 -> Vector2 `*/
+		unscaleX : (scalar : number) => (v : Vector2) : Vector2 =>
+			Vector2 (v.x / scalar, v.y),
+
+		/**` V2.unscaleY :: Number -> Vector2 -> Vector2 `*/
+		unscaleY : (scalar : number) => (v : Vector2) : Vector2 =>
+			Vector2 (v.x, v.y / scalar)
 	}
 
 const V3 =
 	{
 		/**` V3.origin :: Vector3 `*/
 		origin : Vector3 (0, 0, 0),
+
+		/**` V3.half :: Vector3 `*/
+		half : Vector3 (0.5, 0.5, 0.5),
+
+		/**` V3.promoteV2 :: Vector2 -> Vector3 `*/
+		promoteV2 : (v : Vector2) : Vector3 =>
+			Vector3 (v.x, v.y, 0),
+
+		/**` V3.demoteV4 :: Vector4 -> Vector3 `*/
+		demoteV4 : (v : Vector4) : Vector3 =>
+			Vector3 (v.x, v.y, v.z),
+
+		/**` V3.displace :: Number -> Vector3 -> Vector3 `*/
+		displace : (delta : number) => (v : Vector3) : Vector3 =>
+			Vector3 (v.x + delta, v.y + delta, v.z + delta),
+
+		/**` V3.undisplace :: Number -> Vector3 -> Vector3 `*/
+		undisplace : (delta : number) => (v : Vector3) : Vector3 =>
+			Vector3 (v.x - delta, v.y - delta, v.z - delta),
+
+		/**` V3.rotateX :: Number -> Vector3 -> Vector3 `*/
+		rotateX : (angle : number) => (v : Vector3) : Vector3 =>
+		{
+			const c = Math.cos (angle), s = Math.sin (angle)
+			return Vector3 (v.x, v.y * c - v.z * s, v.z * c + v.y * s)
+		},
+
+		/**` V3.rotateY :: Number -> Vector3 -> Vector3 `*/
+		rotateY : (angle : number) => (v : Vector3) : Vector3 =>
+		{
+			const c = Math.cos (angle), s = Math.sin (angle)
+			return Vector3 (v.x * c - v.z * s, v.y, v.z * c + v.x * s)
+		},
+
+		/**` V3.rotateZ :: Number -> Vector3 -> Vector3 `*/
+		rotateZ : (angle : number) => (v : Vector3) : Vector3 =>
+		{
+			const c = Math.cos (angle), s = Math.sin (angle)
+			return Vector3 (v.x * c - v.y * s, v.y * c + v.x * s, v.z)
+		},
 
 		/**` V3.translate :: Number -> Number -> Number -> Vector3 -> Vector3 `*/
 		translate : (dx : number) => (dy : number) => (dz : number) => (v : Vector3) : Vector3 =>
@@ -2168,7 +2288,55 @@ const V3 =
 				m.ix * v.x + m.jx * v.y + m.kx * v.z,
 				m.iy * v.x + m.jy * v.y + m.ky * v.z,
 				m.iz * v.x + m.jz * v.y + m.kz * v.z
-			)
+			),
+
+		/**` V3.translateX :: Number -> Vector3 -> Vector3 `*/
+		translateX : (delta : number) => (v : Vector3) : Vector3 =>
+			Vector3 (v.x + delta, v.y, v.z),
+
+		/**` V3.translateY :: Number -> Vector3 -> Vector3 `*/
+		translateY : (delta : number) => (v : Vector3) : Vector3 =>
+			Vector3 (v.x, v.y + delta, v.z),
+
+		/**` V3.translateZ :: Number -> Vector3 -> Vector3 `*/
+		translateZ : (delta : number) => (v : Vector3) : Vector3 =>
+			Vector3 (v.x, v.y, v.z + delta),
+
+		/**` V3.untranslateX :: Number -> Vector3 -> Vector3 `*/
+		untranslateX : (delta : number) => (v : Vector3) : Vector3 =>
+			Vector3 (v.x - delta, v.y, v.z),
+
+		/**` V3.untranslateY :: Number -> Vector3 -> Vector3 `*/
+		untranslateY : (delta : number) => (v : Vector3) : Vector3 =>
+			Vector3 (v.x, v.y - delta, v.z),
+
+		/**` V3.untranslateZ :: Number -> Vector3 -> Vector3 `*/
+		untranslateZ : (delta : number) => (v : Vector3) : Vector3 =>
+			Vector3 (v.x, v.y, v.z - delta),
+
+		/**` V3.scaleX :: Number -> Vector3 -> Vector3 `*/
+		scaleX : (scalar : number) => (v : Vector3) : Vector3 =>
+			Vector3 (v.x * scalar, v.y, v.z),
+
+		/**` V3.scaleY :: Number -> Vector3 -> Vector3 `*/
+		scaleY : (scalar : number) => (v : Vector3) : Vector3 =>
+			Vector3 (v.x, v.y * scalar, v.z),
+
+		/**` V3.scaleZ :: Number -> Vector3 -> Vector3 `*/
+		scaleZ : (scalar : number) => (v : Vector3) : Vector3 =>
+			Vector3 (v.x, v.y, v.z * scalar),
+
+		/**` V3.unscaleX :: Number -> Vector3 -> Vector3 `*/
+		unscaleX : (scalar : number) => (v : Vector3) : Vector3 =>
+			Vector3 (v.x / scalar, v.y, v.z),
+
+		/**` V3.unscaleY :: Number -> Vector3 -> Vector3 `*/
+		unscaleY : (scalar : number) => (v : Vector3) : Vector3 =>
+			Vector3 (v.x, v.y / scalar, v.z),
+
+		/**` V3.unscaleZ :: Number -> Vector3 -> Vector3 `*/
+		unscaleZ : (scalar : number) => (v : Vector3) : Vector3 =>
+			Vector3 (v.x, v.y, v.z / scalar)
 	}
 
 const V4 =
@@ -2176,16 +2344,31 @@ const V4 =
 		/**` V4.origin :: Vector4 `*/
 		origin : Vector4 (0, 0, 0, 0),
 
+		/**` V4.half :: Vector4 `*/
+		half : Vector4 (0.5, 0.5, 0.5, 0.5),
+
+		/**` V4.promoteV2 :: Vector2 -> Vector4 `*/
+		promoteV2 : (v : Vector2) : Vector4 =>
+			Vector4 (v.x, v.y, 0, 0),
+
+		/**` V4.promoteV3 :: Vector3 -> Vector4 `*/
+		promoteV3 : (v : Vector3) : Vector4 =>
+			Vector4 (v.x, v.y, v.y, 0),
+
+		/**` V4.displace :: Number -> Vector4 -> Vector4 `*/
+		displace : (delta : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x + delta, v.y + delta, v.z + delta, v.w + delta),
+
+		/**` V4.undisplace :: Number -> Vector4 -> Vector4 `*/
+		undisplace : (delta : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x - delta, v.y - delta, v.z - delta, v.w - delta),
+
 		/**` V4.translate :: Number -> Number -> Number -> Vector4 -> Vector4 `*/
-		translate :
-			(dx : number) => (dy : number) =>
-			(dz : number) => (dw : number) => (v : Vector4) : Vector4 =>
+		translate : (dx : number) => (dy : number) => (dz : number) => (dw : number) => (v : Vector4) : Vector4 =>
 			Vector4 (v.x + dx, v.y + dy, v.z + dz, v.w + dw),
 
 		/**` V4.untranslate :: Number -> Number -> Number -> Vector4 -> Vector4 `*/
-		untranslate :
-			(dx : number) => (dy : number) =>
-			(dz : number) => (dw : number) => (v : Vector4) : Vector4 =>
+		untranslate : (dx : number) => (dy : number) => (dz : number) => (dw : number) => (v : Vector4) : Vector4 =>
 			Vector4 (v.x - dx, v.y - dy, v.z - dz, v.w - dw),
 
 		/**` V4.add :: Vector4 -> Vector4 -> Vector4 `*/
@@ -2225,7 +2408,71 @@ const V4 =
 				m.iy * v.x + m.jy * v.y + m.ky * v.z + m.ly * v.w,
 				m.iz * v.x + m.jz * v.y + m.kz * v.z + m.lz * v.w,
 				m.iw * v.x + m.jw * v.y + m.kw * v.z + m.lw * v.w
-			)
+			),
+
+		/**` V4.translateX :: Number -> Vector4 -> Vector4 `*/
+		translateX : (delta : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x + delta, v.y, v.z, v.w),
+
+		/**` V4.translateY :: Number -> Vector4 -> Vector4 `*/
+		translateY : (delta : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x, v.y + delta, v.z, v.w),
+
+		/**` V4.translateZ :: Number -> Vector4 -> Vector4 `*/
+		translateZ : (delta : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x, v.y, v.z + delta, v.w),
+
+		/**` V4.translateW :: Number -> Vector4 -> Vector4 `*/
+		translateW : (delta : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x, v.y, v.z, v.w + delta),
+
+		/**` V4.untranslateX :: Number -> Vector4 -> Vector4 `*/
+		untranslateX : (delta : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x - delta, v.y, v.z, v.w),
+
+		/**` V4.untranslateY :: Number -> Vector4 -> Vector4 `*/
+		untranslateY : (delta : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x, v.y - delta, v.z, v.w),
+
+		/**` V4.untranslateZ :: Number -> Vector4 -> Vector4 `*/
+		untranslateZ : (delta : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x, v.y, v.z - delta, v.w),
+
+		/**` V4.untranslateW :: Number -> Vector4 -> Vector4 `*/
+		untranslateW : (delta : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x, v.y, v.z, v.w - delta),
+
+		/**` V4.scaleX :: Number -> Vector4 -> Vector4 `*/
+		scaleX : (scalar : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x * scalar, v.y, v.z, v.w),
+
+		/**` V4.scaleY :: Number -> Vector4 -> Vector4 `*/
+		scaleY : (scalar : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x, v.y * scalar, v.z, v.w),
+
+		/**` V4.scaleZ :: Number -> Vector4 -> Vector4 `*/
+		scaleZ : (scalar : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x, v.y, v.z * scalar, v.w),
+
+		/**` V4.scaleW :: Number -> Vector4 -> Vector4 `*/
+		scaleW : (scalar : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x, v.y, v.z, v.w * scalar),
+
+		/**` V4.unscaleX :: Number -> Vector4 -> Vector4 `*/
+		unscaleX : (scalar : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x / scalar, v.y, v.z, v.w),
+
+		/**` V4.unscaleY :: Number -> Vector4 -> Vector4 `*/
+		unscaleY : (scalar : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x, v.y / scalar, v.z, v.w),
+
+		/**` V4.unscaleZ :: Number -> Vector4 -> Vector4 `*/
+		unscaleZ : (scalar : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x, v.y, v.z / scalar, v.w),
+
+		/**` V4.unscaleW :: Number -> Vector4 -> Vector4 `*/
+		unscaleW : (scalar : number) => (v : Vector4) : Vector4 =>
+			Vector4 (v.x, v.y, v.z, v.w / scalar)
 	}
 
 const M2 =
@@ -2570,6 +2817,7 @@ type KeyboardKey = typeof KEYBOARD[number]
 
 const λ =
 	{
+		MUTABLE         : {} as any,
 		ctxs            : [] as Array <CanvasRenderingContext2D>,
 		ctx             : undefined as unknown as CanvasRenderingContext2D,
 		resizeID        : undefined as unknown as number,
@@ -2860,7 +3108,35 @@ const Input =
 		alpha : IO (() => λ.ctx.globalAlpha),
 
 		/**` Input.composition :: IO Composition `*/
-		composition : IO (() => mappingComposition .domain (λ.ctx.globalCompositeOperation))
+		composition : IO (() => mappingComposition .domain (λ.ctx.globalCompositeOperation)),
+
+		/**` Input.wasd :: IO Vector2 `*/
+		wasd :
+			IO (() =>
+				Vector2 (
+					BIT (isD (λ.keyboard['KeyD'])) - BIT (isD (λ.keyboard['KeyA'])),
+					BIT (isD (λ.keyboard['KeyS'])) - BIT (isD (λ.keyboard['KeyW']))
+				) .pipe (V2.normalize)
+			),
+
+		/**` Input.wasdY :: IO Vector3 `*/
+		wasdY :
+			IO (() =>
+				Vector3 (
+					BIT (isD (λ.keyboard['KeyD']))  - BIT (isD (λ.keyboard['KeyA'])),
+					BIT (isD (λ.keyboard['Space'])) - BIT (isD (λ.keyboard['ShiftLeft'])),
+					BIT (isD (λ.keyboard['KeyS']))  - BIT (isD (λ.keyboard['KeyW']))
+				) .pipe (V3.normalize)
+			),
+
+		/**` Input.arrows :: IO Vector2 `*/
+		arrows :
+			IO (() =>
+				Vector2 (
+					BIT (isD (λ.keyboard['ArrowRight'])) - BIT (isD (λ.keyboard['ArrowLeft'])),
+					BIT (isD (λ.keyboard['ArrowDown']))  - BIT (isD (λ.keyboard['ArrowUp']))
+				) .pipe (V2.normalize)
+			)
 	}
 
 const Reput =
