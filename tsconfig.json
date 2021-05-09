@@ -1,23 +1,22 @@
 {
-	"include"         : [ "./ts/*.ts" ],
+	"include"         : ["./ts/*.ts"],
 	"compilerOptions" :
 	{
-		"lib"                          : ["ES2020", "DOM"],
-		"target"                       : "ES5",
+		"lib"                          : ["ESNext", "DOM"],
+		"target"                       : "ES6",
 		"outDir"                       : "./js/",
-		"checkJs"                      : true,
-		"removeComments"               : true,
-		"strict"                       : true,
+		"alwaysStrict"                 : true,
 		"noImplicitAny"                : true,
+		"removeComments"               : true,
+		"preserveConstEnums"           : true,
+		"watch"                        : true,
 		"strictNullChecks"             : true,
 		"strictFunctionTypes"          : true,
 		"strictPropertyInitialization" : true,
-		"noImplicitThis"               : true,
-		"alwaysStrict"                 : true,
-		"noUnusedLocals"               : true,
-		"noUnusedParameters"           : true,
+		"strictBindCallApply"          : true,
+		"strict"                       : true,
+		"pretty"                       : true,
 		"noImplicitReturns"            : true,
-		"noFallthroughCasesInSwitch"   : true,
-		"noUncheckedIndexedAccess"     : true
+		"noEmit"                       : true
 	}
 }

@@ -4,1140 +4,1135 @@
 /* eslint-disable no-param-reassign                 */
 /* eslint-disable no-console                        */
 /* eslint-disable no-multi-assign                   */
+/* eslint-disable no-loop-func                      */
 
-/********************************************************************************************************************************/
-// Settings | Esoterics //
-
-const THROW = (message : string) : never => { throw new Error (message) }
-const MAXARRAY     = 1024 // -- Maximum length of array when converting lists to primitive arrays
-const MAXSTRING    = 1024 // -- Maximum length of string when converting lists to primitive strings
-const MAX_LIST_OPS = 1024 // -- Maximum amount of operations that can be done on lists
-const ERROR =
-{
-	MAX_LIST_OPS : (op : string, org? : string) =>
-	THROW(`'${op}' reached the max amount of traversal (${MAX_LIST_OPS}) allowed in a list ${org ? `| origin : '${org}'` : ''}`),
-	BINDING_NILS : (org : string, op : string) =>
-	THROW(`'(${op})' was used on a infinite list with an operation that always return a nil | origin : '${org}'`),
-	ONLY_INTEGER : (org : string, n : number) =>
-	THROW(`'${org}' only accepts integers as an amount; instead received '${n}'`),
-	ONLY_NATURAL : (org : string, n : number) =>
-	THROW(`'${org}' only accepts natural numbers (0 inclusive); instead received '${n}'`),
-	ONLY_CONS : (org : string) =>
-	THROW(`'${org}' only accepts non-empty lists`)
-}
-
-type Rec <a> = Omit <a, 'CONS'>
+// -- Maximum amount of recursion/looping allowed; prevents most crashes
+const MAXI = 1024
+const STAP = "(S.T.A.P.) Stopped To Avoid Phailures"
 
 /********************************************************************************************************************************/
 // Typeclasses //
 
-type Pipe <a> =
-	{
-		/**` (.pipe) :: (Pipe a) => a -> (a -> b) -> b `*/
-		pipe : <b>(morphism : (value : Pipe <a>) => b) => b
-	} & a
-
-type Eq <a> =
-	{
-		/**` (.eq) :: (Eq a) => a -> a -> Boolean `*/
-		eq : (expression : Eq <a>) => boolean
-	} & a
+type Pipe <a> = a & { pipe : <b>(morphism : (value : a) => b) => b       }
+type Eq   <a> = a & { eq   :    (value    :                a) => boolean }
 
 /********************************************************************************************************************************/
-// Definitions of Algebraic Data Types //
+// Algebraic Data Types //
 
 interface Boolean
 {
-	/**` (.pipe) :: Boolean -> (Boolean -> a) -> a `*/
+	/**` Boolean.pipe : (Boolean -> a) -> a `*/
 	pipe : <a>(morphism : (bool : boolean) => a) => a
 
-	/**` (.eq) :: Boolean -> Boolean -> Boolean `*/
+	/**` Boolean.eq : Boolean -> Boolean `*/
 	eq : (bool : boolean) => boolean
 }
 
 interface Number
 {
-	/**` (.pipe) :: Number -> (Number -> a) -> a `*/
+	/**` Number.pipe : (Number -> a) -> a `*/
 	pipe : <a>(morphism : (num : number) => a) => a
 
-	/**` (.eq) :: Number -> Number -> Boolean `*/
+	/**` Number.eq : Number -> Boolean `*/
 	eq : (num : number) => boolean
 }
 
 interface String
 {
-	/**` (.pipe) :: String -> (String -> a) -> a `*/
+	/**` String.pipe : (String -> a) -> a `*/
 	pipe : <a>(morphism : (str : string) => a) => a
 
-	/**` (.eq) :: String -> String -> Boolean `*/
+	/**` String.eq : String -> Boolean `*/
 	eq : (str : string) => boolean
 }
 
-type Pair <a, b> =
-	{
-		CONS : 'Pair'
-
-		/**` (.pipe) :: Pair a b -> (Pair a b -> c) -> c `*/
-		pipe : <c>(morphism : (pair : Pair <a, b>) => c) => c
-
-		/**` (.eq) :: (Eq a, Eq b) => Pair a b -> Pair a b -> Boolean `*/
-		eq : (pair : Pair <Eq <a>, Eq <b>>) => boolean
-
-		/**` (.fst) :: Pair a b -> a `*/
-		fst : a
-
-		/**` (.snd) :: Pair a b -> b `*/
-		snd : b
-	}
+interface Array <a>
+{
+	/**` [a].pipe : ([a] -> b) -> b `*/
+	pipe : <b>(morphism : (array : Array <a>) => b) => b
+}
 
 type IO <a> =
 	{
-		CONS : 'IO'
-		INFO : () => a
+		variation : 'IO'
 
-		/**` (.pipe) :: IO a -> (IO a -> b) -> b `*/
+		/**` (IO a).effect : () -> a `*/
+		effect : () => a
+
+		/**` (IO a).pipe : (IO a -> b) -> b `*/
 		pipe : <b>(morphism : (io : IO <a>) => b) => b
 
-		/**` (.bind) :: IO a -> (a -> IO b) -> IO b `*/
-		bind : <b>(reaction : (outcome : a) => IO <b>) => IO <b>
+		/**` (IO a).bind : (a -> IO b) -> IO b `*/
+		bind : <b>(reaction : (result : a) => IO <b>) => IO <b>
 
-		/**` (.fmap) :: IO a -> (a -> b) -> IO b `*/
-		fmap : <b>(morphism : (outcome : a) => b) => IO <b>
+		/**` (IO a).fmap : (a -> b) -> IO b `*/
+		fmap : <b>(morphism : (result : a) => b) => IO <b>
 
-		/**` (.bindto) :: IO $ -> (String, $ -> IO a) -> IO $ `*/
-		bindto : <k extends string, b>(name : k, reaction : ($ : a) => IO <b>) => IO <a & { [x in k] : b }>
+		/**` (IO $).bindto : String -> ($ -> IO b) -> IO $ `*/
+		bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => IO <b>) => IO <a & { [x in k] : b }>
 
-		/**` (.fmapto) :: IO $ -> (String, $ -> a) -> IO $ `*/
-		fmapto : <k extends string, b>(name : k, morphism : ($ : a) => b) => IO <a & { [x in k] : b }>
+		/**` (IO $).fmapto : String -> ($ -> b) -> IO $ `*/
+		fmapto : <k extends string>(name : k) => <b>(morphism : ($ : a) => b) => IO <a & { [x in k] : b }>
 
-		/**` (.then) :: IO a -> IO b -> IO b `*/
+		/**` (IO a).then : IO b -> IO b `*/
 		then : <b>(successor : IO <b>) => IO <b>
 
-		/**` (.side) :: IO a -> IO b -> IO a `*/
+		/**` (IO a).also : (a -> IO b) -> IO a `*/
+		also : <b>(reaction : (result : a) => IO <b>) => IO <a>
+
+		/**` (IO a).side : IO b -> IO a `*/
 		side : <b>(effect : IO <b>) => IO <a>
 
-		/**` (.also) :: IO a -> (a -> IO b) -> IO a `*/
-		also : <b>(reaction : (outcome : a) => IO <b>) => IO <a>
-
-		/**` (.cast) :: IO a -> b -> IO b `*/
+		/**` (IO a).cast : b -> IO b `*/
 		cast : <b>(replacement : b) => IO <b>
-	}
-
-type Maybe <a> =
-	({ CONS : 'Nothing' } | { CONS : 'Just', INFO : a }) &
-	{
-		/**` (.pipe) :: Maybe a -> (Maybe a -> b) -> b `*/
-		pipe : <b>(morphism : (maybe : Maybe <a>) => b) => b
-
-		/**` (.eq) :: (Eq a) => Maybe a -> Maybe a -> Boolean `*/
-		eq : (maybe : Maybe <Eq <a>>) => boolean
-
-		/**` (.bind) :: Maybe a -> (a -> Maybe b) -> Maybe b `*/
-		bind : <b>(reaction : (possibility : a) => Maybe <b>) => Maybe <b>
-
-		/**` (.fmap) :: Maybe a -> (a -> b) -> Maybe b `*/
-		fmap : <b>(morphism : (possibility : a) => b) => Maybe <b>
-
-		/**` (.bindto) :: Maybe $ -> (String, $ -> Maybe a) -> Maybe $ `*/
-		bindto : <k extends string, b>(name : k, reaction : ($ : a) => Maybe <b>) => Maybe <a & { [x in k] : b }>
-
-		/**` (.fmapto) :: Maybe $ -> (String, $ -> a) -> Maybe $ `*/
-		fmapto : <k extends string, b>(name : k, morphism : ($ : a) => b) => Maybe <a & { [x in k] : b }>
-
-		/**` (.cast) :: Maybe a -> b -> Maybe b `*/
-		cast : <b>(replacement : b) => Maybe <b>
 	}
 
 type Process <s, a> =
 	{
-		CONS : 'Process'
-		INFO : (state : s) => Pair <s, a>
+		variation : 'Process'
 
-		/**` (.pipe) :: Process s a -> (Process s a -> b) -> b `*/
+		/**` (Process s a).computation : s -> Pair s a `*/
+		computation : (state : s) => Pair <s, a>
+
+		/**` (Process s a).pipe : (Process s a -> b) -> b `*/
 		pipe : <b>(morphism : (process : Process <s, a>) => b) => b
 
-		/**` (.bind) :: Process s a -> (a -> Process s b) -> Process s b `*/
+		/**` (Process s a).bind : (a -> Process s b) -> Process s b `*/
 		bind : <b>(reaction : (output : a) => Process <s, b>) => Process <s, b>
 
-		/**` (.fmap) :: Process s a -> (a -> b) -> Process s b `*/
+		/**` (Process s a).fmap : (a -> b) -> Process s b `*/
 		fmap : <b>(morphism : (output : a) => b) => Process <s, b>
 
-		/**` (.bindto) :: Process s $ -> (String, a -> Process s b) -> Process s $ `*/
-		bindto : <k extends string, b>(name : k, reaction : ($ : a) => Process <s, b>) => Process <s, a & { [x in k] : b }>
+		/**` (Process s $).bindto : String -> ($ -> Process s b) -> IO $ `*/
+		bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => Process <s, b>) => Process <s, a & { [x in k] : b }>
 
-		/**` (.fmapto) :: Process s $ -> (String, a -> b) -> Process s $ `*/
-		fmapto : <k extends string, b>(name : k, morphism : ($ : a) => b) => Process <s, a & { [x in k] : b }>
+		/**` (Process s $).fmapto : String -> ($ -> b) -> IO $ `*/
+		fmapto : <k extends string>(name : k) => <b>(morphism : ($ : a) => b) => Process <s, a & { [x in k] : b }>
 
-		/**` (.then) :: Process s a -> Process s b -> Process s b `*/
+		/**` (Process s a).then : Process s b -> Process s b `*/
 		then : <b>(successor : Process <s, b>) => Process <s, b>
 
-		/**` (.side) :: Process s a -> Process s b -> Process s a `*/
-		side : <b>(effect : Process <s, b>) => Process <s, a>
-
-		/**` (.also) :: Process s a -> (a -> Process s b) -> Process s a `*/
+		/**` (Process s a).also : (a -> Process s b) -> Process s a `*/
 		also : <b>(reaction : (output : a) => Process <s, b>) => Process <s, a>
 
-		/**` (.cast) :: Process s a -> b -> Process s b `*/
+		/**` (Process s a).side : Process s b -> Process s a `*/
+		side : <b>(effect : Process <s, b>) => Process <s, a>
+
+		/**` (Process s a).cast : b -> Process s b `*/
 		cast : <b>(replacement : b) => Process <s, b>
 	}
 
 type List <a> =
-	({ CONS : 'Nil' } | { CONS : 'Cons' }) &
-	{
-		/**` (.pipe) :: List a -> (List a -> b) -> b `*/
-		pipe : <b>(morphism : (xs : List <a>) => b) => b
+	({
+		variation : 'Nil'
+	} | {
+		variation : 'Cons'
 
-		/**` (.eq) :: (Eq a) => List a -> List a -> Boolean `*/
-		eq : (xs : List <Eq <a>>) => boolean
-
-		/**` (.bind) :: List a -> (a -> List b) -> List b `*/
-		bind : <b>(reaction : (element : a) => List <b>) => List <b>
-
-		/**` (.fmap) :: List a -> (a -> b) -> List b `*/
-		fmap : <b>(morphism : (element : a) => b) => List <b>
-
-		/**` (.bindto) :: List $ -> (String, $ -> List a) -> List $ `*/
-		bindto : <k extends string, b>(name : k, reaction : ($ : a) => List <b>) => List <a & { [x in k] : b }>
-
-		/**` (.fmapto) :: List $ -> (String, $ -> a) -> List $ `*/
-		fmapto : <k extends string, b>(name : k, morphism : ($ : a) => b) => List <a & { [x in k] : b }>
-
-		/**` (.cast) :: List a -> b -> List b `*/
-		cast : <b>(value : b) => List <b>
-
-		/**` (.link) :: List a -> List a -> List a `*/
-		link : (xs : List <a>) => List <a>
-
-		/**` (.head) :: a `*/
+		/**` (List a).head : a `*/
 		head : a
 
-		/**` (.tail) :: List a `*/
+		/**` (List a).tail : List a `*/
 		tail : List <a>
+	}) & {
+		$HEAD    ?: a
+		$TAIL    ?: List <a>
+		$LAST    ?: a
+		$INIT    ?: List <a>
+		$REVERSE ?: List <a>
+		$LEN     ?: number
 
-		$head    ?: a
-		$tail    ?: List <a>
-		$last    ?: a
-		$init    ?: List <a>
-		$reverse ?: List <a>
-		$len     ?: number
+		/**` (List a).pipe : (List a -> b) -> b `*/
+		pipe : <b>(morphism : (xs : List <a>) => b) => b
+
+		/**` (List a).eq : (Eq a) => List a -> Boolean `*/
+		eq : (xs : List <Eq <a>>) => boolean
+
+		/**` (List a).bind : (a -> List b) -> List b `*/
+		bind : <b>(reaction : (element : a) => List <b>) => List <b>
+
+		/**` (List a).fmap : (a -> b) -> List b `*/
+		fmap : <b>(morphism : (element : a) => b) => List <b>
+
+		/**` (List $).bindto : String -> ($ -> List b) -> List $ `*/
+		bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => List <b>) => List <a & { [x in k] : b }>
+
+		/**` (List $).fmapto : String -> ($ -> b) -> List $ `*/
+		fmapto : <k extends string>(name : k) => <b>(reaction : ($ : a) => b) => List <a & { [x in k] : b }>
+
+		/**` (List a).link : List a -> List a -> List a `*/
+		link : (succeeding : List <a>) => List <a>
+	}
+
+type Maybe <a> =
+	({
+		variation : 'Nothing'
+	} | {
+		variation : 'Just'
+
+		/**` (Maybe a).value : a `*/
+		value : a
+	}) & {
+		/**` (Maybe a).pipe : (Maybe a -> b) -> b `*/
+		pipe : <b>(morphism : (maybe : Maybe <a>) => b) => b
+
+		/**` (Maybe a).eq : (Eq a) => Maybe a -> Boolean `*/
+		eq : (maybe : Maybe <Eq <a>>) => boolean
+
+		/**` (Maybe a).bind : (a -> Maybe b) -> Maybe b `*/
+		bind : <b>(reaction : (value : a) => Maybe <b>) => Maybe <b>
+
+		/**` (Maybe a).fmap : (a -> b) -> Maybe b `*/
+		fmap : <b>(morphism : (value : a) => b) => Maybe <b>
+
+		/**` (Maybe $).bindto : String -> ($ -> Maybe b) -> Maybe $ `*/
+		bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => Maybe <b>) => Maybe <a & { [x in k] : b }>
+
+		/**` (Maybe $).fmapto : String -> ($ -> b) -> Maybe $ `*/
+		fmapto : <k extends string>(name : k) => <b>(reaction : ($ : a) => b) => Maybe <a & { [x in k] : b }>
+	}
+
+type Pair <a, b> =
+	{
+		variation : 'Pair'
+
+		/**` (Pair a b).fst : a `*/
+		fst : a
+
+		/**` (Pair a b).snd : b `*/
+		snd : b
+
+		/**` (Pair a b).pipe : (Pair a b -> c) -> c `*/
+		pipe : <c>(morphism : (pair : Pair <a, b>) => c) => c
+
+		/**` (Pair a b).eq : (Eq a, Eq b) => Pair a b -> Boolean `*/
+		eq : (pair : Pair <Eq <a>, Eq <b>>) => boolean
 	}
 
 type Either <a, b> =
-	({ CONS : 'Left', INFO : a } | { CONS : 'Right', INFO : b }) &
-	{
-		/**` (.pipe) :: Either a b -> (Either a b -> c) -> c `*/
+	({
+		variation : 'Left'
+
+		/**` (Either a b).value : a `*/
+		value : a
+	} | {
+		variation : 'Right'
+
+		/**` (Either a b).value : b `*/
+		value : b
+	}) & {
+		/**` (Either a b).pipe : (Either a b -> c) -> c `*/
 		pipe : <c>(morphism : (either : Either <a, b>) => c) => c
 
-		/**` (.eq) :: (Eq a, Eq b) => Either a b -> Either a b -> Boolean `*/
+		/**` (Either a b).eq : (Eq a, Eq b) => Either a b -> Boolean `*/
 		eq : (either : Either <Eq <a>, Eq <b>>) => boolean
 	}
 
 type Vector2 =
 	{
-		CONS : 'Vector2'
+		variation : 'Vector2'
 
-		/**` (.pipe) :: Vector2 -> (Vector2 -> a) -> a `*/
-		pipe : <a>(morphism : (v : Vector2) => a) => a
-
-		/**` (.eq) :: Vector2 -> Vector2 -> Boolean `*/
-		eq : (v : Vector2) => boolean
-
-		/**` (.x) :: Vector2 -> Number `*/
+		/**` Vector2.x : Number `*/
 		x : number
 
-		/**` (.y) :: Vector2 -> Number `*/
+		/**` Vector2.y : Number `*/
 		y : number
+
+		/**` Vector2.pipe : (Vector2 -> a) -> a `*/
+		pipe : <a>(morphism : (v2 : Vector2) => a) => a
+
+		/**` Vector2.eq : Vector2 -> Boolean `*/
+		eq : (v2 : Vector2) => boolean
 	}
 
 type Vector3 =
 	{
-		CONS : 'Vector3'
+		variation : 'Vector3'
 
-		/**` (.pipe) :: Vector3 -> (Vector3 -> a) -> a `*/
-		pipe : <a>(morphism : (v : Vector3) => a) => a
-
-		/**` (.eq) :: Vector3 -> Vector3 -> Boolean `*/
-		eq : (v : Vector3) => boolean
-
-		/**` (.x) :: Vector3 -> Number `*/
+		/**` Vector3.x : Number `*/
 		x : number
 
-		/**` (.y) :: Vector3 -> Number `*/
+		/**` Vector3.y : Number `*/
 		y : number
 
-		/**` (.z) :: Vector3 -> Number `*/
+		/**` Vector3.y : Number `*/
 		z : number
+
+		/**` Vector3.pipe : (Vector3 -> a) -> a `*/
+		pipe : <a>(morphism : (v3 : Vector3) => a) => a
+
+		/**` Vector3.eq : Vector3 -> Boolean `*/
+		eq : (v3 : Vector3) => boolean
 	}
 
 type Vector4 =
 	{
-		CONS : 'Vector4'
+		variation : 'Vector4'
 
-		/**` (.pipe) :: Vector4 -> (Vector4 -> a) -> a `*/
-		pipe : <a>(morphism : (v : Vector4) => a) => a
-
-		/**` (.eq) :: Vector4 -> Vector4 -> Boolean `*/
-		eq : (v : Vector4) => boolean
-
-		/**` (.x) :: Vector4 -> Number `*/
+		/**` Vector4.x : Number `*/
 		x : number
 
-		/**` (.y) :: Vector4 -> Number `*/
+		/**` Vector4.y : Number `*/
 		y : number
 
-		/**` (.z) :: Vector4 -> Number `*/
+		/**` Vector4.y : Number `*/
 		z : number
 
-		/**` (.w) :: Vector4 -> Number `*/
+		/**` Vector4.w : Number `*/
 		w : number
+
+		/**` Vector4.pipe : (Vector4 -> a) -> a `*/
+		pipe : <a>(morphism : (v4 : Vector4) => a) => a
+
+		/**` Vector4.eq : Vector4 -> Boolean `*/
+		eq : (v4 : Vector4) => boolean
 	}
 
 type Matrix2 =
 	{
-		CONS : 'Matrix2'
+		variation : 'Matrix2'
 
-		/**` (.pipe) :: Matrix2 -> (Matrix2 -> a) -> a `*/
-		pipe : <a>(morphism : (m : Matrix2) => a) => a
-
-		/**` (.eq) :: Matrix2 -> Matrix2 -> boolean `*/
-		eq : (m : Matrix2) => boolean
-
-		/**` (.ix) :: Matrix2 -> Number `*/
+		/**` Matrix2.ix : Number `*/
 		ix : number
 
-		/**` (.jx) :: Matrix2 -> Number `*/
+		/**` Matrix2.jx : Number `*/
 		jx : number
 
-		/**` (.iy) :: Matrix2 -> Number `*/
+		/**` Matrix2.iy : Number `*/
 		iy : number
 
-		/**` (.jy) :: Matrix2 -> Number `*/
+		/**` Matrix2.jy : Number `*/
 		jy : number
+
+		/**` Matrix2.pipe : (Matrix2 -> a) -> a `*/
+		pipe : <a>(morphism : (m2 : Matrix2) => a) => a
+
+		/**` Matrix2.eq : Matrix2 -> boolean `*/
+		eq : (m : Matrix2) => boolean
 	}
 
 type Matrix3 =
 	{
-		CONS : 'Matrix3'
+		variation : 'Matrix3'
 
-		/**` (.pipe) :: Matrix3 -> (Matrix3 -> a) -> a `*/
-		pipe : <a>(morphism : (m : Matrix3) => a) => a
-
-		/**` (.eq) :: Matrix3 -> Matrix3 -> Boolean `*/
-		eq : (m : Matrix3) => boolean
-
-		/**` (.ix) :: Matrix3 -> Number `*/
+		/**` Matrix3.ix : Number `*/
 		ix : number
 
-		/**` (.jx) :: Matrix3 -> Number `*/
+		/**` Matrix3.jx : Number `*/
 		jx : number
 
-		/**` (.kx) :: Matrix3 -> Number `*/
+		/**` Matrix3.kx : Number `*/
 		kx : number
 
-		/**` (.iy) :: Matrix3 -> Number `*/
+		/**` Matrix3.iy : Number `*/
 		iy : number
 
-		/**` (.jy) :: Matrix3 -> Number `*/
+		/**` Matrix3.jy : Number `*/
 		jy : number
 
-		/**` (.ky) :: Matrix3 -> Number `*/
+		/**` Matrix3.ky : Number `*/
 		ky : number
 
-		/**` (.iz) :: Matrix3 -> Number `*/
+		/**` Matrix3.iz : Number `*/
 		iz : number
 
-		/**` (.jz) :: Matrix3 -> Number `*/
+		/**` Matrix3.jz : Number `*/
 		jz : number
 
-		/**` (.kz) :: Matrix3 -> Number `*/
+		/**` Matrix3.kz : Number `*/
 		kz : number
+
+		/**` Matrix3.pipe : (Matrix3 -> a) -> a `*/
+		pipe : <a>(morphism : (m3 : Matrix3) => a) => a
+
+		/**` Matrix3.eq : Matrix3 -> boolean `*/
+		eq : (m : Matrix3) => boolean
 	}
 
 type Matrix4 =
 	{
-		CONS : 'Matrix4'
+		variation : 'Matrix4'
 
-		/**` (.eq) :: Matrix4 -> Matrix4 -> boolean `*/
-		eq : (m : Matrix4) => boolean
-
-		/**` (.pipe) :: Matrix4 -> (Matrix4 -> a) -> a `*/
-		pipe : <a>(morphism : (m : Matrix4) => a) => a
-
-		/**` (.ix) :: Matrix4 -> Number `*/
+		/**` Matrix4.ix : Number `*/
 		ix : number
 
-		/**` (.jx) :: Matrix4 -> Number `*/
+		/**` Matrix4.jx : Number `*/
 		jx : number
 
-		/**` (.kx) :: Matrix4 -> Number `*/
+		/**` Matrix4.kx : Number `*/
 		kx : number
 
-		/**` (.lx) :: Matrix4 -> Number `*/
+		/**` Matrix4.lx : Number `*/
 		lx : number
 
-		/**` (.iy) :: Matrix4 -> Number `*/
+		/**` Matrix4.iy : Number `*/
 		iy : number
 
-		/**` (.jy) :: Matrix4 -> Number `*/
+		/**` Matrix4.jy : Number `*/
 		jy : number
 
-		/**` (.ky) :: Matrix4 -> Number `*/
+		/**` Matrix4.ky : Number `*/
 		ky : number
 
-		/**` (.ly) :: Matrix4 -> Number `*/
+		/**` Matrix4.ly : Number `*/
 		ly : number
 
-		/**` (.iz) :: Matrix4 -> Number `*/
+		/**` Matrix4.iz : Number `*/
 		iz : number
 
-		/**` (.jz) :: Matrix4 -> Number `*/
+		/**` Matrix4.jz : Number `*/
 		jz : number
 
-		/**` (.kz) :: Matrix4 -> Number `*/
+		/**` Matrix4.kz : Number `*/
 		kz : number
 
-		/**` (.lz) :: Matrix4 -> Number `*/
+		/**` Matrix4.lz : Number `*/
 		lz : number
 
-		/**` (.iw) :: Matrix4 -> Number `*/
+		/**` Matrix4.iw : Number `*/
 		iw : number
 
-		/**` (.jw) :: Matrix4 -> Number `*/
+		/**` Matrix4.jw : Number `*/
 		jw : number
 
-		/**` (.kw) :: Matrix4 -> Number `*/
+		/**` Matrix4.kw : Number `*/
 		kw : number
 
-		/**` (.lw) :: Matrix4 -> Number `*/
+		/**` Matrix4.lw : Number `*/
 		lw : number
-	}
 
-type TextMeasurement =
-	{
-		CONS : 'TextMeasurement'
+		/**` Matrix4.pipe : (Matrix4 -> a) -> a `*/
+		pipe : <a>(morphism : (m4 : Matrix4) => a) => a
 
-		/**` (.pipe) :: TextMeasurement -> (TextMeasurement -> a) -> a `*/
-		pipe : <a>(morphism : (metrics : TextMeasurement) => a) => a
-
-		/**` (.eq) :: TextMeasurement -> TextMeasurement -> Boolean `*/
-		eq : (metrics : TextMeasurement) => boolean
-
-		/**` (.text) :: TextMeasurement -> String `*/
-		text : string
-
-		/**` (.width) :: TextMeasurement -> Number `*/
-		width : number
-
-		/**` (.height) :: TextMeasurement -> Number `*/
-		height : number
+		/**` Matrix4.eq : Matrix4 -> boolean `*/
+		eq : (m : Matrix4) => boolean
 	}
 
 type Mapping <a, b> =
 	{
-		CONS : 'Mapping'
+		variation : 'Mapping'
 
-		/**` (.codomain) :: (Eq a, Eq b) => Mapping a b -> a -> b `*/
+		/**` (Mapping a b).codomain : (Eq a, Eq b) => a -> b `*/
 		codomain : (domain : Eq <a>) => Eq <b>
 
-		/**` (.domain) :: (Eq a, Eq b) => Mapping a b -> b -> a `*/
+		/**` (Mapping a b).domain : (Eq a, Eq b) => b -> a `*/
 		domain : (codomain : Eq <b>) => Eq <a>
+
+		/**` (Mapping a b).pipe : (Mapping a b -> c) -> c `*/
+		pipe : <c>(morphism : (mapping : Mapping <a, b>) => c) => c
 	}
 
 /********************************************************************************************************************************/
-// Definitions of Algebraic Data Type Constructors //
+// Types of Data Constructors //
 
-type Nothing <a>    = Maybe  <a>    & { CONS : 'Nothing' }
-type Just    <a>    = Maybe  <a>    & { CONS : 'Just'    }
-type Nil     <a>    = List   <a>    & { CONS : 'Nil'     }
-type Cons    <a>    = List   <a>    & { CONS : 'Cons'    }
-type Left    <a, b> = Either <a, b> & { CONS : 'Left'    }
-type Right   <a, b> = Either <a, b> & { CONS : 'Right'   }
+type Assert_Nil     <a>    = List   <a>    & { variation : 'Nil'     }
+type Assert_Cons    <a>    = List   <a>    & { variation : 'Cons'    }
+type Assert_Nothing <a>    = Maybe  <a>    & { variation : 'Nothing' }
+type Assert_Just    <a>    = Maybe  <a>    & { variation : 'Just'    }
+type Assert_Left    <a, b> = Either <a, b> & { variation : 'Left'    }
+type Assert_Right   <a, b> = Either <a, b> & { variation : 'Right'   }
 
 /********************************************************************************************************************************/
-// Definitions of Enumerators //
+// Enums //
 
-enum X
+enum Vertical
 {
-	L    = 'X.L :: X',
-	LL   = 'X.LL :: X',
-	Rest = 'X.Rest :: X',
-	R    = 'X.R :: X',
-	RR   = 'X.RR :: X'
-}
-
-enum Y
-{
-	D    = 'Y.D :: Y',
-	DD   = 'Y.DD :: Y',
-	Rest = 'Y.Rest :: Y',
-	U    = 'Y.U :: Y',
-	UU   = 'Y.UU :: Y'
-}
-
-enum Z
-{
-	B    = 'Z.B :: Z',
-	BB   = 'Z.BB :: Z',
-	Rest = 'Z.Rest :: Z',
-	F    = 'Z.F :: Z',
-	FF   = 'Z.FF :: Z'
+	Downward = 'Vertical.Downward : Vertical',
+	Down     = 'Vertical.Down : Vertical',
+	Rest     = 'Vertical.Rest : Vertical',
+	Upward   = 'Vertical.Upward : Vertical',
+	Up       = 'Vertical.Up : Vertical'
 }
 
 enum LineCap
 {
-	Butt   = 'LineCap.Butt :: LineCap',
-	Round  = 'LineCap.Round :: LineCap',
-	Square = 'LineCap.Square :: LineCap'
+	Butt   = 'LineCap.Butt : LineCap',
+	Round  = 'LineCap.Round : LineCap',
+	Square = 'LineCap.Square : LineCap'
 }
 
 enum LineJoin
 {
-	Round = 'LineJoin.Round :: LineJoin',
-	Bevel = 'LineJoin.Bevel :: LineJoin',
-	Miter = 'LineJoin.Miter :: LineJoin'
+	Round = 'LineJoin.Round : LineJoin',
+	Bevel = 'LineJoin.Bevel : LineJoin',
+	Miter = 'LineJoin.Miter : LineJoin'
 }
 
 enum TextAlign
 {
-	Start     = 'TextAlign.Start :: TextAlign',
-	End       = 'TextAlign.End :: TextAlign',
-	Leftside  = 'TextAlign.Leftside :: TextAlign',
-	Rightside = 'TextAlign.Rightside :: TextAlign',
-	Center    = 'TextAlign.Center :: TextAlign'
+	Start     = 'TextAlign.Start : TextAlign',
+	End       = 'TextAlign.End : TextAlign',
+	Leftside  = 'TextAlign.Leftside : TextAlign',
+	Rightside = 'TextAlign.Rightside : TextAlign',
+	Center    = 'TextAlign.Center : TextAlign'
 }
 
 enum TextBaseline
 {
-	Top         = 'TextBaseline.Top :: TextBaseline',
-	Hanging     = 'TextBaseline.Hanging :: TextBaseline',
-	Middle      = 'TextBaseline.Middle :: TextBaseline',
-	Alphabetic  = 'TextBaseline.Alphabetic :: TextBaseline',
-	Ideographic = 'TextBaseline.Ideographic :: TextBaseline',
-	Bottom      = 'TextBaseline.Bottom :: TextBaseline'
+	Top         = 'TextBaseline.Top : TextBaseline',
+	Hanging     = 'TextBaseline.Hanging : TextBaseline',
+	Middle      = 'TextBaseline.Middle : TextBaseline',
+	Alphabetic  = 'TextBaseline.Alphabetic : TextBaseline',
+	Ideographic = 'TextBaseline.Ideographic : TextBaseline',
+	Bottom      = 'TextBaseline.Bottom : TextBaseline'
 }
 
 enum Composition
 {
-	SourceOver      = 'Composition.SourceOver :: Composition',
-	SourceAtop      = 'Composition.SourceAtop :: Composition',
-	SourceIn        = 'Composition.SourceIn :: Composition',
-	SourceOut       = 'Composition.SourceOut :: Composition',
-	DestinationOver = 'Composition.DestinationOver :: Composition',
-	DestinationAtop = 'Composition.DestinationAtop :: Composition',
-	DestinationIn   = 'Composition.DestinationIn :: Composition',
-	DestinationOut  = 'Composition.DestinationOut :: Composition',
-	Lighter         = 'Composition.Lighter :: Composition',
-	Xor             = 'Composition.Xor :: Composition',
-	Copy            = 'Composition.Copy :: Composition',
-	Multiply        = 'Composition.Multiply :: Composition',
-	Screen          = 'Composition.Screen :: Composition',
-	Overlay         = 'Composition.Overlay :: Composition',
-	Darken          = 'Composition.Darken :: Composition',
-	Lighten         = 'Composition.Lighten :: Composition',
-	ColorDodge      = 'Composition.ColorDodge :: Composition',
-	ColorBurn       = 'Composition.ColorBurn :: Composition',
-	HardLight       = 'Composition.HardLight :: Composition',
-	SoftLight       = 'Composition.SoftLight :: Composition',
-	Difference      = 'Composition.Difference :: Composition',
-	Exclusion       = 'Composition.Exclusion :: Composition',
-	Hue             = 'Composition.Hue :: Composition',
-	Saturation      = 'Composition.Saturation :: Composition',
-	Color           = 'Composition.Color :: Composition',
-	Luminosity      = 'Composition.Luminosity :: Composition'
+	SourceOver      = 'Composition.SourceOver : Composition',
+	SourceAtop      = 'Composition.SourceAtop : Composition',
+	SourceIn        = 'Composition.SourceIn : Composition',
+	SourceOut       = 'Composition.SourceOut : Composition',
+	DestinationOver = 'Composition.DestinationOver : Composition',
+	DestinationAtop = 'Composition.DestinationAtop : Composition',
+	DestinationIn   = 'Composition.DestinationIn : Composition',
+	DestinationOut  = 'Composition.DestinationOut : Composition',
+	Lighter         = 'Composition.Lighter : Composition',
+	Xor             = 'Composition.Xor : Composition',
+	Copy            = 'Composition.Copy : Composition',
+	Multiply        = 'Composition.Multiply : Composition',
+	Screen          = 'Composition.Screen : Composition',
+	Overlay         = 'Composition.Overlay : Composition',
+	Darken          = 'Composition.Darken : Composition',
+	Lighten         = 'Composition.Lighten : Composition',
+	ColorDodge      = 'Composition.ColorDodge : Composition',
+	ColorBurn       = 'Composition.ColorBurn : Composition',
+	HardLight       = 'Composition.HardLight : Composition',
+	SoftLight       = 'Composition.SoftLight : Composition',
+	Difference      = 'Composition.Difference : Composition',
+	Exclusion       = 'Composition.Exclusion : Composition',
+	Hue             = 'Composition.Hue : Composition',
+	Saturation      = 'Composition.Saturation : Composition',
+	Color           = 'Composition.Color : Composition',
+	Luminosity      = 'Composition.Luminosity : Composition'
 }
-/********************************************************************************************************************************/
-// Globalization of Typeclass and Algebraic Data Types //
-
-/**` pipe :: (Pipe a) => a -> (a -> b) -> b `*/
-const pipe = <a>(value : Pipe <a>) => <b>(morphism : (fluid : Pipe <a>) => b) : b => value .pipe (morphism)
-
-/**` eq :: (Eq a) => a -> a -> Boolean `*/
-const eq = <a>(x : Eq <a>) => (y : Eq <a>) : boolean => x .eq (y)
-
-/**` neq :: (Eq a) => a -> a -> Boolean `*/
-const neq = <a>(x : Eq <a>) => (y : Eq <a>) : boolean => !x .eq (y)
-
-/**` fst :: Pair a b -> a `*/
-const fst = <a, b>(pair : Pair <a, b>) : a => pair .fst
-
-/**` snd :: Pair a b -> b `*/
-const snd = <a, b>(pair : Pair <a, b>) : b => pair .snd
-
-/**` link :: List a -> List a -> List a `*/
-const link = <a>(firsts : List <a>) => (seconds : List <a>) : List <a> => firsts .link (seconds)
-
-/**` head :: List a -> a `*/
-const head = <a>(xs : List <a>) : a => xs .head
-
-/**` tail :: List a -> List a `*/
-const tail = <a>(xs : List <a>) : List <a> => xs .tail
 
 /********************************************************************************************************************************/
-// Implementations of Constants and Micro-Functions //
+// Constants and Micro-Functions //
 
-/**` E :: Number `*/
-const E = 2.718281828459045
+/**` e : Number `*/
+const e = 2.718281828459045
 
-/**` LN2 :: Number `*/
-const LN2 = 0.6931471805599453
+/**` ln2 : Number `*/
+const ln2 = 0.6931471805599453
 
-/**` LN10 :: Number `*/
-const LN10 = 2.302585092994046
+/**` ln10 : Number `*/
+const ln10 = 2.302585092994046
 
-/**` LOG2E :: Number `*/
-const LOG2E = 1.4426950408889634
+/**` log2e : Number `*/
+const log2e = 1.4426950408889634
 
-/**` LOG10E :: Number `*/
-const LOG10E = 0.4342944819032518
+/**` log10e : Number `*/
+const log10e = 0.4342944819032518
 
-/**` PI :: Number `*/
-const PI = 3.141592653589793
+/**` pi : Number `*/
+const pi = 3.141592653589793
 
-/**` PIDIV180 :: Number `*/
-const PIDIV180 = 0.017453292519943295
+/**` piDiv180 : Number `*/
+const piDiv180 = 0.017453292519943295
 
-/**` PIDIV180INV :: Number `*/
-const PIDIV180INV = 57.29577951308232
+/**` invPiDiv180 : Number `*/
+const invPiDiv180 = 57.29577951308232
 
-/**` TAU :: Number `*/
-const TAU = 6.283185307179586
+/**` tau : Number `*/
+const tau = 6.283185307179586
 
-/**` INVSQRT2 :: Number `*/
-const INVSQRT2 = 0.7071067811865476
+/**` sqrt2 : Number `*/
+const sqrt2 = 1.4142135623730951
 
-/**` SQRT2 :: Number `*/
-const SQRT2 = 1.4142135623730951
+/**` invSqrt2 : Number `*/
+const invSqrt2 = 0.7071067811865476
 
-/**` abs :: Number -> Number `*/
+/**` abs : Number -> Number `*/
 const abs = Math.abs
 
-/**` acos :: Number -> Number `*/
+/**` acos : Number -> Number `*/
 const acos = Math.acos
 
-/**` acosh :: Number -> Number `*/
+/**` acosh : Number -> Number `*/
 const acosh = Math.acosh
 
-/**` add :: Number -> Number -> Number `*/
-const add = (x : number) => (y : number) : number => x + y
-
-/**` AND :: Number -> Number -> Number `*/
-const AND = (x : number) => (y : number) : number => x & y
-
-/**` and :: Boolean -> Boolean -> Boolean `*/
-const and = (x : boolean) => (y : boolean) : boolean => x && y
-
-/**` applyWhen :: Boolean -> (a -> a) -> a -> a `*/
-const applyWhen = (condition : boolean) => <a>(f : (x : a) => a) : ((x : a) => a) => condition ? f : id
-
-/**` approx :: Number -> Number -> Number -> Boolean `*/
-const approx = (x : number) => (y : number) => (error : number) : boolean => Math.abs (x - y) < error
-
-/**` napprox :: Number -> Number -> Number -> Boolean `*/
-const napprox = (x : number) => (y : number) => (error : number) : boolean => Math.abs (x - y) > error
-
-/**` asin :: Number -> Number `*/
+/**` asin : Number -> Number `*/
 const asin = Math.asin
 
-/**` asinh :: Number -> Number `*/
+/**` asinh : Number -> Number `*/
 const asinh = Math.asinh
 
-/**` atan :: Number -> Number `*/
+/**` atan : Number -> Number `*/
 const atan = Math.atan
 
-/**` atan2 :: Number -> Number -> Number `*/
+/**` atan2 : Number -> Number -> Number `*/
 const atan2 = (y : number) => (x : number) : number => Math.atan2 (y, x)
 
-/**` ratan2 :: Number -> Number -> Number `*/
+/**` ratan2 : Number -> Number -> Number `*/
 const ratan2 = (x : number) => (y : number) : number => Math.atan2 (y, x)
 
-/**` atanh :: Number -> Number `*/
+/**` atanh : Number -> Number `*/
 const atanh = Math.atanh
 
-/**` BIT :: Boolean -> Number `*/
-const BIT = (x : boolean) : (0 | 1) => x ? 1 : 0
-
-/**` cbrt :: Number -> Number `*/
+/**` cbrt : Number -> Number `*/
 const cbrt = Math.cbrt
 
-/**` ceil :: Number -> Number `*/
+/**` ceil : Number -> Number `*/
 const ceil = Math.ceil
 
-/**` clz32 :: Number -> Number `*/
+/**` clz32 : Number -> Number `*/
 const clz32 = Math.clz32
 
-/**` cos :: Number -> Number `*/
+/**` cos : Number -> Number `*/
 const cos = Math.cos
 
-/**` cosh :: Number -> Number `*/
+/**` cosh : Number -> Number `*/
 const cosh = Math.cosh
 
-/**` diff :: Number -> Number -> Number `*/
-const diff = (x : number) => (y : number) : number => Math.abs (x - y)
-
-/**` div :: Number -> Number -> Number `*/
-const div = (x : number) => (y : number) : number => x / y
-
-/**` rdiv :: Number -> Number -> Number `*/
-const rdiv = (y : number) => (x : number) : number => x / y
-
-/**` even :: Number -> Boolean `*/
-const even = (x : number) : boolean => x % 2 === 0
-
-/**` exp :: Number -> Number `*/
+/**` exp : Number -> Number `*/
 const exp = Math.exp
 
-/**` expm1 :: Number -> Number `*/
+/**` expm1 : Number -> Number `*/
 const expm1 = Math.expm1
 
-/**` flip :: (a -> b -> c) -> b -> a -> c `*/
-const flip = <a, b, c>(f : (x : a) => (y : b) => c) => (y : b) => (x : a) : c => f (x) (y)
-
-/**` floor :: Number -> Number `*/
+/**` floor : Number -> Number `*/
 const floor = Math.floor
 
-/**` fround :: Number -> Number `*/
+/**` fround : Number -> Number `*/
 const fround = Math.fround
 
-/**` greater :: Number -> Number -> Boolean `*/
-const greater = (x : number) => (y : number) : boolean => y > x
+/**` hypot : Number -> Number -> Number `*/
+const hypot = (x : number) => (y : number) => Math.hypot (x, y)
 
-/**` greaterEqual :: Number -> Number -> Boolean `*/
-const greaterEqual = (x : number) => (y : number) : boolean => y >= x
-
-/**` gt :: Number -> Number -> Boolean `*/
-const gt = (x : number) => (y : number) : boolean => x > y
-
-/**` gte :: Number -> Number -> Boolean `*/
-const gte = (x : number) => (y : number) : boolean => x >= y
-
-/**` id :: a -> a `*/
-const id = <a>(x : a) : a => x
-
-/**` isInsideExclusive :: Number -> Number -> Number -> Boolean `*/
-const isInsideExclusive = (n : number) => (lower : number) => (upper : number) : boolean => lower < n && n < upper
-
-/**` isInsideInclusive :: Number -> Number -> Number -> Boolean `*/
-const isInsideInclusive = (n : number) => (lower : number) => (upper : number) : boolean => lower <= n && n <= upper
-
-/**` isOutsideExclusive :: Number -> Number -> Number -> Boolean `*/
-const isOutsideExclusive = (n : number) => (lower : number) => (upper : number) : boolean => n < lower || upper < n
-
-/**` isOutsideInclusive :: Number -> Number -> Number -> Boolean `*/
-const isOutsideInclusive = (n : number) => (lower : number) => (upper : number) : boolean => n <= lower || upper <= n
-
-/**` ln :: Number -> Number `*/
+/**` ln : Number -> Number `*/
 const ln = Math.log
 
-/**` log10 :: Number -> Number `*/
+/**` log10 : Number -> Number `*/
 const log10 = Math.log10
 
-/**` lnp1 :: Number -> Number `*/
+/**` lnp1 : Number -> Number `*/
 const lnp1 = Math.log1p
 
-/**` log2 :: Number -> Number `*/
+/**` log2 : Number -> Number `*/
 const log2 = Math.log2
 
-/**` LSHIFT :: Number -> Number `*/
-const LSHIFT = (x : number) => (y : number) : number => x << y
-
-/**` rLSHIFT :: Number -> Number `*/
-const rLSHIFT = (y : number) => (x : number) : number => x << y
-
-/**` lerp :: Number -> Number -> Number -> Number `*/
-const lerp = (t : number) => (x : number) => (y : number) : number => x + (y - x) * t
-
-/**` less :: Number -> Number -> Boolean `*/
-const less = (x : number) => (y : number) : boolean => y < x
-
-/**` lessEqual :: Number -> Number -> Boolean `*/
-const lessEqual = (x : number) => (y : number) : boolean => y <= x
-
-/**` lt :: Number -> Number -> Boolean `*/
-const lt = (x : number) => (y : number) : boolean => x < y
-
-/**` lte :: Number -> Number -> Boolean `*/
-const lte = (x : number) => (y : number) : boolean => x <= y
-
-/**` max :: Number -> Number -> Number `*/
+/**` max : Number -> Number -> Number `*/
 const max = (x : number) => (y : number) : number => Math.max (x, y)
 
-/**` min :: Number -> Number -> Number `*/
+/**` min : Number -> Number -> Number `*/
 const min = (x : number) => (y : number) : number => Math.min (x, y)
 
-/**` mod :: Number -> Number -> Number `*/
-const mod = (x : number) => (y : number) : number => x % y
+/**` roundInt : Number -> Number `*/
+const roundInt = Math.round
 
-/**` rmod :: Number -> Number -> Number `*/
-const rmod = (y : number) => (x : number) : number => x % y
+/**` roundStr : Number -> Number -> String `*/
+const roundStr = (x : number) => (amount : number) : string => x .toFixed (amount)
 
-/**` mul :: Number -> Number -> Number `*/
-const mul = (x : number) => (y : number) : number => x * y
+/**` rroundStr : Number -> Number -> String `*/
+const rroundStr = (amount : number) => (x : number) : string => x .toFixed (amount)
 
-/**` NAND :: Number -> Number -> Number `*/
-const NAND = (x : number) => (y : number) : number => ~(x & y)
-
-/**` nand :: Boolean -> Boolean -> Boolean `*/
-const nand = (x : boolean) => (y : boolean) : boolean => !(x && y)
-
-/**` negate :: Number -> Number `*/
-const negate = (x : number) : number => -x
-
-/**` NOR :: Number -> Number -> Number `*/
-const NOR = (x : number) => (y : number) : number => ~(x | y)
-
-/**` nor :: Boolean -> Boolean -> Boolean `*/
-const nor = (x : boolean) => (y : boolean) : boolean => !(x || y)
-
-/**` NOT :: Number -> Number `*/
-const NOT = (x : number) : number => ~x
-
-/**` not :: Boolean -> Boolean `*/
-const not = (x : boolean) : boolean => !x
-
-/**` odd :: Number -> Boolean `*/
-const odd = (x : number) : boolean => Math.abs (x) % 2 === 1
-
-/**` OR :: Number -> Number -> Number `*/
-const OR = (x : number) => (y : number) : number => x | y
-
-/**` or :: Boolean -> Boolean -> Boolean `*/
-const or = (x : boolean) => (y : boolean) : boolean => x || y
-
-/**` pow :: Number -> Number -> Number `*/
-const pow = (x : number) => (y : number) : number => x ** y
-
-/**` rpow :: Number -> Number -> Number `*/
-const rpow = (y : number) => (x : number) : number => x ** y
-
-/**` pythagoras :: Number -> Number -> Number `*/
-const pythagoras = (x : number) => (y : number) : number => Math.sqrt (x * x + y * y)
-
-/**` reciprocate :: Number -> Number `*/
-const reciprocate = (x : number) : number => 1 / x
-
-/**` round :: Number -> Number `*/
-const round = Math.round
-
-/**` RSHIFT :: Number -> Number -> Number `*/
-const RSHIFT = (x : number) => (y : number) : number => x >> y
-
-/**` rRSHIFT :: Number -> Number -> Number `*/
-const rRSHIFT = (y : number) => (x : number) : number => x >> y
-
-/**` sign :: Number -> Number `*/
+/**` sign : Number -> Number `*/
 const sign = Math.sign
 
-/**` sin :: Number -> Number `*/
+/**` sin : Number -> Number `*/
 const sin = Math.sin
 
-/**` sinh :: Number -> Number `*/
+/**` sinh : Number -> Number `*/
 const sinh = Math.sinh
 
-/**` sqrt :: Number -> Number `*/
+/**` sqrt : Number -> Number `*/
 const sqrt = Math.sqrt
 
-/**` sub :: Number -> Number -> Number `*/
-const sub = (x : number) => (y : number) : number => x - y
-
-/**` rsub :: Number -> Number -> Number `*/
-const rsub = (y : number) => (x : number) : number => x - y
-
-/**` tan :: Number -> Number `*/
+/**` tan : Number -> Number `*/
 const tan = Math.tan
 
-/**` tanh :: Number -> Number `*/
+/**` tanh : Number -> Number `*/
 const tanh = Math.tanh
 
-/**` toDegrees :: Number -> Number `*/
-const toDegrees = (degrees : number) : number => degrees * PIDIV180INV
-
-/**` toHexColor :: Number -> String `*/
-const toHexColor = (decimal : number) : string => `#${((~~Math.abs (decimal)) % 16777216) .toString (16) .padStart (6, '0')}`
-
-/**` toRadians :: Number -> Number `*/
-const toRadians = (degrees : number) : number => degrees * PIDIV180
-
-/**` trunc :: Number -> Number `*/
+/**` trunc : Number -> Number `*/
 const trunc = (x : number) : number => ~~x
 
-/**` URSHIFT :: Number -> Number -> Number `*/
-const URSHIFT = (x : number) => (y : number) : number => x >>> y
+/**` negate : Number -> Number `*/
+const negate = (x : number) : number => -x
 
-/**` rURSHIFT :: Number -> Number -> Number `*/
-const rURSHIFT = (y : number) => (x : number) : number => x >>> y
+/**` reciprocate : Number -> Number `*/
+const reciprocate = (x : number) : number => 1 / x
 
-/**` XOR :: Number -> Number -> Number `*/
-const XOR = (x : number) => (y : number) : number => x ^ y
+/**` add : Number -> Number -> Number `*/
+const add = (x : number) => (y : number) : number => x + y
 
-/**` xor :: Boolean -> Boolean -> Boolean `*/
-const xor = (x : boolean) => (y : boolean) : boolean => x !== y
+/**` sub : Number -> Number -> Number `*/
+const sub = (x : number) => (y : number) : number => x - y
+
+/**` rsub : Number -> Number -> Number `*/
+const rsub = (y : number) => (x : number) : number => x - y
+
+/**` mul : Number -> Number -> Number `*/
+const mul = (x : number) => (y : number) : number => x * y
+
+/**` div : Number -> Number -> Number `*/
+const div = (x : number) => (y : number) : number => x / y
+
+/**` rdiv : Number -> Number -> Number `*/
+const rdiv = (y : number) => (x : number) : number => x / y
+
+/**` idiv : Number -> Number -> Number `*/
+const idiv = (x : number) => (y : number) : number => ~~(x / y)
+
+/**` ridiv : Number -> Number -> Number `*/
+const ridiv = (y : number) => (x : number) : number => ~~(x / y)
+
+/**` pow : Number -> Number -> Number `*/
+const pow = (x : number) => (y : number) : number => x ** y
+
+/**` rpow : Number -> Number -> Number `*/
+const rpow = (y : number) => (x : number) : number => x ** y
+
+/**` mod : Number -> Number -> Number `*/
+const mod = (x : number) => (y : number) : number => x % y
+
+/**` rmod : Number -> Number -> Number `*/
+const rmod = (y : number) => (x : number) : number => x % y
+
+/**` modulo : Number -> Number -> Number `*/
+const modulo = (x : number) => (y : number) : number => (x % y + y) % y
+
+/**` rmodulo : Number -> Number -> Number `*/
+const rmodulo = (y : number) => (x : number) : number => (x % y + y) % y
+
+/**` bit : Boolean -> Number `*/
+const bit = (b : boolean) : number => +b
+
+/**` bNOT : Number -> Number `*/
+const bNOT = (x : number) : number => ~x
+
+/**` bLSHIFT : Number -> Number -> Number `*/
+const bLSHIFT = (x : number) => (amount : number) : number => x << amount
+
+/**` rbLSHIFT : Number -> Number -> Number `*/
+const rbLSHIFT = (amount : number) => (x : number) : number => x << amount
+
+/**` bRSHIFT : Number -> Number -> Number `*/
+const bRSHIFT = (x : number) => (amount : number) : number => x >> amount
+
+/**` rbRSHIFT : Number -> Number -> Number `*/
+const rbRSHIFT = (amount : number) => (x : number) : number => x >> amount
+
+/**` bURSHIFT : Number -> Number -> Number `*/
+const bURSHIFT = (x : number) => (amount : number) : number => x >>> amount
+
+/**` rbURSHIFT : Number -> Number -> Number `*/
+const rbURSHIFT = (amount : number) => (x : number) : number => x >>> amount
+
+/**` bAND : Number -> Number -> Number `*/
+const bAND = (x : number) => (y : number) : number => x & y
+
+/**` bNAND : Number -> Number -> Number `*/
+const bNAND = (x : number) => (y : number) : number => ~(x & y)
+
+/**` bOR : Number -> Number -> Number `*/
+const bOR = (x : number) => (y : number) : number => x | y
+
+/**` bNOR : Number -> Number -> Number `*/
+const bNOR = (x : number) => (y : number) : number => ~(x | y)
+
+/**` bXOR : Number -> Number -> Number `*/
+const bXOR = (x : number) => (y : number) : number => x ^ y
+
+/**` bNXOR : Number -> Number -> Number `*/
+const bNXOR = (x : number) => (y : number) : number => ~(x ^ y)
+
+/**` not : Boolean -> Boolean `*/
+const not = (b : boolean) : boolean => !b
+
+/**` and : Boolean -> Boolean -> Boolean `*/
+const and = (b : boolean) => (d : boolean) : boolean => b && d
+
+/**` nand : Boolean -> Boolean -> Boolean `*/
+const nand = (b : boolean) => (d : boolean) : boolean => !(b && d)
+
+/**` or : Boolean -> Boolean -> Boolean `*/
+const or = (b : boolean) => (d : boolean) : boolean => b || d
+
+/**` nor : Boolean -> Boolean -> Boolean `*/
+const nor = (b : boolean) => (d : boolean) : boolean => !(b || d)
+
+/**` xor : Boolean -> Boolean -> Boolean `*/
+const xor = (b : boolean) => (d : boolean) : boolean => b !== d
+
+/**` nxor : Boolean -> Boolean -> Boolean `*/
+const nxor = (b : boolean) => (d : boolean) : boolean => b === d
+
+/**` lt : Number -> Number -> Boolean `*/
+const lt = (x : number) => (y : number) : boolean => x < y
+
+/**` lte : Number -> Number -> Boolean `*/
+const lte = (x : number) => (y : number) : boolean => x <= y
+
+/**` gt : Number -> Number -> Boolean `*/
+const gt = (x : number) => (y : number) : boolean => x >= y
+
+/**` gte : Number -> Number -> Boolean `*/
+const gte = (x : number) => (y : number) : boolean => x >= y
+
+/**` less : Number -> Number -> Boolean `*/
+const less = (x : number) => (y : number) : boolean => y < x
+
+/**` lessEqual : Number -> Number -> Boolean `*/
+const lessEqual = (x : number) => (y : number) : boolean => y <= x
+
+/**` greater : Number -> Number -> Boolean `*/
+const greater = (x : number) => (y : number) : boolean => y >= x
+
+/**` greaterEqual : Number -> Number -> Boolean `*/
+const greaterEqual = (x : number) => (y : number) : boolean => y >= x
+
+/**` approx : Number -> Number -> Number -> Boolean `*/
+const approx = (amount : number) => (x : number) => (y : number) : boolean => Math.abs (x - y) < amount
+
+/**` napprox : Number -> Number -> Number -> Boolean `*/
+const napprox = (amount : number) => (x : number) => (y : number) : boolean => Math.abs (x - y) > amount
+
+/**` diff : Number -> Number -> Number `*/
+const diff = (x : number) => (y : number) : number => Math.abs (x - y)
+
+/**` lerp : Number -> Number -> Number -> Number `*/
+const lerp = (t : number) => (x : number) => (y : number) : number => x + (y - x) * t
+
+/**` even : Number -> Boolean `*/
+const even = (x : number) : boolean => x % 2 === 0
+
+/**` odd : Number -> Boolean `*/
+const odd = (x : number) : boolean => Math.abs (x) % 2 === 1
+
+/**` toDegrees : Number -> Number `*/
+const toDegrees = (degrees : number) : number => degrees * invPiDiv180
+
+/**` toRadians : Number -> Number `*/
+const toRadians = (degrees : number) : number => degrees * piDiv180
+
+/**` toHexColor : Number -> String `*/
+const toHexColor = (decimal : number) : string => `#${((~~Math.abs (decimal)) % 0x1000000) .toString (16) .padStart (6, '0')}`
+
+/**` id : a -> a `*/
+const id = <a>(x : a) : a => x
+
+/**` apply : (a -> b) -> b -> a `*/
+const apply : <a, b>(f : (x : a) => b) => (x : a) => b = id
+
+/**` rapply : b -> (a -> b) -> a `*/
+const rapply = <a>(x : a) => <b>(f : (x : a) => b) : b => f (x)
+
+/**` flip : (a -> b -> c) -> b -> a -> c `*/
+const flip = <a, b, c>(f : (x : a) => (y : b) => c) => (y : b) => (x : a) : c => f (x) (y)
+
+/**` notf : (a -> Boolean) -> a -> Boolean `*/
+const notf = <a>(predicate : (value : a) => boolean) => (value : a) : boolean =>
+	!predicate (value)
+
+/**` until : (a -> Boolean) -> (a -> a) -> a -> a `*/
+const until = <a>(predicate : (value : a) => boolean) => (endomorphism : (value : a) => a) => (initial : a) : a =>
+{
+	while (!predicate (initial))
+		initial = endomorphism (initial)
+	return initial
+}
+
+/**` isIn : Number -> Number -> Number -> Boolean `*/
+const isIn = (lower : number) => (upper : number) => (n : number) : boolean => lower < n && n < upper
+
+/**` isInRect : Number -> Number -> Number -> Number -> Number -> Number -> Boolean `*/
+const isInRect = (rx : number) => (ry : number) => (rw : number) => (rh : number) => (x : number) => (y : number) : boolean =>
+	rx < x && x < rx + rw &&
+	ry < y && y < ry + rh
+
+/**` show : a -> String `*/
+const show = <a>(value : a) : string => `${value}`
+
+/**` error : String -> a `*/
+const error = (message : string) : any => { throw message }
+
+/**` warn : String -> a -> a `*/
+const warn = (message : string) => <a>(value : a) : a => (console.warn(message), value)
 
 /********************************************************************************************************************************/
 // Implementation of Algebraic Data Type Constructors //
 
-Boolean.prototype.pipe = Number.prototype.pipe = (String.prototype.pipe = function (f) { return f (this as any) }) as any
-Boolean.prototype.eq   = Number.prototype.eq   = (String.prototype.eq   = function (x) { return this === x      }) as any
+Boolean.prototype.pipe =
+Number .prototype.pipe =
+String .prototype.pipe = (Array.prototype.pipe = function (f) { return f (this as any) })
+Boolean.prototype.eq   =
+Number .prototype.eq   = (String.prototype.eq   = function (x) { return this === x      }) as any
 
-/**` Pair :: (a, b) -> Pair a b `*/
-const Pair = <a, b>(first : a, second : b) : Pair <a, b> =>
+/**` IO : (() -> a) -> IO a `*/
+const IO = <a>(effect : () => a) : IO <a> =>
 	({
-		CONS : 'Pair',
+		variation : 'IO',
+		effect,
 		pipe (f) { return f (this) },
-		eq   : x => x .fst .eq (first as Eq <a>) && x .snd .eq (second as Eq <b>),
-		fst  : first,
-		snd  : second
-	})
-
-/**` IO :: (() -> a) -> IO a `*/
-const IO = <a>(sideeffect : () => a) : IO <a> =>
-	({
-		CONS   : 'IO',
-		INFO   : sideeffect,
-		pipe   (f) { return f (this) },
-		bind   : f => IO (() => f (sideeffect ()).INFO ()),
-		fmap   : f => IO (() => f (sideeffect ())),
-		bindto : (k, f) =>
+		bind : f => IO (() => f (effect ()).effect ()),
+		fmap : f => IO (() => f (effect ())),
+		bindto : k => f =>
 			IO (() => {
-				const $ = sideeffect ()
-				return { ...$, [k] : f ($).INFO () } as any
+				const $ = effect ()
+				return { ...$, [k] : f ($).effect () } as any
 			}),
-		fmapto : (k, f) =>
+		fmapto : k => f =>
 			IO (() => {
-				const $ = sideeffect ()
+				const $ = effect ()
 				return { ...$, [k] : f ($) } as any
 			}),
-		then   : x => IO (() => (sideeffect (), x.INFO ())),
-		side   : x =>
+		then : io => IO (() => (effect (), io.effect ())),
+		also : f =>
 			IO (() => {
-				const y = sideeffect ()
-				x.INFO ()
-				return y
+				const x = effect ()
+				return f (x).effect (), x
 			}),
-		also   : f =>
+		side : io =>
 			IO (() => {
-				const y = sideeffect ()
-				f(y).INFO ()
-				return y
+				const x = effect ()
+				return io.effect (), x
 			}),
-		cast    : x => IO (() => (sideeffect (), x))
+		cast : x => IO (() => (effect (), x))
 	})
 
-/**` Nothing :: Maybe a `*/
-const Nothing : Maybe <any> =
-	{
-		CONS   : 'Nothing',
-		pipe   : f => f (Nothing),
-		eq     : x => x === Nothing,
-		bind   : _ => Nothing,
-		fmap   : _ => Nothing,
-		bindto : _ => Nothing,
-		fmapto : _ => Nothing,
-		cast   : _ => Nothing
-	}
-
-/**` Just :: a -> Maybe a `*/
-const Just = <a>(value : a) : Maybe <a> =>
-	({
-		CONS   : 'Just',
-		INFO   : value,
-		pipe   (f) { return f (this) },
-		eq     : x => x.CONS === 'Just' && x.INFO .eq (value as Eq <a>),
-		bind   : f => f (value),
-		fmap   : f => Just (f (value)),
-		bindto : (k, f) => f (value) .fmap (x => ({ ...value, [k] : x }) as any),
-		fmapto : (k, f) => Just ({ ...value, [k] : f (value) } as any),
-		cast   : Just
-	})
-
-/**` Process :: (s -> Pair s a) -> Process s a `*/
+/**` Process : (s -> Pair s a) -> Process s a `*/
 const Process = <s, a>(computation : (state : s) => Pair <s, a>) : Process <s, a> =>
 	({
-		CONS : 'Process',
-		INFO : computation,
+		variation : 'Process',
+		computation,
 		pipe (f) { return f (this) },
 		bind : f =>
 			Process (s => {
-				const x = computation (s)
-				return f (x .snd).INFO (x .fst)
+				const { fst : first, snd : second } = computation (s)
+				return f (second).computation (first)
 			}),
-		fmap : f =>
+		fmap : f => Process (s => fsnd (f) (computation (s))),
+		bindto : k => f =>
 			Process (s => {
-				const x = computation (s)
-				return Pair (x .fst, f (x .snd))
+				const { fst : first0, snd : second0 } = computation (s)
+				const { fst : first1, snd : second1 } = f (second0).computation (first0)
+				return Pair (first1, { ...second0, [k] : second1 } as any)
 			}),
-		bindto : (k, f) =>
+		fmapto : k => f =>
 			Process (s => {
-				const x = computation (s), y = f (x .snd).INFO (x .fst)
-				return Pair (y .fst, { ...x .snd, [k] : y .snd } as any)
+				const { fst : first, snd : second } = computation (s)
+				return Pair (first, { ...second, [k] : f (second) } as any)
 			}),
-		fmapto : (k, f) =>
+		then : p => Process (s => p.computation (computation (s).fst)),
+		also : f =>
 			Process (s => {
-				const x = computation (s)
-				return Pair (x .fst, { ...x .snd, [k] : f (x .snd) } as any)
+				const { fst : first, snd : second } = computation (s)
+				return Pair (f (second).computation (first).fst, second)
 			}),
-		then   : x => Process (s => x.INFO (computation (s) .fst)),
-		side   : x =>
+		side : p =>
 			Process (s => {
-				const y = computation (s)
-				return Pair (x.INFO (y .fst) .fst, y.snd)
+				const { fst : first, snd : second } = computation (s)
+				return Pair (p.computation (first).fst, second)
 			}),
-		also   : f =>
-			Process (s => {
-				const y = computation (s)
-				return Pair (f (y .snd).INFO (y .fst) .fst, y.snd)
-			}),
-		cast   : x => Process (s => Pair (computation (s) .fst, x))
+		cast : x => Process (s => Pair (computation (s).fst, x))
 	})
 
-/**` Nil :: List a `*/
+/**` Nil : List a `*/
 const Nil : List <any> =
 	{
-		CONS   : 'Nil',
-		pipe   : f  => f (Nil),
-		eq     : xs => xs === Nil,
-		bind   : _  => Nil,
-		fmap   : _  => Nil,
-		bindto : _  => Nil,
-		fmapto : _  => Nil,
-		cast   : _  => Nil,
-		link   : xs => xs,
-		get head () { return THROW (`'(.head)' cannot be used on an empty list`) },
-		get tail () { return THROW (`'(.tail)' cannot be used on an empty list`) }
+		variation    : 'Nil',
+		get $REVERSE () { return this },
+		$LEN         : 0,
+		fmap         : _  => Nil,
+		bind         : _  => Nil,
+		fmapto       : _  => _ => Nil,
+		bindto       : _  => _ => Nil,
+		pipe         : f  => f (Nil),
+		link         : id,
+		eq           : xs => xs === Nil
 	}
 
-/**` Cons :: (() -> a) -> (() -> List a) -> List a `*/
-const Cons = <a>(lfirst: () => a) => (lrest : () => List <a>) : List <a> =>
+/**` Cons : (() -> a) -> (() -> List a) -> List a `*/
+const Cons = <a>(lfirst : () => a) => (lrest : () => List <a>) : List <a> =>
 	({
-		CONS   : 'Cons',
-		pipe   (f) { return f (this) },
-		eq     (xs)
+		variation : 'Cons',
+		get head  () { return this.$HEAD ??= lfirst () },
+		get tail  () { return this.$TAIL ??= lrest  () },
+		pipe      (f) { return f (this) },
+		eq        (xs)
 		{
 			let ys : List <a> = this
-			for (let i = 0; xs.CONS === 'Cons' && ys.CONS === 'Cons'; ++i, xs = xs .tail, ys = ys .tail)
-				if (i === MAX_LIST_OPS)
-					ERROR.MAX_LIST_OPS ('(.eq)', 'Cons')
-				else if (!xs .head .eq (ys .head as Eq <a>))
+			for (let i = 0; xs.variation === 'Cons' && ys.variation === 'Cons'; ++i)
+				if (i === MAXI)
+					error (`'(Cons).eq' traversed too many elements for equality (${MAXI}); ${STAP}`)
+				else if (xs.head .eq (ys.head))
+					xs = xs.tail,
+					ys = ys.tail
+				else
 					return false
-			return xs.CONS === ys.CONS
+			return xs.variation === ys.variation
 		},
-		bind   (f)
+		bind (f)
 		{
-			const xs = f (this .head)
-			return xs.CONS === 'Nil'
-				? this .tail .bind (f)
-				: Cons (() => xs .head) (() => xs .tail .link (this .tail .bind (f)))
+			let xs = f (this.head)
+			let ys = this.tail
+			for (let i = 0; xs.variation === 'Nil' && ys.variation === 'Cons'; ++i)
+				if (i === MAXI)
+					error (`'(Cons).bind' couldn't find Cons under the max limit (${MAXI}); ${STAP}`)
+				else
+					xs = f (ys.head),
+					ys = ys.tail
+			return ys.variation === 'Cons'
+				? Cons (() => (xs as any).head) (() => (xs as any).tail .link (ys .bind (f)))
+				: xs
 		},
-		fmap   (f)
+		fmap (f)
 		{
-			return Cons (() => f (this .head)) (() => this .tail .fmap (f))
+			return Cons (() => f (this.head)) (() => this.tail .fmap (f))
 		},
-		bindto (k, f)
+		bindto (k)
 		{
-			return this .bind ($ => f ($) .fmap (x => ({ ...$, [k] : x }) as any))
+			return f =>
+			{
+				let ys : List <a> = this
+				let xs : any      = f ((ys as any).head)
+				for (let i = 0; xs.variation === 'Nil' && (ys as any).tail.variation === 'Cons'; ++i)
+					if (i === MAXI)
+						error (`'(Cons).bindto' couldn't find any Cons under the max limit (${MAXI}); ${STAP}`)
+					else
+						ys = (ys as any).tail,
+						xs = f ((ys as any).head)
+
+				xs = xs .fmap (($ : any) => ({ ...(ys as any).head, [k] : $ }) as any)
+
+				return (ys as any).tail.variation === 'Cons'
+					? Cons (() => xs.head) (() => xs.tail .link ((ys as any).tail .bindto (k) (f)))
+					: xs
+			}
 		},
-		fmapto (k, f)
+		fmapto (k)
 		{
-			return this .fmap ($ => ({ ...$, [k] : f ($) }) as any)
+			return f => Cons (() => ({ ...this.head, [k] : f (this.head) }) as any) (() => this.tail .fmapto (k) (f))
 		},
-		cast   (x)
+		link (xs)
 		{
-			return this .fmap (_ => x)
-		},
-		link   (xs)
-		{
-			return xs.CONS === 'Nil'
+			return xs.variation === 'Nil'
 				? this
-				: Cons (() => this .head) (() => this .tail .link (xs))
-		},
-		get head () { return this.$head ??= lfirst () },
-		get tail () { return this.$tail ??= lrest  () }
+				: Cons (() => this.head) (() => this.tail .link (xs))
+		}
 	})
 
-/**` List :: (...a) -> List a `*/
+/**` List : (...a) -> List a `*/
 const List = <a>(...elements : Array <a>) : List <a> =>
 {
 	let xs : List <a> = Nil
-	for (let i = elements .length - 1; ~i; --i)
+	for (let i = elements.length - 1; ~i; --i)
 		xs = prepend (elements[i] as a) (xs)
 	return xs
 }
 
-/**` Left :: a -> Either a b `*/
-const Left = <a, b>(lefty : a) : Either <a, b> =>
+/**` Nothing : Maybe a `*/
+const Nothing : Maybe <any> =
+	{
+		variation : 'Nothing',
+		pipe      : f => f (Nothing),
+		eq        : m => m === Nothing,
+		bind      : _ => Nothing,
+		fmap      : _ => Nothing,
+		bindto    : _ => _ => Nothing,
+		fmapto    : _ => _ => Nothing
+	}
+
+/**` Just : a -> Maybe a `*/
+const Just = <a>(value : a) : Maybe <a> =>
 	({
-		CONS : 'Left',
-		INFO : lefty,
-		pipe (f) { return f (this) },
-		eq   : x => x.CONS === 'Left' && x.INFO .eq (lefty as Eq <a>)
+		variation : 'Just',
+		value,
+		pipe      (f) { return f (this) },
+		eq        : m => m.variation === 'Just' && m.value .eq (value),
+		bind      : rapply (value),
+		fmap      : f => Just (f (value)),
+		bindto    : k => f => f (value) .fmap (x => ({ ...value, [k] : x }) as any),
+		fmapto    : k => f => Just ({ ...value, [k] : f (value) } as any)
 	})
 
-/**` Right :: b -> Either a b `*/
-const Right = <a, b>(righty : b) : Either <a, b> =>
+/**` Pair : (a, b) -> Pair a b `*/
+const Pair = <a, b>(first : a, second : b) : Pair <a, b> =>
 	({
-		CONS : 'Right',
-		INFO : righty,
-		pipe (f) { return f (this) },
-		eq   : x => x.CONS === 'Right' && x.INFO .eq (righty as Eq <b>)
+		variation : 'Pair',
+		fst       : first,
+		snd       : second,
+		pipe      (f) { return f (this) },
+		eq        : p => p.fst .eq (first) && p.snd .eq (second)
 	})
 
-/**` Vector2 :: (Number, Number) -> Vector2 `*/
+/**` Left : a -> Either a b `*/
+const Left = <a, b>(value : a) : Either <a, b> =>
+	({
+		variation : 'Left',
+		value,
+		pipe (f) { return f (this) },
+		eq   : x => x.variation === 'Left' && x.value .eq (value)
+	})
+
+/**` Right : b -> Either a b `*/
+const Right = <a, b>(value : b) : Either <a, b> =>
+	({
+		variation : 'Right',
+		value,
+		pipe (f) { return f (this) },
+		eq   : x => x.variation === 'Right' && x.value .eq (value)
+	})
+
+/**` Vector2 : (Number, Number) -> Vector2 `*/
 const Vector2 = (x : number, y : number) : Vector2 =>
 	({
-		CONS : 'Vector2',
-		eq   : v => v.x === x && v.y === y,
+		variation : 'Vector2',
+		x, y,
 		pipe (f) { return f (this) },
-		x, y
+		eq   : v => v.x === x && v.y === y
 	})
 
-/**` Vector3 :: (Number, Number, Number) -> Vector3 `*/
+/**` Vector3 : (Number, Number, Number) -> Vector3 `*/
 const Vector3 = (x : number, y : number, z : number) : Vector3 =>
 	({
-		CONS : 'Vector3',
-		eq   : v => v.x === x && v.y === y && v.z === z,
+		variation : 'Vector3',
+		x, y, z,
 		pipe (f) { return f (this) },
-		x, y, z
+		eq   : v => v.x === x && v.y === y && v.z === z
 	})
 
-/**` Vector4 :: (Number, Number, Number, Number) -> Vector4 `*/
+/**` Vector4 : (Number, Number, Number, Number) -> Vector4 `*/
 const Vector4 = (x : number, y : number, z : number, w : number) : Vector4 =>
 	({
-		CONS : 'Vector4',
-		eq   : v => v.x === x && v.y === y && v.z === z && v.w === w,
+		variation : 'Vector4',
+		x, y, z, w,
 		pipe (f) { return f (this) },
-		x, y, z, w
+		eq   : v => v.x === x && v.y === y && v.z === z && v.w === w
 	})
 
-/**` Matrix2 :: (...4 Number) -> Matrix2 `*/
+/**` Matrix2 : (...4 Number) -> Matrix2 `*/
 const Matrix2 = (
 		ix : number, jx : number,
 		iy : number, jy : number
 	) : Matrix2 =>
 	({
-		CONS : 'Matrix2',
+		variation : 'Matrix2',
+		ix, jx, iy, jy,
 		pipe (f) { return f (this) },
 		eq   : m =>
 			m.ix === ix && m.jx === jx &&
-			m.iy === iy && m.jy === jy,
-		ix, jx, iy, jy
+			m.iy === iy && m.jy === jy
 	})
 
-/**` Matrix3 :: (...9 Number) -> Matrix3 `*/
+/**` Matrix3 : (...9 Number) -> Matrix3 `*/
 const Matrix3 = (
 		ix : number, jx : number, kx : number,
 		iy : number, jy : number, ky : number,
 		iz : number, jz : number, kz : number
 	) : Matrix3 =>
 	({
-		CONS : 'Matrix3',
+		variation : 'Matrix3',
+		ix, jx, kx, iy, jy, ky, iz, jz, kz,
 		pipe (f) { return f (this) },
-		eq : m =>
+		eq   : m =>
 			m.ix === ix && m.jx === jx && m.kx === kx &&
 			m.iy === iy && m.jy === jy && m.ky === ky &&
-			m.iz === iz && m.jz === jz && m.kz === kz,
-		ix, jx, kx, iy, jy, ky, iz, jz, kz
+			m.iz === iz && m.jz === jz && m.kz === kz
 	})
 
-/**` Matrix4 :: (...16 Number) -> Matrix4 `*/
+/**` Matrix4 : (...16 Number) -> Matrix4 `*/
 const Matrix4 = (
 		ix : number, jx : number, kx : number, lx : number,
 		iy : number, jy : number, ky : number, ly : number,
@@ -1145,1616 +1140,1796 @@ const Matrix4 = (
 		iw : number, jw : number, kw : number, lw : number
 	) : Matrix4 =>
 	({
-		CONS : 'Matrix4',
+		variation : 'Matrix4',
+		ix, jx, kx, lx, iy, jy, ky, ly, iz, jz, kz, lz, iw, jw, kw, lw,
 		pipe (f) { return f (this) },
 		eq   : m =>
 			m.ix === ix && m.jx === jx && m.kx === kx && m.lx === lx &&
 			m.iy === iy && m.jy === jy && m.ky === ky && m.ly === ly &&
 			m.iz === iz && m.jz === jz && m.kz === kz && m.lz === lz &&
-			m.iw === iw && m.jw === jw && m.kw === kw && m.lw === lw,
-		ix, jx, kx, lx, iy, jy, ky, ly, iz, jz, kz, lz, iw, jw, kw, lw
+			m.iw === iw && m.jw === jw && m.kw === kw && m.lw === lw
 	})
 
-/**` TextMeasurement :: String -> Number -> Number -> TextMeasurement `*/
-const TextMeasurement = (text : string) => (width : number) => (height : number) : TextMeasurement =>
-	({
-		CONS : 'TextMeasurement',
-		pipe (f) { return f (this) },
-		eq   : m => m.text === text && m.width === width && m.height === height,
-		text, width, height
-	})
-
-/**` Mapping :: (...Pair a b) -> Mapping a b `*/
+/**` Mapping : (Eq a) => (...Pair a b) -> Mapping a b `*/
 const Mapping = <a, b>(...pairs : Array <[Eq <a>, Eq <b>]>) : Mapping <a, b> =>
 	({
-		CONS     : 'Mapping',
-		codomain : x => (
+		variation : 'Mapping',
+		codomain  : x => (
 			pairs .find (p => p[0] .eq (x as Eq <a>))
-				?? THROW (`'(.codomain)' was non-exhaustive in 'Mapping'; no corresponding codomain for value '${x}'`)
+				?? error (`'(Mapping).codomain' was non-exhaustive; no corresponding codomain for value '${x}'`)
 		)[1],
-		domain   : x => (
+		domain    : x => (
 			pairs .find (p => p[1] .eq (x as Eq <b>))
-				?? THROW (`'(.domain)' was non-exhaustive in 'Mapping'; no corresponding domain for value '${x}'`)
-		)[0]
+				?? error (`'(Mapping).domain' was non-exhaustive; no corresponding domain for value '${x}'`)
+		)[0],
+		pipe (f) { return f (this) }
 	})
 
 /********************************************************************************************************************************/
-// Implementation of Micro-Functions|Constants for 'Pair' //
+// Constants and Micro-Functions for IO //
 
-/**` curry :: (Pair a b -> c) -> a -> b -> c `*/
-const curry = <a, b, c>(f : (parameters : Pair <a, b>) => c) => (first : a) => (second : b) : c =>
-	f (Pair (first, second))
+/**` send : a -> IO a `*/
+const send = <a>(value : a) : IO <a> =>
+	({
+		variation : 'IO',
+		effect    : () => value,
+		pipe      (f) { return f (this) },
+		bind      : f  => IO (() => f (value).effect ()),
+		fmap      : f  => IO (() => f (value)),
+		bindto    : k  => f => IO (() => ({ ...value, [k] : f (value).effect () } as any)),
+		fmapto    : k  => f => IO (() => ({ ...value, [k] : f (value) } as any)),
+		then      : id,
+		also      : f  => IO (() => (f (value).effect (), value)),
+		side      : io => IO (() => (io.effect (), value)),
+		cast      : send
+	})
 
-/**` uncurry :: (a -> b -> c) -> Pair a b -> c `*/
-const uncurry = <a, b, c>(f : (first : a) => (second : b) => c) => (parameters : Pair <a, b>) : c =>
-	f (parameters .fst) (parameters .snd)
+/**` idle : IO () `*/
+const idle : IO <null> =
+	({
+		variation : 'IO',
+		effect    : () => null,
+		pipe      (f) { return f (this) },
+		bind      : f  => IO (() => f (null).effect ()),
+		fmap      : f  => IO (() => f (null)),
+		bindto    : _  => _ => error (`'(idle).bindto' was caught used incorrectly; use the Do syntax`),
+		fmapto    : _  => _ => error (`'(idle).fmapto' was caught used incorrectly; use the Do syntax`),
+		then      : id,
+		also      : f  => IO (() => (f (null).effect (), null)),
+		side      : io => IO (() => (io.effect (), null)),
+		cast      : send
+	})
 
-/**` swap :: Pair a b -> Pair b a `*/
-const swap = <a, b>(pair : Pair <a, b>) : Pair <b, a> =>
-	Pair (pair .snd, pair .fst)
-
-/**` ffst :: (a -> c) -> Pair a b -> Pair c b `*/
-const ffst = <a, c>(morphism : (first : a) => c) => <b>(pair : Pair <a, b>) : Pair <c, b> =>
-	Pair (morphism (pair .fst), pair .snd)
-
-/**` fsnd :: (b -> c) -> Pair a b -> Pair a c `*/
-const fsnd = <b, c>(morphism : (second : b) => c) => <a>(pair : Pair <a, b>) : Pair <a, c> =>
-	Pair (pair .fst, morphism (pair .snd))
-
-/**` fboth :: (a -> b) -> Pair a a -> Pair b b `*/
-const fboth = <a, b>(morphism : (value : a) => b) => (pair : Pair <a, a>) : Pair <b, b> =>
-	Pair (morphism (pair .fst), morphism (pair .snd))
-
-/**` pick :: Boolean -> Pair a a -> a `*/
-const pick = (bool : boolean) : (<a>(pair : Pair <a, a>) => a) =>
-	bool ? fst : snd
-
-/********************************************************************************************************************************/
-// Implementation of Micro-Functions|Constants for 'IO' //
-
-/**` idle :: IO () `*/
-const idle =
-	IO (() => null)
-
-/********************************************************************************************************************************/
-// Implementation of Micro-Functions|Constants for 'Maybe' //
-
-/**` isNothing :: Maybe a -> Boolean `*/
-const isNothing = <a>(maybe : Maybe <a>) : maybe is Nothing <a> => maybe.CONS === 'Nothing'
-
-/**` isJust :: Maybe a -> Boolean `*/
-const isJust = <a>(maybe : Maybe <a>) : maybe is Just <a> => maybe.CONS === 'Just'
-
-/**` ffromMaybe :: b -> (a -> b) -> Maybe a -> b `*/
-const ffromMaybe = <b>(fallback : b) => <a>(morphism : (possibility : a) => b) => (maybe : Maybe <a>) : b =>
-	maybe.CONS === 'Nothing'
-		? fallback
-		: morphism (maybe.INFO)
-
-/**` fromJust :: Maybe a -> a `*/
-const fromJust = <a>(maybe : Maybe <a>) : a =>
-	maybe.CONS === 'Nothing'
-		? THROW (`'fromJust' cannot be used on 'Nothing'`)
-		: maybe.INFO
-
-/**` fromMaybe :: a -> Maybe a -> a `*/
-const fromMaybe = <a>(fallback : a) => (maybe : Maybe <a>) : a =>
-	maybe.CONS === 'Nothing'
-		? fallback
-		: maybe.INFO
-
-/**` ensure :: (a -> Boolean) -> a -> Maybe a `*/
-const ensure = <a>(predicate : (value : a) => boolean) => (value : a) : Maybe <a> =>
-	predicate (value)
-		? Just (value)
-		: Nothing
+/**` executing : (...IO a) -> IO () `*/
+const executing = <a>(...ios : Array <IO <a>>) : IO <null> =>
+	IO (() => (ios .forEach (io => io.effect ()), null))
 
 /********************************************************************************************************************************/
-// Implementation of Micro-Functions|Constants for 'Process' //
+// Constants and Micro-Functions for Process //
 
-/**` put :: s -> Process s a -> Process s a `*/
+/**` put : s -> Process s a -> Process s a `*/
 const put = <s>(replacement : s) => <a>(process : Process <s, a>) : Process <s, a> =>
-	Process (s => Pair (replacement, process.INFO (s) .snd))
+	Process (s => Pair (replacement, process.computation (s).snd))
 
-/**` get :: Process s a -> Process s s `*/
+/**` get : Process s a -> Process s s `*/
 const get = <s, a>(process : Process <s, a>) : Process <s, s> =>
-	Process (s => {
-		const x = process.INFO (s) .fst
-		return Pair (x, x)
-	})
+	Process (s => same (process.computation (s).fst))
 
-/**` runProcess :: Process s a -> s -> Pair s a `*/
-const runProcess = <s, a>(process : Process <s, a>) => (state : s) : Pair <s, a> =>
-	process.INFO (state)
+/**` runProcess : Process s a -> s -> Pair s a `*/
+const runProcess = <s, a>(process : Process <s, a>) =>
+	process.computation
 
-/**` execProcess :: Process s a -> s -> s `*/
+/**` execProcess : Process s a -> s -> s `*/
 const execProcess = <s, a>(process : Process <s, a>) => (state : s) : s =>
-	process.INFO (state) .fst
+	process.computation (state).fst
 
-/**` evalProcess :: Process s a -> s -> a `*/
+/**` evalProcess : Process s a -> s -> a `*/
 const evalProcess = <s, a>(process : Process <s, a>) => (state : s) : a =>
-	process.INFO (state) .snd
+	process.computation (state).snd
 
-/**` mapProcess :: (Pair s a -> Pair s b) -> Process s a -> Process s b `*/
+/**` mapProcess : (Pair s a -> Pair s b) -> Process s a -> Process s b `*/
 const mapProcess = <s, a, b>(morphism : (result : Pair <s, a>) => Pair <s, b>) => (process : Process <s, a>) : Process <s, b> =>
-	Process (s => morphism (process.INFO (s)))
+	Process (s => morphism (process.computation (s)))
 
-/**` endomapState :: (s -> s) -> Process s a -> Process s a `*/
+/**` endomapState : (s -> s) -> Process s a -> Process s a `*/
 const endomapState = <s, a>(endomorphism : (state : s) => s) => (process : Process <s, a>) : Process <s, a> =>
-	Process (s => {
-		const x = process.INFO (s)
-		return Pair (endomorphism (x .fst), x .snd)
-	})
+	Process (s => ffst (endomorphism) (process.computation (s)))
 
 /********************************************************************************************************************************/
-// Implementation of Micro-Functions|Constants for 'List' //
+// Constants and Micro-Functions for List //
 
-/**` isNil :: List a -> Boolean `*/
-const isNil = <a>(xs : List <a>) : xs is Nil <a> => xs.CONS === 'Nil'
+/**` isNil : List a -> Boolean `*/
+const isNil = <a>(xs : List <a>) : xs is Assert_Nil <a> =>
+	xs.variation === 'Nil'
 
-/**` isCons :: List a -> Boolean `*/
-const isCons = <a>(xs : List <a>) : xs is Cons <a> => xs.CONS === 'Cons'
+/**` isCons : List a -> Boolean `*/
+const isCons = <a>(xs : List <a>) : xs is Assert_Cons <a> =>
+	xs.variation === 'Cons'
 
-/**` array :: List a -> [a] `*/
-const array = <a>(xs : List <a>) : Array <a> =>
+/**` head : List a -> a `*/
+const head = <a>(xs : List <a>) : a =>
+	xs.variation === 'Cons'
+		? xs.head
+		: error (`'head' received a Nil value`)
+
+/**` tail : List a -> List a `*/
+const tail = <a>(xs : List <a>) : List <a> =>
+	xs.variation === 'Cons'
+		? xs.tail
+		: error (`'tail' received a Nil value`)
+
+/**` link : List a -> List a -> List a `*/
+const link = <a>(xs : List <a>) => (ys : List <a>) : List <a> =>
+	xs .link (ys)
+
+/**` listToArray : List a -> [...a] `*/
+const listToArray = <a>(xs : List <a>) : Array <a> =>
 {
 	const ys : Array <a> = []
-	for (let i = 0; xs.CONS === 'Cons'; ++i, ys.push(xs .head), xs = xs .tail)
-		if (i === MAXARRAY)
-		{
-			console.warn(`'array' has reached the maximum array representation possible (${MAXARRAY}) for the given list`)
-			break
-		}
-
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			return warn
+				(`'toArray' reached the maximum amount of elements allowed (${MAXI}); ${STAP}`)
+				(ys)
+		else
+			ys.push (xs.head),
+			xs = xs.tail
 	return ys
 }
 
-/**` string :: List String -> String `*/
-const string = (xs : List <string>) : string =>
+/**` unchars : List String -> String `*/
+const unchars = (xs : List <string>) : string =>
 {
 	let str = ""
-	for (let i = 0; xs.CONS === 'Cons'; ++i, str += xs .head)
-		if (i === MAXSTRING)
-		{
-			console.warn(`'string' has reached the maximum string representation possible (${MAXSTRING}) for the given list`)
-			break
-		}
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			return warn
+				(`'toString' reached the maximum amount of characters allowed (${MAXI}); ${STAP}`)
+				(str)
+		else
+			str += xs.head,
+			xs = xs.tail
 	return str
 }
 
-/**` chars :: String -> List String `*/
+/**` chars : String -> List String `*/
 const chars = (str : string) : List <string> =>
-	str
-		?
-			({
-				CONS   : 'Cons',
-				pipe   (f) { return f (this) },
-				eq     (xs)
-				{
-					for (let i = 0; i < str.length && xs.CONS === 'Cons'; ++i, xs = xs .tail)
-						if (xs .head !== str[i])
-							return false
-					return xs.CONS === 'Nil'
-				},
-				bind   (f)
-				{
-					const xs = f (str [0]!)
-					return xs.CONS === 'Nil'
-						? this .tail .bind (f)
-						: Cons (() => xs .head) (() => xs .tail .link (this .tail .bind (f)))
-				},
-				fmap   (f)
-				{
-					return Cons (() => f (str[0]!)) (() => this .tail .fmap (f))
-				},
-				bindto : _ => THROW (`'(.bindto)' was used on a list of characters; likely done on accident | origin : 'chars'`),
-				fmapto : _ => THROW (`'(.fmapto)' was used on a list of characters; likely done on accident | origin : 'chars'`),
-				cast   (x)
-				{
-					return lprepend (x) (() => this .tail .cast (x))
-				},
-				link   (xs)
-				{
-					return lprepend (str[0]!) (() => this .tail .link (xs))
-				},
-				head  : str[0]!,
-				get tail () { return this.$tail ??= chars (str .slice (1)) },
-				$head : str[0]!,
-				$last : str[str.length - 1],
-				$len  : str.length
-			})
-		: Nil
+	List (...str)
 
-/**` singleton :: a -> List a `*/
-const singleton = <a>(value : a) : List <a> =>
-	({
-		CONS   : 'Cons',
-		pipe   (f) { return f (this) },
-		eq     : xs => xs.CONS === 'Cons' && xs .tail.CONS === 'Nil' && xs .head .eq (value as Eq <a>),
-		bind   : f  => f (value),
-		fmap   : f => singleton (f (value)),
-		bindto : (k, f) => f (value) .fmap (x => ({ ...value, [k] : x }) as any),
-		fmapto : (k, f) => singleton ({ ...value, [k] : f (value) } as any),
-		cast   : singleton,
-		link   : prepend (value),
-		head   : value,
-		tail   : Nil,
-		$head  : value,
-		$tail  : Nil,
-		$last  : value,
-		$init  : Nil,
-		get $reverse () { return this },
-		$len   : 1
-	})
-
-/**` prepend :: a -> List a -> List a `*/
+/**` prepend : a -> List a -> List a `*/
 const prepend = <a>(first : a) => (rest : List <a>) : List <a> =>
-	({
-		CONS   : 'Cons',
-		pipe   (f) { return f (this) },
-		eq     : xs =>
-		{
-			if (xs.CONS === 'Nil' || !xs .head .eq (first as Eq <a>))
-				return false
-			let ys = rest
-			xs = xs .tail
-			for (let i = 0; xs.CONS === 'Cons' && ys.CONS === 'Cons'; ++i, xs = xs .tail, ys = ys .tail)
-				if (i === MAX_LIST_OPS)
-					ERROR.MAX_LIST_OPS ('(.eq)', 'prepend')
-				else if (!xs .head .eq (ys .head as Eq <a>))
-					return false
-			return xs.CONS === ys.CONS
-		},
-		bind   : f =>
-		{
-			const xs = f (first)
-			return xs.CONS === 'Nil'
-				? rest .bind (f)
-				: Cons (() => xs .head) (() => xs .tail .link (rest .bind (f)))
-		},
-		fmap   : f => Cons (() => f (first)) (() => rest .fmap (f)),
-		bindto : (k, f) =>
-		{
-			const xs = f (first) .fmap (x => ({ ...first, [k] : x }) as any)
-			return xs.CONS === 'Nil'
-				? rest .bindto (k, f)
-				: Cons (() => xs .head) (() => xs .tail .link (rest .bindto (k, f)))
-		},
-		fmapto : (k, f) => Cons (() => ({ ...first, [k] : f (first) }) as any) (() => rest .fmapto (k, f)),
-		cast   : x  => lprepend (x)     (() => rest .cast (x )),
-		link   : xs => lprepend (first) (() => rest .link (xs)),
-		head  : first,
-		tail  : rest,
-		$head : first,
-		$tail : rest,
-		$last : rest.CONS === 'Nil' ? first : rest.$last,
-		$len  : rest.$len === undefined ? undefined : 1 + rest.$len
-	})
+	rest.variation === 'Nil'
+		? singleton (first)
+		:
+			({
+				variation : 'Cons',
+				head      : first,
+				tail      : rest,
+				$HEAD     : first,
+				$TAIL     : rest,
+				$LAST     : rest.$LAST,
+				$LEN      : rest.$LEN! + 1 || undefined,
+				pipe      (f) { return f (this) },
+				eq        : xs =>
+				{
+					if (xs.variation === 'Cons' && xs.head .eq (first))
+						xs = xs.tail
+					else
+						return false
+					let ys : List <a> = rest
+					for (let i = 0; xs.variation === 'Cons' && ys.variation === 'Cons'; ++i)
+						if (i === MAXI)
+							error (`'(prepend).eq' traversed too many elements for equality (${MAXI}); ${STAP}`)
+						else if (xs.head .eq (ys.head))
+							xs = xs.tail,
+							ys = ys.tail
+						else
+							return false
+					return xs.variation === ys.variation
+				},
+				bind : f =>
+				{
+					let xs            = f (first)
+					let ys : List <a> = rest
+					for (let i = 0; xs.variation === 'Nil' && ys.variation === 'Cons'; ++i)
+						if (i === MAXI)
+							error (`'(prepend).bind' couldn't find Cons under the max limit (${MAXI}); ${STAP}`)
+						else
+							xs = f (ys.head),
+							ys = ys.tail
+					return ys.variation === 'Cons'
+						? Cons (() => (xs as any).head) (() => (xs as any).tail .link (ys .bind (f)))
+						: xs
+				},
+				fmap : f => Cons (() => f (first)) (() => rest .fmap (f)),
+				bindto (k)
+				{
+					return f =>
+					{
+						let ys : List <a> = this
+						let xs : any      = f (first)
+						for (let i = 0; xs.variation === 'Nil' && (ys as any).tail.variation === 'Cons'; ++i)
+							if (i === MAXI)
+								error (`'(prepend).bindto' couldn't find Cons under the max limit (${MAXI}); ${STAP}`)
+							else
+								ys = (ys as any).tail,
+								xs = f ((ys as any).head)
 
-/**` lprepend :: a -> (() -> List a) -> List a `*/
-const lprepend = <a>(first : a) => (lrest : () => List <a>) : List <a> =>
-	({
-		CONS   : 'Cons',
-		pipe   (f) { return f (this) },
-		eq     (xs)
-		{
-			if (xs.CONS === 'Nil' || !xs .head .eq (first as Eq <a>))
-				return false
-			let ys = this .tail
-			xs = xs .tail
-			for (let i = 0; xs.CONS === 'Cons' && ys.CONS === 'Cons'; ++i, xs = xs .tail, ys = ys .tail)
-				if (i === MAX_LIST_OPS)
-					ERROR.MAX_LIST_OPS ('(.eq)', 'lprepend')
-				else if (!xs .head .eq (ys .head as Eq <a>))
-					return false
-			return xs.CONS === ys.CONS
-		},
-		bind   (f)
-		{
-			const xs = f (first)
-			return xs.CONS === 'Nil'
-				? this .tail .bind (f)
-				: Cons (() => xs .head) (() => xs .tail .link (this .tail .bind (f)))
-		},
-		fmap   (f)
-		{
-			return Cons (() => f (first)) (() => this .tail .fmap (f))
-		},
-		bindto (k, f)
-		{
-			const xs = f (first) .fmap (x => ({ ...first, [k] : x }) as any)
-			return xs.CONS === 'Nil'
-				? this .tail .bindto (k, f)
-				: Cons (() => xs .head) (() => xs .tail .link (this .tail .bindto (k, f)))
-		},
-		fmapto (k, f)
-		{
-			return Cons (() => ({ ...first, [k] : f (first) }) as any) (() => this .tail .fmapto (k, f))
-		},
-		cast   (x)
-		{
-			return lprepend (x) (() => this .tail .cast (x))
-		},
-		link   (xs)
-		{
-			return lprepend (first) (() => this .tail .link (xs))
-		},
-		head  : first,
-		get tail () { return this.$tail ??= lrest () },
-		$head : first
-	})
+						xs = xs .fmap (($ : any) => ({ ...(ys as any).head, [k] : $ }) as any)
 
-/**` llprepend :: (() -> a) -> List a -> List a `*/
+						return (ys as any).tail.variation === 'Cons'
+							? Cons (() => xs.head) (() => xs.tail .link ((ys as any).tail .bindto (k) (f)))
+							: xs
+					}
+				},
+				fmapto : k => f => Cons (() => ({ ...first, [k] : f (first) }) as any) (() => rest .fmapto (k) (f)),
+				link (xs)
+				{
+					return xs.variation === 'Nil'
+						? this
+						: Cons (() => first) (() => rest .link (xs))
+				}
+			})
+
+/**` llprepend : (() -> a) -> List a -> List a `*/
 const llprepend = <a>(lfirst : () => a) => (rest : List <a>) : List <a> =>
 	({
-		CONS   : 'Cons',
-		pipe   (f) { return f (this) },
-		eq     (xs)
+		variation : 'Cons',
+		get head  () { return this.$HEAD ??= lfirst() },
+		tail      : rest,
+		$TAIL     : rest,
+		$LAST     : rest.$LAST,
+		$LEN      : rest.$LEN! + 1 || undefined,
+		pipe      (f) { return f (this) },
+		eq        (xs)
 		{
-			if (xs.CONS === 'Nil' || !xs .head .eq (this .head as Eq <a>))
+			if (xs.variation === 'Cons' && xs.head .eq (this.head))
+				xs = xs.tail
+			else
 				return false
-			let ys = rest
-			xs = xs .tail
-			for (let i = 0; xs.CONS === 'Cons' && ys.CONS === 'Cons'; ++i, xs = xs .tail, ys = ys .tail)
-				if (i === MAX_LIST_OPS)
-					ERROR.MAX_LIST_OPS ('(.eq)', 'llprepend')
-				else if (!xs .head .eq (ys .head as Eq <a>))
+			let ys : List <a> = rest
+			for (let i = 0; xs.variation === 'Cons' && ys.variation === 'Cons'; ++i)
+				if (i === MAXI)
+					error (`'(llprepend).eq' traversed too many elements for equality (${MAXI}); ${STAP}`)
+				else if (xs.head .eq (ys.head))
+					xs = xs.tail,
+					ys = ys.tail
+				else
 					return false
-			return xs.CONS === ys.CONS
+			return xs.variation === ys.variation
 		},
-		bind   (f)
+		bind (f)
 		{
-			const xs = f (this .head)
-			return xs.CONS === 'Nil'
-				? rest .bind (f)
-				: Cons (() => xs .head) (() => xs .tail .link (rest .bind (f)))
+			let xs = f (this.head)
+			let ys = rest
+			for (let i = 0; xs.variation === 'Nil' && ys.variation === 'Cons'; ++i)
+				if (i === MAXI)
+					error (`'(llprepend).bind' couldn't find Cons under the max limit (${MAXI}); ${STAP}`)
+				else
+					xs = f (ys.head),
+					ys = ys.tail
+			return ys.variation === 'Cons'
+				? Cons (() => (xs as any).head) (() => (xs as any).tail .link (ys .bind (f)))
+				: xs
 		},
-		fmap   (f)
+		fmap (f)
 		{
-			return Cons (() => f (this .head)) (() => rest .fmap (f))
+			return Cons (() => f (this.head)) (() => rest .fmap (f))
 		},
-		bindto (k, f)
+		bindto (k)
 		{
-			const xs = f (this .head) .fmap (x => ({ ...this .head, [k] : x }) as any)
-			return xs.CONS === 'Nil'
-				? rest .bindto (k, f)
-				: Cons (() => xs .head) (() => xs .tail .link (rest .bindto (k, f)))
+			return f =>
+			{
+				let ys : List <a> = this
+				let xs : any      = f (this.head)
+				for (let i = 0; xs.variation === 'Nil' && (ys as any).tail.variation === 'Cons'; ++i)
+					if (i === MAXI)
+						error (`'(llprepend).bindto' couldn't find Cons under the max limit (${MAXI}); ${STAP}`)
+					else
+						ys = (ys as any).tail,
+						xs = f ((ys as any).head)
+				xs = xs .fmap (($ : any) => ({ ...(ys as any).head, [k] : $ }) as any)
+				return (ys as any).tail.variation === 'Cons'
+					? Cons (() => xs.head) (() => xs.tail .link ((ys as any).tail .bindto (k) (f)))
+					: xs
+			}
 		},
-		fmapto (k, f)
+		fmapto (k)
 		{
-			return Cons (() => ({ ...this .head, [k] : f (this .head) }) as any) (() => rest .fmapto (k, f))
+			return f => Cons (() => ({ ...this.head, [k] : f (this.head) }) as any) (() => rest .fmapto (k) (f))
 		},
-		cast   (x)
+		link (xs)
 		{
-			return lprepend (x) (() => rest .cast (x))
-		},
-		link   (xs)
-		{
-			return Cons (() => this .head) (() => rest .link (xs))
-		},
-		get head () { return this.$head ??= lfirst () },
-		tail  : rest,
-		$tail : rest,
-		$last : rest.$last,
-		$len  : rest.$len === undefined ? undefined : 1 + rest.$len
+			return xs.variation === 'Nil'
+				? this
+				: Cons (() => this.head) (() => rest .link (xs))
+		}
 	})
 
-/**` repeat :: a -> List a `*/
+/**` lrprepend : a -> (() -> List a) -> List a `*/
+const lrprepend = <a>(first : a) => (lrest : () => List <a>) : List <a> =>
+	({
+		variation : 'Cons',
+		head      : first,
+		get tail  () { return this.$TAIL ??= lrest () },
+		$HEAD     : first,
+		pipe      (f) { return f (this) },
+		eq        (xs)
+		{
+			if (xs.variation === 'Cons' && xs.head .eq (first))
+				xs = xs.tail
+			else
+				return false
+			let ys : List <a> = this.tail
+			for (let i = 0; xs.variation === 'Cons' && ys.variation === 'Cons'; ++i)
+				if (i === MAXI)
+					error (`'(lrprepend).eq' traversed too many elements for equality (${MAXI}); ${STAP}`)
+				else if (xs.head .eq (ys.head))
+					xs = xs.tail,
+					ys = ys.tail
+				else
+					return false
+			return xs.variation === ys.variation
+		},
+		bind (f)
+		{
+			let xs = f (first)
+			let ys = this.tail
+			for (let i = 0; xs.variation === 'Nil' && ys.variation === 'Cons'; ++i)
+				if (i === MAXI)
+					error (`'(lrprepend).bind' couldn't find Cons under the max limit (${MAXI}); ${STAP}`)
+				else
+					xs = f (ys.head),
+					ys = ys.tail
+			return ys.variation === 'Cons'
+				? Cons (() => (xs as any).head) (() => (xs as any).tail .link (ys .bind (f)))
+				: xs
+		},
+		fmap (f)
+		{
+			return Cons (() => f (first)) (() => this.tail .fmap (f))
+		},
+		bindto (k)
+		{
+			return f =>
+			{
+				let ys : List <a> = this
+				let xs : any      = f (first)
+				for (let i = 0; xs.variation === 'Nil' && (ys as any).tail.variation === 'Cons'; ++i)
+					if (i === MAXI)
+						error (`'(lrprepend).bindto' couldn't find Cons under the max limit (${MAXI}); ${STAP}`)
+					else
+						ys = (ys as any).tail,
+						xs = f ((ys as any).head)
+
+				xs = xs .fmap (($ : any) => ({ ...(ys as any).head, [k] : $ }) as any)
+
+				return (ys as any).tail.variation === 'Cons'
+					? Cons (() => xs.head) (() => xs.tail .link ((ys as any).tail .bindto (k) (f)))
+					: xs
+			}
+		},
+		fmapto (k)
+		{
+			return f => Cons (() => ({ ...first, [k] : f (first) }) as any) (() => this.tail .fmapto (k) (f))
+		},
+		link (xs)
+		{
+			return xs.variation === 'Nil'
+				? this
+				: lrprepend (first) (() => this.tail .link (xs))
+		}
+	})
+
+/**` append : a -> List a -> List a `*/
+const append = <a>(value : a) => (rest : List <a>) : List <a> =>
+	rest.variation === 'Nil'
+		? singleton (value)
+		:
+			({
+				variation : 'Cons',
+				get head  () { return this.$HEAD ??= (rest as any).head                  },
+				get tail  () { return this.$TAIL ??= append (value) ((rest as any).tail) },
+				$HEAD     : rest.$HEAD,
+				$LAST     : value,
+				$INIT     : rest,
+				$LEN      : rest.$LEN! + 1 || undefined,
+				pipe      (f) { return f (this) },
+				eq        (xs)
+				{
+					let ys : List <a> = this
+					for (let i = 0; xs.variation === 'Cons' && ys.variation === 'Cons'; ++i)
+						if (i === MAXI)
+							error (`'(append).eq' traversed too many elements for equality (${MAXI}); ${STAP}`)
+						else if (xs.head .eq (ys.head))
+							xs = xs.tail,
+							ys = ys.tail
+						else
+							return false
+					return xs.variation === ys.variation
+				},
+				bind (f)
+				{
+					let xs = f (this.head)
+					let ys = this.tail
+					for (let i = 0; xs.variation === 'Nil' && ys.variation === 'Cons'; ++i)
+						if (i === MAXI)
+							error (`'(append).bind' couldn't find Cons under the max limit (${MAXI}); ${STAP}`)
+						else
+							xs = f (ys.head),
+							ys = ys.tail
+					return ys.variation === 'Cons'
+						? Cons (() => (xs as any).head) (() => (xs as any).tail .link (ys .bind (f)))
+						: xs
+				},
+				fmap (f)
+				{
+					return Cons (() => f (this.head)) (() => this.tail .fmap (f))
+				},
+				bindto (k)
+				{
+					return f =>
+					{
+						let ys : List <a> = this
+						let xs : any      = f ((ys as any).head)
+						for (let i = 0; xs.variation === 'Nil' && (ys as any).tail.variation === 'Cons'; ++i)
+							if (i === MAXI)
+								error (`'(append).bindto' couldn't find any Cons under the max limit (${MAXI}); ${STAP}`)
+							else
+								ys = (ys as any).tail,
+								xs = f ((ys as any).head)
+
+						xs = xs .fmap (($ : any) => ({ ...(ys as any).head, [k] : $ }) as any)
+
+						return (ys as any).tail.variation === 'Cons'
+							? Cons (() => xs.head) (() => xs.tail .link ((ys as any).tail .bindto (k) (f)))
+							: xs
+					}
+				},
+				fmapto (k)
+				{
+					return f => Cons (() => ({ ...this.head, [k] : f (this.head) }) as any) (() => this.tail .fmapto (k) (f))
+				},
+				link (xs)
+				{
+					return xs.variation === 'Nil'
+						? this
+						: Cons (() => this.head) (() => this.tail .link (xs))
+				}
+			})
+
+/**` singleton : a -> List a `*/
+const singleton = <a>(value : a) : List <a> =>
+	({
+		variation    : 'Cons',
+		head         : value,
+		tail         : Nil,
+		$HEAD        : value,
+		$TAIL        : Nil,
+		$LAST        : value,
+		$INIT        : Nil,
+		get $REVERSE () { return this },
+		$LEN         : 1,
+		pipe         (f) { return f (this) },
+		eq           : xs => xs.variation === 'Cons' && xs.tail.variation === 'Nil' && xs.head .eq (value),
+		bind         : rapply (value),
+		fmap         : f => singleton (f (value)),
+		bindto       : k => f => f (value) .fmap (x => ({ ...value, [k] : x }) as any),
+		fmapto       : k => f => singleton ({ ...value, [k] : f (value) } as any),
+		link         : prepend (value)
+	})
+
+/**` repeat : a -> List a `*/
 const repeat = <a>(value : a) : List <a> =>
 	({
-		CONS   : 'Cons',
-		pipe   (f) { return f (this) },
-		eq     : xs =>
+		variation : 'Cons',
+		head      : value,
+		get tail  () { return this },
+		$HEAD     : value,
+		get $TAIL () { return this },
+		get $INIT () { return this },
+		pipe      (f) { return f (this) },
+		eq        (xs)
 		{
-			for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs .tail)
-				if (i === MAX_LIST_OPS)
-					ERROR.MAX_LIST_OPS ('(.eq)', 'repeat')
-				else if (!xs .head .eq (value as Eq <a>))
+			for (let i = 0; xs.variation === 'Cons'; ++i)
+				if (i === MAXI)
+					error (`'(repeat).eq' traversed too many elements for equality (${MAXI}); ${STAP}`)
+				else if (xs.head .eq (value))
+					xs = xs.tail
+				else
 					return false
 			return false
 		},
 		bind   : f =>
 		{
 			const xs = f (value)
-			return xs.CONS === 'Nil'
-				? ERROR.BINDING_NILS ('repeat', 'bind')
+			return xs.variation === 'Nil'
+				? error (`'(repeat).bind' received an operation that returned Nil`)
 				: cycle (xs)
 		},
 		fmap   : f => repeat (f (value)),
-		bindto : (k, f) =>
+		bindto : k => f =>
 		{
-			const xs = f (value) .fmap (x => ({ ...value, [k] : x }) as any)
-			return xs.CONS === 'Nil'
-				? ERROR.BINDING_NILS ('repeat', 'bindto')
-				: cycle (xs)
+			const xs = f (value)
+			return xs.variation === 'Nil'
+				? error (`'(repeat).bindto' received an operation that returned Nil`)
+				: cycle (xs .fmap (x => ({ ...value, [k] : x}) as any))
 		},
-		fmapto : (k, f) => repeat ({ ...value, [k] : f (value) } as any),
-		link   (_) { return this },
-		cast   : repeat,
-		head   : value,
-		get tail  () { return this },
-		$head  : value,
-		get $tail () { return this },
-		get $init () { return this }
+		fmapto : k => f => repeat ({ ...value, [k] : f (value) } as any),
+		link   (_) { return this }
 	})
 
-/**` cycle :: List a -> List a `*/
+/**` cycle : List a -> List a `*/
 const cycle = <a>(pattern : List <a>) : List <a> =>
-	pattern.CONS === 'Nil'
-		? ERROR.ONLY_CONS ('cycle')
+	pattern.variation === 'Nil'
+		? error (`'cycle' received a Nil list`)
 		:
 			({
-				CONS   : 'Cons',
-				pipe   (f) { return f (this) },
-				eq     (xs)
+				variation : 'Cons',
+				get head  () { return this.$HEAD ??= (pattern as any).head              },
+				get tail  () { return this.$TAIL ??= (pattern as any).tail .link (this) },
+				get $INIT () { return this },
+				pipe      (f) { return f (this) },
+				eq        (xs)
 				{
 					let ys : List <a> = this
-					for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs .tail, ys = ys .tail)
-						if (i === MAX_LIST_OPS)
-					ERROR.MAX_LIST_OPS ('(.eq)', 'cycle')
-						else if (!xs .head .eq (ys .head as Eq <a>))
+					for (let i = 0; xs.variation === 'Cons'; ++i)
+						if (i === MAXI)
+							error (`'(cycle).eq' traversed too many elements for equality (${MAXI}); ${STAP}`)
+						else if (xs.head .eq ((ys as any).head))
+							xs = xs.tail,
+							ys = (ys as any).tail
+						else
 							return false
 					return false
 				},
-				bind   (f)
-				{
-					const xs = pattern .bind (f)
-					return xs.CONS === 'Nil'
-						? ERROR.BINDING_NILS ('cycle', 'bind')
-						: cycle (xs)
-				},
-				fmap   : f => cycle (pattern .fmap (f)),
-				bindto (k, f)
-				{
-					const xs = pattern .bind ($ => f ($) .fmap (x => ({ ...$, [k] : x }) as any))
-					return xs.CONS === 'Nil'
-						? ERROR.BINDING_NILS ('cycle', 'bindto')
-						: cycle (xs)
-				},
-				fmapto : (k, f) => cycle (pattern .fmap ($ => ({ ...$, [k] : f ($) }) as any)),
-				link   (_) { return this },
-				cast   : repeat,
-				get head () { return this.$head ??= pattern .head },
-				get tail () { return this.$tail ??= pattern .tail .link (this) },
-				get $init () { return this }
+				bind : f => cycle (pattern .bind (f)),
+				fmap : f => cycle (pattern .fmap (f)),
+				bindto : k => f => cycle (pattern .bindto (k) (f)),
+				fmapto : k => f => cycle (pattern .fmapto (k) (f)),
+				link (_) { return this }
 			})
 
-/**` iterate :: (a -> a) -> a -> List a `*/
+/**` iterate : (a -> a) -> a -> List a `*/
 const iterate = <a>(endomorphism : (value : a) => a) => (initial : a) : List <a> =>
 	({
-		CONS   : 'Cons',
-		pipe   (f) { return f (this) },
-		eq     (xs)
+		variation : 'Cons',
+		head      : initial,
+		get tail  () { return this.$TAIL ??= iterate (endomorphism) (endomorphism (initial)) },
+		$HEAD     : initial,
+		get $INIT () { return this },
+		pipe      (f) { return f (this) },
+		eq        (xs)
 		{
 			let ys : List <a> = this
-			for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs .tail, ys = ys .tail)
-				if (i === MAX_LIST_OPS)
-					ERROR.MAX_LIST_OPS ('(.eq)', 'iterate')
-				else if (!xs .head .eq (ys .head as Eq <a>))
+			for (let i = 0; xs.variation === 'Cons'; ++i)
+				if (i === MAXI)
+					error (`'(iterate).eq' traversed too many elements for equality (${MAXI}); ${STAP}`)
+				else if (xs.head .eq ((ys as any).head))
+					xs = xs.tail,
+					ys = (ys as any).tail
+				else
 					return false
 			return false
 		},
-		bind   (f)
+		bind (f)
 		{
-			const xs = f (initial)
-			return xs.CONS === 'Nil'
-				? this .tail .bind (f)
-				: Cons (() => xs .head) (() => xs .tail .link (this .tail .bind (f)))
+			let xs = f (initial)
+			let ys = this.tail
+			for (let i = 0; xs.variation === 'Nil'; ++i)
+				if (i === MAXI)
+					error (`'(iterate).bind' couldn't find Cons under the max limit (${MAXI}); ${STAP}`)
+				else
+					xs = f ((ys as any).head),
+					ys = (ys as any).tail
+			return ys.variation === 'Cons'
+				? Cons (() => (xs as any).head) (() => (xs as any).tail .link (ys .bind (f)))
+				: xs
 		},
-		fmap   (f)
+		fmap (f)
 		{
-			return Cons (() => f (initial)) (() => this .tail .fmap (f))
+			return Cons (() => f (initial)) (() => this.tail .fmap (f))
 		},
-		bindto (k, f)
+		bindto (k)
 		{
-			const xs = f (initial) .fmap (x => ({ ...initial, [k] : x }) as any)
-			return xs.CONS === 'Nil'
-				? this .tail .bindto (k, f)
-				: Cons (() => xs .head) (() => xs .tail .link (this .tail .bindto (k, f)))
+			return f =>
+			{
+				let ys : List <a> = this
+				let xs : any      = f ((ys as any).head)
+				for (let i = 0; xs.variation === 'Nil' && (ys as any).tail.variation === 'Cons'; ++i)
+					if (i === MAXI)
+						error (`'(iterate).bindto' couldn't find any Cons under the max limit (${MAXI}); ${STAP}`)
+					else
+						ys = (ys as any).tail,
+						xs = f ((ys as any).head)
+
+				xs = xs .fmap (($ : any) => ({ ...(ys as any).head, [k] : $ }) as any)
+
+				return (ys as any).tail.variation === 'Cons'
+					? Cons (() => xs.head) (() => xs.tail .link ((ys as any).tail .bindto (k) (f)))
+					: xs
+			}
 		},
-		fmapto (k, f)
+		fmapto (k)
 		{
-			return Cons (() => ({ ...initial, [k] : f (initial) }) as any) (() => this .fmapto (k, f))
+			return f => Cons (() => ({ ...initial, [k] : f (initial) }) as any) (() => this.tail .fmapto (k) (f))
 		},
-		link   (_) { return this },
-		cast   : repeat,
-		head   : initial,
-		get tail () { return this.$tail ??= iterate (endomorphism) (endomorphism (initial)) },
-		$head  : initial,
-		get $init () { return this }
+		link (xs)
+		{
+			return xs.variation === 'Nil'
+				? this
+				: lrprepend (initial) (() => this.tail .link (xs))
+		}
 	})
 
-/**` replicate :: Number -> a -> List a `*/
+/**` replicate : Number -> a -> List a `*/
 const replicate = (amount : number) => <a>(value : a) : List <a> =>
-	Number.isInteger (value)
-		? amount > 0
-			?
-				({
-					CONS   : 'Cons',
-					pipe   (f) { return f (this) },
-					eq     : xs =>
-					{
-						for (let i = 0; i < amount; ++i, xs = xs .tail)
-							if (xs.CONS === 'Nil' || !xs .head .eq (value as Eq <a>))
-								return false
-						return xs.CONS === 'Nil'
-					},
-					bind   : f => concat (replicate (amount) (f (value))),
-					fmap   : f => replicate (amount) (f (value)),
-					bindto : (k, f) => concat (replicate (amount) ({ ...value, [k] : f (value) } as any)),
-					fmapto : (k, f) => replicate (amount) ({ ...value, [k] : f (value) } as any),
-					cast   : replicate (amount),
-					link   (xs)
-					{
-						return xs.CONS === 'Nil'
-							? this
-							: lprepend (value) (() => this .tail .link (xs))
-					},
-					head  : value,
-					get tail () { return this.$tail ??= replicate (amount - 1) (value) },
-					$head : value,
-					$last : value,
-					get $init    () { return this .tail },
-					get $reverse () { return this },
-					$len  : amount
-				})
-			: Nil
-		: ERROR.ONLY_INTEGER ('replicate', amount)
+	amount > 0
+		?
+			({
+				variation : 'Cons',
+				head      : value,
+				get tail  () { return this.$TAIL ??= replicate (amount - 1) (value) },
+				$HEAD     : value,
+				pipe      (f) { return f (this) },
+				eq        (xs)
+				{
+					for (let i = 0; i < amount && xs.variation === 'Cons'; ++i)
+						if (i === MAXI)
+							error (`'(replicate).eq' traversed too many elements for equality (${MAXI}); ${STAP}`)
+						else if (xs.head .eq (value))
+							xs = xs.tail
+						else
+							return false
+					return xs.variation === 'Nil'
+				},
+				bind   : f => concat (replicate (amount) (f (value))),
+				fmap   : f => replicate (amount) (f (value)),
+				bindto : k => f => concat (replicate (amount) (f (value) .fmap (x => ({ ...value, [k] : x }) as any))),
+				fmapto : k => f => replicate (amount) ({ ...value, [k] : f (value) } as any),
+				link (xs)
+				{
+					return xs.variation === 'Nil'
+						? this
+						: lrprepend (value) (() => this.tail .link (xs))
+				}
+			})
+		: Nil
 
-/**` all :: (a -> Boolean) -> List a -> Boolean `*/
+/**` countBy : Number -> Number -> List Number `*/
+const countBy = (step : number) => (start : number) : List <number> =>
+	({
+		variation : 'Cons',
+		head      : start,
+		get tail  () { return this.$TAIL ??= countBy (step) (start + step) },
+		$HEAD     : start,
+		get $INIT () { return this },
+		pipe      (f) { return f (this) },
+		eq        (xs)
+		{
+			for (let i = 0; xs.variation === 'Cons'; ++i)
+				if (i === MAXI)
+					error (`'(countBy).eq' traversed too many elements for equality (${MAXI}); ${STAP}`)
+				else if (xs.head .eq (start + step * i))
+					xs = xs.tail
+				else
+					return false
+			return false
+		},
+		bind (f)
+		{
+			let i = 0
+			let xs = f (start)
+			while (xs.variation === 'Nil')
+				if (i === MAXI)
+					error (`'(countBy).bind' couldn't find Cons under the max limit (${MAXI}); ${STAP}`)
+				else
+					++i, xs = f (start + step * i)
+			return Cons (() => (xs as any).head) (() => (xs as any).tail .link (countBy (step) (start + step * i) .bind (f)))
+		},
+		fmap (f)
+		{
+			return Cons (() => f (start)) (() => this.tail .fmap (f))
+		},
+		bindto : _ => error (`'(countBy).bindto' was caught used incorrectly; use the Do syntax`),
+		fmapto : _ => error (`'(countBy).fmapto' was caught used incorrectly; use the Do syntax`),
+		link (_) { return this }
+	})
+
+/**` countDown : Number -> List Number `*/
+const countDown : (start : number) => List <number> = countBy (-1)
+
+/**` countUp : Number -> List Number `*/
+const countUp : (start : number) => List <number> = countBy (1)
+
+/**` naturals : Number -> List Number `*/
+const naturals : List <number> = countUp (0)
+
+/**` concat : List (List a) -> List a `*/
+const concat = <a>(xss : List <List <a>>) : List <a> =>
+{
+	if (xss.variation === 'Nil')
+		return Nil
+
+	let xs = xss.head
+	let ys = xss.tail
+	for (let i = 0; xs.variation === 'Nil' && ys.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'concat' couldn't find Cons under the max limit (${MAXI}); ${STAP}`)
+		else
+			xs = ys.head,
+			ys = ys.tail
+	return ys.variation === 'Cons'
+		? Cons (() => (xs as any).head) (() => (xs as any).tail .link (concat (ys)))
+		: xs
+}
+
+/**` all : (a -> Boolean) -> List a -> Boolean `*/
 const all = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : boolean =>
 {
-	for (let i = 0; xs.CONS === 'Cons'; ++i)
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('all')
-		else if (predicate (xs .head))
-			xs = xs .tail
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'all' traversed too many elements (${MAXI}); ${STAP}`)
+		else if (predicate (xs.head))
+			xs = xs.tail
 		else
 			return false
 	return true
 }
 
-/**` any :: (a -> Boolean) -> List a -> Boolean `*/
+/**` any : (a -> Boolean) -> List a -> Boolean `*/
 const any = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : boolean =>
 {
-	for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs .tail)
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('any')
-		else if (predicate (xs .head))
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'any' traversed too many elements (${MAXI}); ${STAP}`)
+		else if (predicate (xs.head))
 			return true
+		else
+			xs = xs.tail
 	return false
 }
 
-/**` at :: Number -> List a -> a `*/
+/**` at : Number -> List a -> a `*/
 const at = (index : number) => <a>(xs : List <a>) : a =>
 {
-	if (index < 0 || !Number.isInteger (index))
-		ERROR.ONLY_NATURAL ('at', index)
-	for (let i = 0; i < index; ++i)
-		if (xs.CONS === 'Nil')
-			THROW (`'at' received an index beyond the list; stopped at index '${i}' with goal of '${index}'`)
-		else xs = xs .tail
-	if (xs.CONS === 'Nil')
-		THROW (`'at' received an off-by-one error; cannot get index '${index}' in list of length ${index}`)
-	return xs .head
+	if (!Number.isInteger (index) || index < 0)
+		error (`'at' received index '${index}'; must be a non-negative integer`)
+	let i = 0
+	while (xs.variation === 'Cons')
+		if (i === index)
+			return xs.head
+		else
+			xs = xs.tail,
+			++i
+	return error (`'at' received index '${index}' for list of length ${i}; must be a non-negative integer less than ${i}`)
 }
 
-/**` concat :: List (List a) -> List a `*/
-const concat = <a>(xss : List <List <a>>) : List <a> =>
-	xss.CONS === 'Nil'
-		? Nil
-		: xss .head.CONS === 'Nil'
-			? concat (xss .tail)
-			: Cons (() => xss .head .head) (() => xss .head .tail .link (concat (xss .tail)))
-
-/**` drop :: Number -> List a -> List a `*/
-const drop = (amount : number) => <a>(xs : List <a>) : List <a> =>
+/**` indexing : List a -> Number -> a `*/
+const indexing = <a>(xs : List <a>) => (index : number): a =>
 {
-	if (!Number.isInteger (amount))
-		ERROR.ONLY_INTEGER ('drop', amount)
-	for (let i = 0; i < amount && xs.CONS === 'Cons'; ++i)
-		xs = xs .tail
-	return xs
-}
-
-/**` dropWhile :: (a -> Boolean) -> List a -> List a `*/
-const dropWhile = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : List <a> =>
-{
-	for (let i = 0; xs.CONS === 'Cons' && predicate (xs .head); ++i, xs = xs .tail)
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('dropWhile')
-	return xs
-}
-
-/**` elem :: (Eq a) => a -> List a -> Boolean `*/
-const elem = <a>(value : Eq <a>) => (xs : List <Eq <a>>) : boolean =>
-{
-	for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs .tail)
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('elem')
-		else if (xs .head .eq (value))
-			return true
-	return false
-}
-
-/**` elemIndices :: (Eq a) => a -> List a -> List Number `*/
-const elemIndices = <a>(value : Eq <a>) => (xs : List <Eq <a>>) : List <number> =>
-	xs.CONS === 'Nil'
-		? Nil
-		: xs .head .eq (value)
-			? lprepend (0) (() => elemIndices (value) (xs .tail) .fmap (x => x + 1))
-			: elemIndices (value) (xs .tail) .fmap (x => x + 1)
-
-/**` filter :: (a -> Boolean) -> List a -> List a `*/
-const filter = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : List <a> =>
-	xs.CONS === 'Nil'
-		? Nil
-		: predicate (xs .head)
-			? lprepend (xs .head) (() => filter (predicate) (xs .tail))
-			: filter (predicate) (xs .tail)
-
-/**` findIndices :: (a -> Boolean) -> List a -> List Number `*/
-const findIndices = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : List <number> =>
-	xs.CONS === 'Nil'
-		? Nil
-		: predicate (xs .head)
-			? lprepend (0) (() => findIndices (predicate) (xs .tail) .fmap (x => x + 1))
-			: findIndices (predicate) (xs .tail) .fmap (x => x + 1)
-
-/**` from :: List a -> Number -> a `*/
-const from = <a>(xs : List <a>) => (index : number) : a =>
-{
-	if (index < 0 || !Number.isInteger (index))
-		ERROR.ONLY_NATURAL ('from', index)
+	if (!Number.isInteger (index) || index < 0)
+		error (`'indexing' received index '${index}'; must be a non-negative integer`)
+	let i  = 0
 	let ys = xs
-	for (let i = 0; i < index; ++i)
-		if (ys.CONS === 'Nil')
-			THROW (`'from' received an index beyond the list; stopped at index '${i}' with goal of '${index}'`)
-		else ys = ys .tail
-	if (ys.CONS === 'Nil')
-		THROW (`'from' received an off-by-one error; cannot get index '${index}' in list of length ${index}`)
-	return ys .head
+	while (ys.variation === 'Cons')
+		if (i === index)
+			return ys.head
+		else
+			ys = ys.tail,
+			++i
+	return error (`'indexing' received index '${index}' for list of length ${i}; must be a non-negative integer less than ${i}`)
 }
 
-/**` foldl :: (b -> a -> b) -> b -> List a -> b `*/
-const foldl = <a, b>(reducer : (leftside : b) => (rightside : a) => b) => (initial : b) => (xs : List <a>) : b =>
-{
-	let x = initial
-	for (let i = 0; xs.CONS === 'Cons'; ++i, x = reducer (x) (xs .head), xs = xs .tail)
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('foldl')
-	return x
-}
-
-/**` foldl1 :: (a -> a -> a) -> List a -> a `*/
-const foldl1 = <a>(reducer : (leftside : a) => (rightside : a) => a) => (xs : List <a>) : a =>
-{
-	if (xs.CONS === 'Nil')
-		ERROR.ONLY_CONS ('foldl1')
-	let x = xs .head
-	for (let i = 0; (xs = xs .tail).CONS === 'Cons'; ++i, x = reducer (x) (xs .head))
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('foldl1')
-	return x
-}
-
-/**` foldr :: (a -> b -> b) -> b -> List a -> b `*/
-const foldr = <a, b>(reducer : (leftside : a) => (rightside : b) => b) => (initial : b) => (xs : List <a>) : b =>
-{
-	xs = reverse (xs)
-	let x = initial
-	for (let i = 0; xs.CONS === 'Cons'; ++i, x = reducer (xs .head) (x), xs = xs .tail)
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('foldr')
-	return x
-}
-
-/**` foldr1 :: (a -> a -> a) -> List a -> a `*/
-const foldr1 = <a>(reducer : (leftside : a) => (rightside : a) => a) => (xs : List <a>) : a =>
-{
-	if (xs.CONS === 'Nil')
-		ERROR.ONLY_CONS ('foldr1')
-	xs = reverse (xs)
-	let x = xs .head
-	for (let i = 0; (xs = xs .tail).CONS === 'Cons'; ++i, x = reducer (xs .head) (x))
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('foldr1')
-	return x
-}
-
-/**` init :: List a -> List a `*/
-const init = <a>(xs : List <a>) : List <a> =>
-	xs.$init ??
-		xs.CONS === 'Nil'
-			? ERROR.ONLY_CONS ('init')
-			: xs .tail.CONS === 'Nil'
-				? Nil
-				: Cons (() => xs .head) (() => init (xs .tail))
-
-/**` inits :: List a -> List (List a) `*/
-const inits = <a>(xs : List <a>) : List <List <a>> =>
-	xs.CONS === 'Nil'
-		? singleton (Nil as List <a>)
-		: lprepend (Nil as List <a>) (() => inits (xs .tail) .fmap (llprepend (() => xs .head)))
-
-/**` intersperese :: a -> List a -> List a `*/
-const intersperese = <a>(delimiter : a) => (xs : List <a>) : List <a> =>
-	xs.CONS === 'Nil'
-		? Nil
-		: xs .tail.CONS === 'Nil'
-			? xs
-			: llprepend (() => xs .head) (lprepend (delimiter) (() => intersperese (delimiter) (xs .tail)))
-
-/**` last :: List a -> a `*/
-const last = <a>(xs : List <a>) : a =>
-{
-	if (xs.$last !== undefined)
-		return xs.$last
-	if (xs.CONS === 'Nil')
-		ERROR.ONLY_CONS ('last')
-	if (xs .tail.CONS === 'Nil')
-		return xs .head
-	for (let i = 0; (xs = xs .tail) .tail.CONS === 'Cons'; ++i)
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('last')
-	return xs .head
-}
-
-/**` len :: List a -> Number `*/
+/**` len : List a -> Number `*/
 const len = <a>(xs : List <a>) : number =>
 {
-	if (xs.$len !== undefined)
-		return xs.$len
-	let i = 0
-	while (xs.CONS === 'Cons')
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('len')
+	if (xs.$LEN !== undefined)
+		return xs.$LEN
+	let i  = 0
+	let ys = xs
+	while (ys.variation === 'Cons')
+		if (i === MAXI)
+			error (`'len' traversed too many elements (${MAXI}); ${STAP}`)
 		else
-			++i, xs = xs .tail
-	return i
+			++i,
+			ys = ys.tail
+	return xs.$LEN = i
 }
 
-/**` map :: (a -> b) -> List a -> List b `*/
+/**` last : List a -> a `*/
+const last = <a>(xs : List <a>) : a =>
+{
+	if (xs.$LAST !== undefined)
+		return xs.$LAST
+	if (xs.variation === 'Nil')
+		error (`'last' received a Nil list`)
+	for (let i = 0; (xs as any).tail.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'last' traversed too many elements (${MAXI}); ${STAP}`)
+		else
+			xs = (xs as any).tail
+	return xs.$LAST = (xs as any).head
+}
+
+/**` init : List a -> List a `*/
+const init = <a>(xs : List <a>) : List <a> =>
+{
+	if (xs.$INIT !== undefined)
+		return xs.$INIT
+	if (xs.variation === 'Nil')
+		error (`'init' received a Nil list`)
+	return xs.$INIT =
+		(
+			(xs as any).tail.variation === 'Nil'
+				? Nil
+				: Cons (() => (xs as any).head) (() => init ((xs as any).tail))
+		)
+}
+
+/**` reverse : List a -> List a `*/
+const reverse = <a>(xs : List <a>) : List <a> =>
+{
+	if (xs.$REVERSE !== undefined)
+		return xs.$REVERSE
+	let ys : List <a> = Nil
+	let zs            = xs
+	for (let i = 0; zs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'reverse' traversed too many elements (${MAXI}); ${STAP}`)
+		else
+			ys = prepend (zs.head) (ys),
+			zs = zs.tail
+	return ys.$REVERSE = xs, xs.$REVERSE = ys
+}
+
+/**` map : (a -> b) -> List a -> List b `*/
 const map = <a, b>(morphism : (element : a) => b) => (xs : List <a>) : List <b> =>
 	xs .fmap (morphism)
 
-/**` nelem :: (Eq a) => a -> List a -> Boolean `*/
-const nelem = <a>(value : Eq <a>) => (xs : List <Eq <a>>) : boolean =>
-	!elem (value) (xs)
+/**` intersperse : a -> List a -> List a `*/
+const intersperse = <a>(delimiter : a) => (xs : List <a>) : List <a> =>
+	xs.variation === 'Nil' || xs.tail.variation === 'Nil'
+		? xs
+		: Cons (() => xs.head) (() => prepend (delimiter) (xs.tail))
 
-/**` partition :: (a -> Boolean) -> List a -> (List a, List a) `*/
-const partition = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : Pair <List <a>, List <a>> =>
+/**` foldl : (b -> a -> b) -> b -> List a -> b `*/
+const foldl = <a, b>(operation : (leftside : b) => (rightside : a) => b) => (initial : b) => (xs : List <a>) : b =>
 {
-	let ys : List <a> = Nil
-	let zs : List <a> = Nil
-	for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs .tail)
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('partition')
-		else if (predicate (xs .head))
-			ys = prepend (xs .head) (ys)
+	let x = initial
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'foldl' traversed too many elements (${MAXI}); ${STAP}`)
 		else
-			zs = prepend (xs .head) (zs)
-	return Pair (reverse (ys), reverse (zs))
+			x = operation (x) (xs.head),
+			xs = xs.tail
+	return x
 }
 
-/**` reverse :: List a -> List a `*/
-const reverse = <a>(xs : List <a>) : List <a> =>
+/**` foldl1 : (a -> a -> a) -> List a -> a `*/
+const foldl1 = <a>(operation : (leftside : a) => (rightside : a) => a) => (xs : List <a>) : a =>
 {
-	if (xs.$reverse !== undefined)
-		return xs.$reverse
+	if (xs.variation === 'Nil')
+		error (`'fold1' received a Nil list`)
+	let x = (xs as any).head
+	for (let i = 0; (xs = (xs as any).tail).variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'foldl1' traversed too many elements (${MAXI}); ${STAP}`)
+		else
+			x = operation (x) (xs.head)
+	return x
+}
+
+/**` foldr : (a -> b -> b) -> b -> List a -> b `*/
+const foldr = <a, b>(operation : (leftside : a) => (rightside : b) => b) => (initial : b) => (xs : List <a>) : b =>
+{
 	let ys : List <a> = Nil
-	for (let i = 0; xs.CONS === 'Cons'; ++i, ys = prepend (xs .head) (ys), xs = xs .tail)
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('reverse')
-	return ys
+	if (xs.$REVERSE === undefined)
+	{
+		let zs = xs
+		for (let i = 0; zs.variation === 'Cons'; ++i)
+			if (i === MAXI)
+				error (`'foldr' traversed too many elements (${MAXI}); ${STAP}`)
+			else
+				ys = prepend (zs.head) (ys),
+				zs = zs.tail
+		xs.$REVERSE = ys
+	}
+	else
+		ys = xs.$REVERSE
+	let x = initial
+	while (ys.variation === 'Cons')
+		x = operation (ys.head) (x),
+		ys = ys.tail
+	return x
 }
 
-/**` scanl :: (b -> a -> b) -> b -> List a -> List b `*/
-const scanl = <a, b>(reducer : (leftside : b) => (rightside : a) => b) => (initial : b) => (xs : List <a>) : List <b> =>
-	xs.CONS === 'Nil'
+/**` foldr1 : (a -> b -> b) -> List a -> b `*/
+const foldr1 = <a, b>(operation : (leftside : a) => (rightside : b) => b) => (xs : List <a>) : b =>
+{
+	if (xs.variation === 'Nil')
+		error (`'foldr1' received a Nil list`)
+	let ys : List <a> = Nil
+	if (xs.$REVERSE === undefined)
+	{
+		let zs = xs
+		for (let i = 0; zs.variation === 'Cons'; ++i)
+			if (i === MAXI)
+				error (`'foldr1' traversed too many elements (${MAXI}); ${STAP}`)
+			else
+				ys = prepend (zs.head) (ys),
+				zs = zs.tail
+		xs.$REVERSE = ys
+	}
+	else
+		ys = xs.$REVERSE
+	let x = (ys as any).head
+	while ((ys = (ys as any).tail).variation === 'Cons')
+		x = operation (ys.head) (x)
+	return x
+}
+
+/**` scanl : (b -> a -> b) -> b -> List b `*/
+const scanl = <a, b>(operation : (leftside : b) => (rightside : a) => b) => (initial : b) => (xs : List <a>) : List <b> =>
+	xs.variation === 'Nil'
 		? singleton (initial)
-		: lprepend (initial) (() => scanl (reducer) (reducer (initial) (xs .head)) (xs .tail))
+		: lrprepend (initial) (() => scanl (operation) (operation (initial) (xs.head)) (xs.tail))
 
-/**` scanl1 :: (a -> a -> b) -> List a -> List a `*/
-const scanl1 = <a>(reducer : (leftside : a) => (rightside : a) => a) => (xs : List <a>) : List <a> =>
-	xs.CONS === 'Nil'
-		? Nil
-		: scanl (reducer) (xs .head) (xs .tail)
+/**` scanl1 : (a -> a -> a) -> List a `*/
+const scanl1 = <a>(operation : (leftside : a) => (rightside : a) => a) => (xs : List <a>) : List <a> =>
+	xs.variation === 'Nil' || xs.tail.variation === 'Nil'
+		? xs
+		: Cons
+			(() => xs.head)
+			(() => scanl (operation) (operation (xs.head) ((xs.tail as any).head)) ((xs.tail as any).tail))
 
-/**` scanr :: (a -> b -> b) -> b -> List a -> List b `*/
-const scanr = <a, b>(reducer : (leftside : a) => (rightside : b) => b) => (initial : b) => (xs : List <a>) : List <b> =>
+/**` scanr : (a -> b -> b) -> b -> List a -> List b `*/
+const scanr = <a, b>(operation : (leftside : a) => (rightside : b) => b) => (initial : b) => (xs : List <a>) : List <b> =>
 {
-	xs = reverse (xs)
-	let ys = singleton (initial)
-	for (let i = 0; xs.CONS === 'Cons'; ++i, ys = prepend (reducer (xs .head) (ys .head)) (ys), xs = xs .tail)
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('scanr')
-	return ys
+	let ys : List <a> = Nil
+	if (xs.$REVERSE === undefined)
+	{
+		let zs = xs
+		for (let i = 0; zs.variation === 'Cons'; ++i)
+			if (i === MAXI)
+				error (`'scanr' traversed too many elements (${MAXI}); ${STAP}`)
+			else
+				ys = prepend (zs.head) (ys),
+				zs = zs.tail
+		xs.$REVERSE = ys
+	}
+	else
+		ys = xs.$REVERSE
+	let zs = singleton (initial)
+	while (ys.variation === 'Cons')
+		zs = prepend (operation (ys.head) ((zs as any).head)) (zs),
+		ys = ys.tail
+	return zs
 }
 
-/**` scanr1 :: (a -> a -> a) -> List a -> List a `*/
-const scanr1 = <a>(reducer : (leftside : a) => (rightside : a) => a) => (xs : List <a>) : List <a> =>
+/**` scanr1 : (a -> a -> a) -> List a -> List a `*/
+const scanr1 = <a>(operation : (leftside : a) => (rightside : a) => a) => (xs : List <a>) : List <a> =>
 {
-	xs = reverse (xs)
-	let ys = singleton (xs .head)
-	for (let i = 0; (xs = xs .tail).CONS === 'Cons'; ++i, ys = prepend (reducer (xs .head) (ys .head)) (ys))
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('scanr1')
-	return ys
+	if (xs.variation === 'Nil' || xs.tail.variation === 'Nil')
+		return xs
+
+	let ys : List <a> = Nil
+	if (xs.$REVERSE === undefined)
+	{
+		let zs : List <a> = xs
+		for (let i = 0; zs.variation === 'Cons'; ++i)
+			if (i === MAXI)
+				error (`'scanr1' traversed too many elements (${MAXI}); ${STAP}`)
+			else
+				ys = prepend (zs.head) (ys),
+				zs = zs.tail
+		xs.$REVERSE = ys
+	}
+	else
+		ys = xs.$REVERSE
+	let zs = singleton ((ys as any).head)
+	while ((ys = (ys as any).tail).variation === 'Cons')
+		zs = prepend (operation (ys.head) ((zs as any).head)) (zs)
+	return zs
 }
 
-/**` span :: (a -> Boolean) -> List a -> (List a, List a) `*/
+/**` take : Number -> List a -> List a `*/
+const take = (amount : number) => <a>(xs : List <a>) : List <a> =>
+	xs.$LEN! <= amount
+		? xs
+		: xs.variation === 'Nil' || amount < 1
+			? Nil
+			: Cons (() => xs.head) (() => take (amount - 1) (xs.tail))
+
+/**` drop : Number -> List a -> List a `*/
+const drop = (amount : number) => <a>(xs : List <a>) : List <a> =>
+{
+	if (xs.$LEN! <= amount)
+		return Nil
+	for (let i = 1; i <= amount && xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'drop' traversed too many elements (${MAXI}); ${STAP}`)
+		else
+			xs = xs.tail
+	return xs
+}
+
+/**` splitAt : Number -> List a -> Pair (List a) (List a) `*/
+const splitAt = (index : number) => <a>(xs : List <a>) : Pair <List <a>, List <a>> =>
+{
+	if (index >= MAXI)
+		error (`'splitAt' would be traversing too many elements (${MAXI}); ${STAP}`)
+	if (xs.$LEN! <= index)
+		return Pair (Nil, xs)
+	if (index < 1)
+		return Pair (xs, Nil)
+	let ys : List <a> = Nil
+	for (let i = 1; i <= index && xs.variation === 'Cons'; ++i)
+		ys = prepend (xs.head) (ys),
+		xs = xs.tail
+	let zs : List <a> = Nil
+	while (ys.variation === 'Cons')
+		zs = prepend (ys.head) (zs),
+		ys = ys.tail
+	return Pair (zs, xs)
+}
+
+/**` takeWhile : (a -> Boolean) -> List a -> List a `*/
+const takeWhile = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : List <a> =>
+	xs.variation === 'Cons' && predicate (xs.head)
+		? lrprepend (xs.head) (() => takeWhile (predicate) (xs.tail))
+		: Nil
+
+/**` dropWhile : (a -> Boolean) -> List a -> List a `*/
+const dropWhile = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : List <a> =>
+{
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`''dropWhile' traversed too many elements (${MAXI}); ${STAP}`)
+		else if (predicate (xs.head))
+			xs = xs.tail
+		else
+			return xs
+	return Nil
+}
+
+/**` span : (a -> Boolean) -> List a -> Pair (List a) (List a) `*/
 const span = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : Pair <List <a>, List <a>> =>
 {
 	let ys : List <a> = Nil
-	for (let i = 0; xs.CONS === 'Cons' && predicate (xs .head); ++i, ys = prepend (xs .head) (ys), xs = xs .tail)
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('span')
-	return Pair (reverse (ys), xs)
+	for (let i = 0; xs.variation === 'Cons' && predicate (xs.head); ++i)
+		if (i === MAXI)
+			error (`'span' traversed too many elements ${MAXI}; ${STAP}`)
+		else
+			ys = prepend (xs.head) (ys),
+			xs = xs.tail
+	let zs : List <a> = Nil
+	while (ys.variation === 'Cons')
+		zs = prepend (ys.head) (zs),
+		ys = ys.tail
+	return Pair (zs, xs)
 }
 
-/**` splitAt :: Number -> List a -> (List a, List a) `*/
-const splitAt = (amount : number) => <a>(xs : List <a>) : Pair <List <a>, List <a>> =>
+/**` elem : (Eq a) => a -> List a -> Boolean `*/
+const elem = <a>(value : Eq <a>) => (xs : List <Eq <a>>) : boolean =>
 {
-	let ys : List <a> = Nil
-	for (let i = 0; i < amount && xs.CONS === 'Cons'; ++i, ys = prepend (xs .head) (ys), xs = xs .tail)
-		if (i === MAX_LIST_OPS)
-			ERROR.MAX_LIST_OPS ('splitAt')
-	return Pair (reverse (ys), xs)
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'elem' traversed too many elements (${MAXI}); ${STAP}`)
+		else if (xs.head .eq (value))
+			return true
+		else
+			xs = xs.tail
+	return false
 }
 
-/**` tails :: List a -> List (List a) `*/
-const tails = <a>(xs : List <a>) : List <List <a>> =>
-	xs.CONS === 'Nil'
-		? singleton (Nil as List <a>)
-		: lprepend (xs as List <a>) (() => tails (xs .tail))
+/**` nelem : (Eq a) => a -> List a -> Boolean `*/
+const nelem = <a>(value : Eq <a>) => (xs : List <Eq <a>>) : boolean =>
+{
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'nelem' traversed too many elements (${MAXI}); ${STAP}`)
+		else if (xs.head .eq (value))
+			return false
+		else
+			xs = xs.tail
+	return true
+}
 
-/**` take :: Number -> List a -> List a `*/
-const take = (amount : number) => <a>(xs : List <a>) : List <a> =>
-	Number.isInteger (amount)
-		? amount > 0
-			? Cons (() => xs .head) (() => take (amount - 1) (xs .tail))
-			: Nil
-		: ERROR.ONLY_INTEGER ('take', amount)
+/**` filter : (a -> Boolean) -> List a -> List a `*/
+const filter = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : List <a> =>
+{
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'filter' traversed too many elements (${MAXI}); ${STAP}`)
+		else if (predicate (xs.head))
+			return lrprepend (xs.head) (() => filter (predicate) ((xs as any).tail))
+		else
+			xs = xs.tail
+	return Nil
+}
 
-/**` takeWhile :: (a -> Boolean) -> List a -> List a `*/
-const takeWhile = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : List <a> =>
-	xs.CONS === 'Cons' && predicate (xs .head)
-		? lprepend (xs .head) (() => takeWhile (predicate) (xs .tail))
-		: Nil
+/**` partition : (a -> Boolean) -> List a -> Pair (List a) (List a) `*/
+const partition = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : Pair <List <a>, List <a>> =>
+	Pair (filter (predicate) (xs), filter (notf (predicate)) (xs))
 
-/**` unzip :: List (Pair a b) -> Pair (List a) (List b) `*/
-const unzip = <a, b>(xs : List <Pair <a, b>>) : Pair <List <a>, List <b>> =>
-	Pair (xs .fmap (fst), xs .fmap (snd))
+/**` elemIndices : (Eq a) => a -> List a -> List Number `*/
+const elemIndices = <a>(value : Eq <a>) => (xs : List <Eq <a>>) : List <number> =>
+{
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'elemIndices' traversed too many elements (${MAXI}); ${STAP}`)
+		else if (xs.head .eq (value))
+			return lrprepend (i) (() => elemIndices (value) ((xs as any).tail) .fmap (add (i + 1)))
+		else
+			xs = xs.tail
+	return Nil
+}
 
-/**` unzipWith :: (c -> Pair a b) -> List c -> Pair (List a) (List b) `*/
-const unzipWith = <a, b, c>(f : (element : c) => Pair <a, b>) => (xs : List <c>) : Pair <List <a>, List <b>> =>
-	unzip (xs .fmap (f))
+/**` findIndices : (a -> Boolean) -> List a -> List Number `*/
+const findIndices = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : List <number> =>
+{
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'findIndices' traversed too many elements (${MAXI}); ${STAP}`)
+		else if (predicate (xs.head))
+			return lrprepend (i) (() => findIndices (predicate) ((xs as any).tail) .fmap (add (i + 1)))
+		else
+			xs = xs.tail
+	return Nil
+}
 
-/**` zip :: List a -> List b -> List (Pair a b) `*/
-const zip = <a>(xs : List <a>) => <b>(ys : List <b>) : List <Pair <a, b>> =>
-	xs.CONS === 'Nil' || ys.CONS === 'Nil'
+/**` zip : List a -> List b -> List (Pair a b) `*/
+const zip = <a>(firsts : List <a>) => <b>(seconds : List <b>) : List <Pair <a, b>> =>
+	firsts.variation === 'Nil' || seconds.variation === 'Nil'
 		? Nil
-		: Cons (() => Pair (xs .head, ys .head)) (() => zip (xs .tail) (ys .tail))
+		: Cons (() => Pair (firsts.head, seconds.head)) (() => zip (firsts.tail) (seconds.tail))
 
-/**` zipWith :: (a -> b -> c) -> List a -> List b -> List c `*/
-const zipWith = <a, b, c>(zipper : (first : a) => (second : b) => c) => (xs : List <a>) => (ys : List <b>) : List <c> =>
-	xs.CONS === 'Nil' || ys.CONS === 'Nil'
+/**` zipWith : (a -> b -> c) -> List a -> List b -> List c `*/
+const zipWith = <a, b, c>(zipper : (first : a) => (second : b) => c) => (firsts : List <a>) => (seconds : List <b>) : List <c> =>
+	firsts.variation === 'Nil' || seconds.variation === 'Nil'
 		? Nil
-		: Cons (() => zipper (xs .head) (ys .head)) (() => zipWith (zipper) (xs .tail) (ys .tail))
+		: Cons (() => zipper (firsts.head) (seconds.head)) (() => zipWith (zipper) (firsts.tail) (seconds.tail))
+
+/**` unzip : List (Pair a b) -> Pair (List a) (List b) `*/
+const unzip = <a, b>(pairs : List <Pair <a, b>>) : Pair <List <a>, List <b>> =>
+	Pair (pairs .fmap (fst), pairs .fmap (snd))
+
+/**` unzipWith : (c -> Pair a b) -> List c -> Pair (List a) (List b) `*/
+const unzipWith = <a, b, c>(unzipper : (element : c) => Pair <a, b>) => (xs : List <c>) : Pair <List <a>, List <b>> =>
+	xs
+		.fmap (unzipper)
+		.pipe (pairs => Pair (pairs .fmap (fst), pairs .fmap (snd)))
 
 /********************************************************************************************************************************/
-// Implementation of Micro-Functions|Constants for 'Either' //
+// Constants and Micro-Functions for Maybe //
 
-/**` isLeft :: Either a b -> Boolean `*/
-const isLeft = <a, b>(either : Either <a, b>) : either is Left <a, b> => either.CONS === 'Left'
+/**` isNothing : Maybe a -> Boolean `*/
+const isNothing = <a>(maybe : Maybe <a>) : maybe is Assert_Nothing <a> =>
+	maybe.variation === 'Nothing'
 
-/**` isRight :: Either a b -> Boolean `*/
-const isRight = <a, b>(either : Either <a, b>) : either is Right <a, b> => either.CONS === 'Right'
+/**` isJust : Maybe a -> Boolean `*/
+const isJust = <a>(maybe : Maybe <a>) : maybe is Assert_Just <a> =>
+	maybe.variation === 'Just'
 
-/**` eitherway :: (a -> c) -> (b -> c) -> Either a b -> c `*/
-const eitherway = <a, c>(lf : (left : a) => c) => <b>(rf : (right : b) => c) => (either : Either <a, b>) : c =>
-	either.CONS === 'Left'
-		? lf (either.INFO)
-		: rf (either.INFO)
-
-/**` onLeft :: (a -> c) -> Either a b -> Either c b `*/
-const onLeft = <a, c>(lf : (left : a) => c) => <b>(either : Either <a, b>) : Either <c, b> =>
-	either.CONS === 'Left'
-		? Left (lf (either.INFO))
-		: either as Right <c, b>
-
-/**` onRight :: (b -> c) -> Either a b -> Either a c `*/
-const onRight = <b, c>(rf : (right : b) => c) => <a>(either : Either <a, b>) : Either <a, c> =>
-	either.CONS === 'Right'
-		? Right (rf (either.INFO))
-		: either as Left <a, c>
-
-/**` haveLeft :: a -> Either a b -> a `*/
-const haveLeft = <a>(fallback : a) => <b>(either : Either <a, b>) : a =>
-	either.CONS === 'Left'
-		? either.INFO
+/**` ffromJust : b -> (a -> b) -> Maybe a -> b `*/
+const ffromJust = <b>(fallback : b) => <a>(morphism : (value : a) => b) => (maybe : Maybe <a>) : b =>
+	maybe.variation === 'Just'
+		? morphism (maybe.value)
 		: fallback
 
-/**` haveRight :: b -> Either a b -> b `*/
-const haveRight = <b>(fallback : b) => <a>(either : Either <a, b>) : b =>
-	either.CONS === 'Right'
-		? either.INFO
+/**` fromJust : a -> Maybe a -> a `*/
+const fromJust = <a>(fallback : a) => (maybe : Maybe <a>) : a =>
+	maybe.variation === 'Just'
+		? maybe.value
 		: fallback
 
-/**` fromLeft :: Either a b -> a `*/
-const fromLeft = <a, b>(either : Either <a, b>) : a =>
-	either.CONS === 'Left'
-		? either.INFO
-		: THROW (`'fromLeft' was used on a right-value`)
-
-/**` fromRight :: b -> Either a b -> b `*/
-const fromRight = <a, b>(either : Either <a, b>) : b =>
-	either.CONS === 'Right'
-		? either.INFO
-		: THROW (`'fromRight' was used on a left-value`)
-
-/********************************************************************************************************************************/
-// Implementation of Micro-Functions|Constants for Vectors and Matrices //
-
-const V2 =
-	{
-		/**` V2.origin :: Vector2 `*/
-		origin : Vector2 (0, 0),
-
-		/**` V2.half :: Vector2 `*/
-		half : Vector2 (0.5, 0.5),
-
-		/**` V3.demoteV3 :: Vector3 -> Vector2 `*/
-		demoteV3 : (v : Vector3) : Vector2 =>
-			Vector2 (v.x, v.y),
-
-		/**` V3.demoteV4 :: Vector4 -> Vector2 `*/
-		demoteV4 : (v : Vector4) : Vector2 =>
-			Vector2 (v.x, v.y),
-
-		/**` V2.displace :: Number -> Vector2 -> Vector2 `*/
-		displace : (delta : number) => (v : Vector2) : Vector2 =>
-			Vector2 (v.x + delta, v.y + delta),
-
-		/**` V2.undisplace :: Number -> Vector2 -> Vector2 `*/
-		undisplace : (delta : number) => (v : Vector2) : Vector2 =>
-			Vector2 (v.x - delta, v.y - delta),
-
-		/**` V2.conjugate :: Vector2 -> Vector2 `*/
-		conjugate : (v : Vector2) : Vector2 =>
-			Vector2 (v.x, -v.y),
-
-		/**` V2.rotate :: Number -> Vector2 -> Vector2 `*/
-		rotate : (angle : number) => (v : Vector2) : Vector2 =>
-		{
-			const c = Math.cos (angle), s = Math.sin (angle)
-			return Vector2 (v.x * c - v.y * s, v.y * c + v.x * s)
-		},
-
-		/**` V2.translate :: Number -> Number -> Vector2 -> Vector2 `*/
-		translate : (dx : number) => (dy : number) => (v : Vector2) : Vector2 =>
-			Vector2 (v.x + dx, v.y + dy),
-
-		/**` V2.untranslate :: Number -> Number -> Vector2 -> Vector2 `*/
-		untranslate : (dx : number) => (dy : number) => (v : Vector2) : Vector2 =>
-			Vector2 (v.x - dx, v.y - dy),
-
-		/**` V2.add :: Vector2 -> Vector2 -> Vector2 `*/
-		add : (v : Vector2) => (w : Vector2) : Vector2 =>
-			Vector2 (v.x + w.x, v.y + w.y),
-
-		/**` V2.sub :: Vector2 -> Vector2 -> Vector2 `*/
-		sub : (v : Vector2) => (w : Vector2) : Vector2 =>
-			Vector2 (v.x - w.x, v.y - w.y),
-
-		/**` V2.scale :: Number -> Vector2 -> Vector2 `*/
-		scale : (k : number) => (v : Vector2) : Vector2 =>
-			Vector2 (v.x * k, v.y * k),
-
-		/**` V2.unscale :: Number -> Vector2 -> Vector2 `*/
-		unscale : (k : number) => (v : Vector2) : Vector2 =>
-			Vector2 (v.x / k, v.y / k),
-
-		/**` V2.norm :: Vector2 -> Number `*/
-		norm : (v : Vector2) : number =>
-			Math.sqrt (v.x ** 2 + v.y ** 2),
-
-		/**` V2.normalize :: Vector2 -> Vector2 `*/
-		normalize : (v : Vector2) : Vector2 =>
-			v .eq (V2.origin)
-				? V2.origin
-				: V2.unscale (Math.sqrt (v.x ** 2 + v.y ** 2)) (v),
-
-		/**` V2.dot :: Vector2 -> Vector2 -> Number `*/
-		dot : (v : Vector2) => (w : Vector2) : number =>
-			v.x * w.x + v.y * w.y,
-
-		/**` V2.transform :: Matrix2 -> Vector2 -> Vector2 `*/
-		transform : (m : Matrix2) => (v : Vector2) : Vector2 =>
-			Vector2 (
-				m.ix * v.x + m.jx * v.y,
-				m.iy * v.x + m.jy * v.y
-			),
-
-		/**` V2.translateX :: Number -> Vector2 -> Vector2 `*/
-		translateX : (delta : number) => (v : Vector2) : Vector2 =>
-			Vector2 (v.x + delta, v.y),
-
-		/**` V2.translateY :: Number -> Vector2 -> Vector2 `*/
-		translateY : (delta : number) => (v : Vector2) : Vector2 =>
-			Vector2 (v.x, v.y + delta),
-
-		/**` V2.untranslateX :: Number -> Vector2 -> Vector2 `*/
-		untranslateX : (delta : number) => (v : Vector2) : Vector2 =>
-			Vector2 (v.x - delta, v.y),
-
-		/**` V2.untranslateY :: Number -> Vector2 -> Vector2 `*/
-		untranslateY : (delta : number) => (v : Vector2) : Vector2 =>
-			Vector2 (v.x, v.y - delta),
-
-		/**` V2.scaleX :: Number -> Vector2 -> Vector2 `*/
-		scaleX : (scalar : number) => (v : Vector2) : Vector2 =>
-			Vector2 (v.x * scalar, v.y),
-
-		/**` V2.scaleY :: Number -> Vector2 -> Vector2 `*/
-		scaleY : (scalar : number) => (v : Vector2) : Vector2 =>
-			Vector2 (v.x, v.y * scalar),
-
-		/**` V2.unscaleX :: Number -> Vector2 -> Vector2 `*/
-		unscaleX : (scalar : number) => (v : Vector2) : Vector2 =>
-			Vector2 (v.x / scalar, v.y),
-
-		/**` V2.unscaleY :: Number -> Vector2 -> Vector2 `*/
-		unscaleY : (scalar : number) => (v : Vector2) : Vector2 =>
-			Vector2 (v.x, v.y / scalar)
-	}
-
-const V3 =
-	{
-		/**` V3.origin :: Vector3 `*/
-		origin : Vector3 (0, 0, 0),
-
-		/**` V3.half :: Vector3 `*/
-		half : Vector3 (0.5, 0.5, 0.5),
-
-		/**` V3.promoteV2 :: Vector2 -> Vector3 `*/
-		promoteV2 : (v : Vector2) : Vector3 =>
-			Vector3 (v.x, v.y, 0),
-
-		/**` V3.demoteV4 :: Vector4 -> Vector3 `*/
-		demoteV4 : (v : Vector4) : Vector3 =>
-			Vector3 (v.x, v.y, v.z),
-
-		/**` V3.displace :: Number -> Vector3 -> Vector3 `*/
-		displace : (delta : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x + delta, v.y + delta, v.z + delta),
-
-		/**` V3.undisplace :: Number -> Vector3 -> Vector3 `*/
-		undisplace : (delta : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x - delta, v.y - delta, v.z - delta),
-
-		/**` V3.rotateX :: Number -> Vector3 -> Vector3 `*/
-		rotateX : (angle : number) => (v : Vector3) : Vector3 =>
-		{
-			const c = Math.cos (angle), s = Math.sin (angle)
-			return Vector3 (v.x, v.y * c - v.z * s, v.z * c + v.y * s)
-		},
-
-		/**` V3.rotateY :: Number -> Vector3 -> Vector3 `*/
-		rotateY : (angle : number) => (v : Vector3) : Vector3 =>
-		{
-			const c = Math.cos (angle), s = Math.sin (angle)
-			return Vector3 (v.x * c - v.z * s, v.y, v.z * c + v.x * s)
-		},
-
-		/**` V3.rotateZ :: Number -> Vector3 -> Vector3 `*/
-		rotateZ : (angle : number) => (v : Vector3) : Vector3 =>
-		{
-			const c = Math.cos (angle), s = Math.sin (angle)
-			return Vector3 (v.x * c - v.y * s, v.y * c + v.x * s, v.z)
-		},
-
-		/**` V3.rotateYXZ :: Number -> Number -> Number -> Vector3 `*/
-		rotateYXZ : (yaw : number) => (pitch : number) => (roll : number) => (v : Vector3) : Vector3 =>
-			v .pipe (V3.rotateY (yaw)) .pipe (V3.rotateX (pitch)) .pipe (V3.rotateZ (roll)),
-
-		/**` V3.rotateYXZv :: Vector3 -> Vector3 `*/
-		rotateYXZv : (angles : Vector3) => (v : Vector3) : Vector3 =>
-			v .pipe (V3.rotateY (angles.y)) .pipe (V3.rotateX (angles.x)) .pipe (V3.rotateZ (angles.z)),
-
-		/**` V3.unrotateYXZ :: Number -> Number -> Number -> Vector3 `*/
-		unrotateYXZ : (yaw : number) => (pitch : number) => (roll : number) => (v : Vector3) : Vector3 =>
-			v .pipe (V3.rotateZ (-roll)) .pipe (V3.rotateX (-pitch)) .pipe (V3.rotateY (-yaw)),
-
-		/**` V3.unrotateYXZv :: Vector3 -> Vector3 `*/
-		unrotateYXZv : (angles : Vector3) => (v : Vector3) : Vector3 =>
-			v .pipe (V3.rotateZ (-angles.z)) .pipe (V3.rotateX (-angles.x)) .pipe (V3.rotateY (-angles.y)),
-
-		/**` V3.translate :: Number -> Number -> Number -> Vector3 -> Vector3 `*/
-		translate : (dx : number) => (dy : number) => (dz : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x + dx, v.y + dy, v.z + dz),
-
-		/**` V3.untranslate :: Number -> Number -> Number -> Vector3 -> Vector3 `*/
-		untranslate : (dx : number) => (dy : number) => (dz : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x - dx, v.y - dy, v.z - dz),
-
-		/**` V3.add :: Vector3 -> Vector3 -> Vector3 `*/
-		add : (v : Vector3) => (w : Vector3) : Vector3 =>
-			Vector3 (v.x + w.x, v.y + w.y, v.z + w.z),
-
-		/**` V3.sub :: Vector3 -> Vector3 -> Vector3 `*/
-		sub : (v : Vector3) => (w : Vector3) : Vector3 =>
-			Vector3 (v.x - w.x, v.y - w.y, v.z - w.z),
-
-		/**` V3.scale :: Number -> Vector3 -> Vector3 `*/
-		scale : (k : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x * k, v.y * k, v.z * k),
-
-		/**` V3.unscale :: Number -> Vector3 -> Vector3 `*/
-		unscale : (k : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x / k, v.y / k, v.z / k),
-
-		/**` V3.norm :: Vector3 -> Number `*/
-		norm : (v : Vector3) : number =>
-			Math.sqrt (v.x ** 2 + v.y ** 2 + v.z ** 2),
-
-		/**` V3.normalize :: Vector3 -> Vector3 `*/
-		normalize : (v : Vector3) : Vector3 =>
-			v .eq (V3.origin)
-				? V3.origin
-				: V3.unscale (Math.sqrt (v.x ** 2 + v.y ** 2 + v.z ** 2)) (v),
-
-		/**` V3.dot :: Vector3 -> Vector3 -> Number `*/
-		dot : (v : Vector3) => (w : Vector3) : number =>
-			v.x * w.x + v.y * w.y + v.z * w.z,
-
-		/**` V3.cross :: Vector3 -> Vector3 -> Vector3 `*/
-		cross : (v : Vector3) => (w : Vector3) : Vector3 =>
-			Vector3 (v.y * w.z - v.z * w.y, v.z * w.x - v.x * w.z, v.x * w.y - v.y * w.x),
-
-		/**` V3.transform :: Matrix3 -> Vector3 -> Vector3 `*/
-		transform : (m : Matrix3) => (v : Vector3) : Vector3 =>
-			Vector3 (
-				m.ix * v.x + m.jx * v.y + m.kx * v.z,
-				m.iy * v.x + m.jy * v.y + m.ky * v.z,
-				m.iz * v.x + m.jz * v.y + m.kz * v.z
-			),
-
-		/**` V3.translateX :: Number -> Vector3 -> Vector3 `*/
-		translateX : (delta : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x + delta, v.y, v.z),
-
-		/**` V3.translateY :: Number -> Vector3 -> Vector3 `*/
-		translateY : (delta : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x, v.y + delta, v.z),
-
-		/**` V3.translateZ :: Number -> Vector3 -> Vector3 `*/
-		translateZ : (delta : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x, v.y, v.z + delta),
-
-		/**` V3.untranslateX :: Number -> Vector3 -> Vector3 `*/
-		untranslateX : (delta : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x - delta, v.y, v.z),
-
-		/**` V3.untranslateY :: Number -> Vector3 -> Vector3 `*/
-		untranslateY : (delta : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x, v.y - delta, v.z),
-
-		/**` V3.untranslateZ :: Number -> Vector3 -> Vector3 `*/
-		untranslateZ : (delta : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x, v.y, v.z - delta),
-
-		/**` V3.scaleX :: Number -> Vector3 -> Vector3 `*/
-		scaleX : (scalar : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x * scalar, v.y, v.z),
-
-		/**` V3.scaleY :: Number -> Vector3 -> Vector3 `*/
-		scaleY : (scalar : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x, v.y * scalar, v.z),
-
-		/**` V3.scaleZ :: Number -> Vector3 -> Vector3 `*/
-		scaleZ : (scalar : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x, v.y, v.z * scalar),
-
-		/**` V3.unscaleX :: Number -> Vector3 -> Vector3 `*/
-		unscaleX : (scalar : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x / scalar, v.y, v.z),
-
-		/**` V3.unscaleY :: Number -> Vector3 -> Vector3 `*/
-		unscaleY : (scalar : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x, v.y / scalar, v.z),
-
-		/**` V3.unscaleZ :: Number -> Vector3 -> Vector3 `*/
-		unscaleZ : (scalar : number) => (v : Vector3) : Vector3 =>
-			Vector3 (v.x, v.y, v.z / scalar)
-	}
-
-const V4 =
-	{
-		/**` V4.origin :: Vector4 `*/
-		origin : Vector4 (0, 0, 0, 0),
-
-		/**` V4.half :: Vector4 `*/
-		half : Vector4 (0.5, 0.5, 0.5, 0.5),
-
-		/**` V4.promoteV2 :: Vector2 -> Vector4 `*/
-		promoteV2 : (v : Vector2) : Vector4 =>
-			Vector4 (v.x, v.y, 0, 0),
-
-		/**` V4.promoteV3 :: Vector3 -> Vector4 `*/
-		promoteV3 : (v : Vector3) : Vector4 =>
-			Vector4 (v.x, v.y, v.y, 0),
-
-		/**` V4.displace :: Number -> Vector4 -> Vector4 `*/
-		displace : (delta : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x + delta, v.y + delta, v.z + delta, v.w + delta),
-
-		/**` V4.undisplace :: Number -> Vector4 -> Vector4 `*/
-		undisplace : (delta : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x - delta, v.y - delta, v.z - delta, v.w - delta),
-
-		/**` V4.translate :: Number -> Number -> Number -> Vector4 -> Vector4 `*/
-		translate : (dx : number) => (dy : number) => (dz : number) => (dw : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x + dx, v.y + dy, v.z + dz, v.w + dw),
-
-		/**` V4.untranslate :: Number -> Number -> Number -> Vector4 -> Vector4 `*/
-		untranslate : (dx : number) => (dy : number) => (dz : number) => (dw : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x - dx, v.y - dy, v.z - dz, v.w - dw),
-
-		/**` V4.add :: Vector4 -> Vector4 -> Vector4 `*/
-		add : (v : Vector4) => (w : Vector4) : Vector4 =>
-			Vector4 (v.x + w.x, v.y + w.y, v.z + w.z, v.w + w.w),
-
-		/**` V4.sub :: Vector4 -> Vector4 -> Vector4 `*/
-		sub : (v : Vector4) => (w : Vector4) : Vector4 =>
-			Vector4 (v.x - w.x, v.y - w.y, v.z - w.z, v.w - w.w),
-
-		/**` V4.scale :: Number -> Vector4 -> Vector4 `*/
-		scale : (k : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x * k, v.y * k, v.z * k, v.w * k),
-
-		/**` V4.unscale :: Number -> Vector4 -> Vector4 `*/
-		unscale : (k : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x / k, v.y / k, v.z / k, v.w / k),
-
-		/**` V4.norm :: Vector4 -> Number `*/
-		norm : (v : Vector4) : number =>
-			Math.sqrt (v.x ** 2 + v.y ** 2 + v.z ** 2 + v.w ** 2),
-
-		/**` V4.normalize :: Vector4 -> Vector4 `*/
-		normalize : (v : Vector4) : Vector4 =>
-			v .eq (V4.origin)
-				? V4.origin
-				: V4.unscale (Math.sqrt (v.x ** 2 + v.y ** 2 + v.z ** 2 + v.w ** 2)) (v),
-
-		/**` V4.dot :: Vector4 -> Vector4 -> Number `*/
-		dot : (v : Vector4) => (w : Vector4) : number =>
-			v.x * w.x + v.y * w.y + v.z * w.z + v.w * w.w,
-
-		/**` V4.transform :: Matrix4 -> Vector4 -> Vector4 `*/
-		transform : (m : Matrix4) => (v : Vector4) : Vector4 =>
-			Vector4 (
-				m.ix * v.x + m.jx * v.y + m.kx * v.z + m.lx * v.w,
-				m.iy * v.x + m.jy * v.y + m.ky * v.z + m.ly * v.w,
-				m.iz * v.x + m.jz * v.y + m.kz * v.z + m.lz * v.w,
-				m.iw * v.x + m.jw * v.y + m.kw * v.z + m.lw * v.w
-			),
-
-		/**` V4.translateX :: Number -> Vector4 -> Vector4 `*/
-		translateX : (delta : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x + delta, v.y, v.z, v.w),
-
-		/**` V4.translateY :: Number -> Vector4 -> Vector4 `*/
-		translateY : (delta : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x, v.y + delta, v.z, v.w),
-
-		/**` V4.translateZ :: Number -> Vector4 -> Vector4 `*/
-		translateZ : (delta : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x, v.y, v.z + delta, v.w),
-
-		/**` V4.translateW :: Number -> Vector4 -> Vector4 `*/
-		translateW : (delta : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x, v.y, v.z, v.w + delta),
-
-		/**` V4.untranslateX :: Number -> Vector4 -> Vector4 `*/
-		untranslateX : (delta : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x - delta, v.y, v.z, v.w),
-
-		/**` V4.untranslateY :: Number -> Vector4 -> Vector4 `*/
-		untranslateY : (delta : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x, v.y - delta, v.z, v.w),
-
-		/**` V4.untranslateZ :: Number -> Vector4 -> Vector4 `*/
-		untranslateZ : (delta : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x, v.y, v.z - delta, v.w),
-
-		/**` V4.untranslateW :: Number -> Vector4 -> Vector4 `*/
-		untranslateW : (delta : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x, v.y, v.z, v.w - delta),
-
-		/**` V4.scaleX :: Number -> Vector4 -> Vector4 `*/
-		scaleX : (scalar : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x * scalar, v.y, v.z, v.w),
-
-		/**` V4.scaleY :: Number -> Vector4 -> Vector4 `*/
-		scaleY : (scalar : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x, v.y * scalar, v.z, v.w),
-
-		/**` V4.scaleZ :: Number -> Vector4 -> Vector4 `*/
-		scaleZ : (scalar : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x, v.y, v.z * scalar, v.w),
-
-		/**` V4.scaleW :: Number -> Vector4 -> Vector4 `*/
-		scaleW : (scalar : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x, v.y, v.z, v.w * scalar),
-
-		/**` V4.unscaleX :: Number -> Vector4 -> Vector4 `*/
-		unscaleX : (scalar : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x / scalar, v.y, v.z, v.w),
-
-		/**` V4.unscaleY :: Number -> Vector4 -> Vector4 `*/
-		unscaleY : (scalar : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x, v.y / scalar, v.z, v.w),
-
-		/**` V4.unscaleZ :: Number -> Vector4 -> Vector4 `*/
-		unscaleZ : (scalar : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x, v.y, v.z / scalar, v.w),
-
-		/**` V4.unscaleW :: Number -> Vector4 -> Vector4 `*/
-		unscaleW : (scalar : number) => (v : Vector4) : Vector4 =>
-			Vector4 (v.x, v.y, v.z, v.w / scalar)
-	}
-
-const M2 =
-	{
-		/**` M2.id :: Matrix2 `*/
-		id : Matrix2 (1, 0, 0, 1),
-
-		/**` M2.fromBasis :: (Vector2, Vector2) -> Matrix2 `*/
-		fromBasis : (i : Vector2, j : Vector2) : Matrix2 =>
-			Matrix2 (i.x, j.x, i.y, j.y),
-
-		/**` M2.mul :: Matrix2 -> Matrix2 -> Matrix2 `*/
-		mul : (m : Matrix2) => (n : Matrix2) : Matrix2 =>
-			Matrix2 (
-				m.ix * n.ix + m.jx * n.iy,
-				m.ix * n.jx + m.jx * n.jy,
-				m.iy * n.ix + m.jy * n.iy,
-				m.iy * n.jx + m.jy * n.jy
-			)
-	}
-
-const M3 =
-	{
-		/**` M3.id :: Matrix3 `*/
-		id : Matrix3 (1, 0, 0, 0, 1, 0, 0, 0, 1),
-
-		/**` M3.fromBasis :: (Vector3, Vector3, Vector3) -> Matrix3 `*/
-		fromBasis : (i : Vector3, j : Vector3, k : Vector3) : Matrix3 =>
-			Matrix3 (i.x, j.x, k.x, i.y, j.y, k.y, i.z, j.z, k.z),
-
-		/**` M3.mul :: Matrix3 -> Matrix3 -> Matrix3 `*/
-		mul : (m : Matrix3) => (n : Matrix3) : Matrix3 =>
-			Matrix3 (
-				m.ix * n.ix + m.jx * n.iy + m.kx * n.iz,
-				m.ix * n.jx + m.jx * n.jy + m.kx * n.jz,
-				m.ix * n.kx + m.jx * n.ky + m.kx * n.kz,
-				m.iy * n.ix + m.jy * n.iy + m.ky * n.iz,
-				m.iy * n.jx + m.jy * n.jy + m.ky * n.jz,
-				m.iy * n.kx + m.jy * n.ky + m.ky * n.kz,
-				m.iz * n.ix + m.jz * n.iy + m.kz * n.iz,
-				m.iz * n.jx + m.jz * n.jy + m.kz * n.jz,
-				m.iz * n.kx + m.jz * n.ky + m.kz * n.kz
-			)
-	}
-
-const M4 =
-	{
-		/**` M4.id :: Matrix4 `*/
-		id : Matrix4 (1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1),
-
-		/**` M4.fromBasis :: (Vector4, Vector4, Vector4, Vector4) -> Matrix4 `*/
-		fromBasis : (i : Vector4, j : Vector4, k : Vector4, l : Vector4) : Matrix4 =>
-			Matrix4 (i.x, j.x, k.x, l.x, i.y, j.y, k.y, l.y, i.z, j.z, k.z, l.z, i.w, j.w, k.w, l.w),
-
-		/**` M4.mul :: Matrix4 -> Matrix4 -> Matrix4 `*/
-		mul : (m : Matrix4) => (n : Matrix4) : Matrix4 =>
-			Matrix4 (
-				m.ix * n.ix + m.jx * n.iy + m.kx * n.iz + m.lx * n.iw,
-				m.ix * n.jx + m.jx * n.jy + m.kx * n.jz + m.lx * n.jw,
-				m.ix * n.kx + m.jx * n.ky + m.kx * n.kz + m.lx * n.kw,
-				m.ix * n.lx + m.jx * n.ly + m.kx * n.lz + m.lx * n.lw,
-				m.iy * n.ix + m.jy * n.iy + m.ky * n.iz + m.ly * n.iw,
-				m.iy * n.jx + m.jy * n.jy + m.ky * n.jz + m.ly * n.jw,
-				m.iy * n.kx + m.jy * n.ky + m.ky * n.kz + m.ly * n.kw,
-				m.iy * n.lx + m.jy * n.ly + m.ky * n.lz + m.ly * n.lw,
-				m.iz * n.ix + m.jz * n.iy + m.kz * n.iz + m.lz * n.iw,
-				m.iz * n.jx + m.jz * n.jy + m.kz * n.jz + m.lz * n.jw,
-				m.iz * n.kx + m.jz * n.ky + m.kz * n.kz + m.lz * n.kw,
-				m.iz * n.lx + m.jz * n.ly + m.kz * n.lz + m.lz * n.lw,
-				m.iw * n.ix + m.jw * n.iy + m.kw * n.iz + m.lw * n.iw,
-				m.iw * n.jx + m.jw * n.jy + m.kw * n.jz + m.lw * n.jw,
-				m.iw * n.kx + m.jw * n.ky + m.kw * n.kz + m.lw * n.kw,
-				m.iw * n.lx + m.jw * n.ly + m.kw * n.lz + m.lw * n.lw
-			)
-	}
-
-/********************************************************************************************************************************/
-// Implementation of Micro-Functions|Constants for Multiple Algebraic Data Types //
-
-/**` sequenceIOs :: List (IO a) -> IO (List a) `*/
-const sequenceIOs = <a>(ios : List <IO <a>>) : IO <List <a>> =>
-	IO (() => ios .fmap (io => io.INFO ()))
-
-/**` executeIOs `*/
-const executeIOs = <a>(ios : List <IO <a>>) : IO <null> =>
-	IO (() => {
-		for (let i = ios; i.CONS === 'Cons'; i = i .tail)
-			i .head.INFO ()
-		return null
-	})
-
-/**` pairMaybes :: Pair (Maybe a) (Maybe b) -> Maybe (Pair a b) `*/
-const pairMaybes = <a, b>(pmaybes : Pair <Maybe <a>, Maybe <b>>) : Maybe <Pair <a, b>> =>
-	pmaybes .fst.CONS === 'Just' && pmaybes .snd.CONS === 'Just'
-		? Just (Pair (pmaybes .fst.INFO, pmaybes .snd.INFO))
+/**` extractJust : Maybe a -> a `*/
+const extractJust = <a>(maybe : Maybe <a>) : a =>
+	maybe.variation === 'Just'
+		? maybe.value
+		: error (`'extractJust' received a Nothing value`)
+
+/**` ensure : (a -> Boolean) -> a -> Maybe a `*/
+const ensure = <a>(predicate : (value : a) => boolean) => (value : a) : Maybe <a> =>
+	predicate (value)
+		? Just (value)
 		: Nothing
 
-/**` maybeHead :: List a -> Maybe a `*/
-const maybeHead = <a>(xs : List <a>) : Maybe <a> =>
-	xs.CONS === 'Nil'
-		? Nothing
-		: Just (xs .head)
+/********************************************************************************************************************************/
+// Constants and Micro-Functions for Pair //
 
-/**` maybeLast :: List a -> Maybe a `*/
-const maybeLast = <a>(xs : List <a>) : Maybe <a> =>
-	xs.CONS === 'Nil'
-		? Nothing
-		: Just (last (xs))
+/**` fst : Pair a b -> a `*/
+const fst = <a, b>(pair : Pair <a, b>) : a =>
+	pair.fst
 
-/**` maybeTail :: List a -> Maybe (List a) `*/
-const maybeTail = <a>(xs : List <a>) : Maybe <List <a>> =>
-	xs.CONS === 'Nil'
-		? Nothing
-		: Just (xs .tail)
+/**` snd : Pair a b -> b `*/
+const snd = <a, b>(pair : Pair <a, b>) : b =>
+	pair.snd
 
-/**` maybeInit :: List a -> Maybe (List a) `*/
-const maybeInit = <a>(xs : List <a>) : Maybe <List <a>> =>
-	xs.CONS === 'Nil'
-		? Nothing
-		: Just (init (xs))
+/**` fboth : (a -> b) -> Pair a a -> Pair b b `*/
+const fboth = <a, b>(morphism : (value : a) => b) => (pair : Pair <a, a>) : Pair <b, b> =>
+	Pair (morphism (pair.fst), morphism (pair.snd))
 
-/**` fromMaybes :: List (Maybe a) -> List a `*/
-const fromMaybes = <a>(maybes : List <Maybe <a>>) : List <a> =>
-	maybes.CONS === 'Nil'
-		? Nil
-		: maybes .head.CONS === 'Nothing'
-			? fromMaybes (maybes .tail)
-			: lprepend (maybes .head.INFO) (() => fromMaybes (maybes .tail))
+/**` ffst : (a -> c) -> Pair a b -> Pair c b `*/
+const ffst = <a, c>(morphism : (value : a) => c) => <b>(pair : Pair <a, b>) : Pair <c, b> =>
+	Pair (morphism (pair.fst), pair.snd)
 
-/**` mapMaybe :: (a -> Maybe b) -> List a -> List b `*/
-const mapMaybe = <a, b>(reaction : (element : a) => Maybe <b>) => (xs : List <a>) : List <b> =>
-	fromMaybes (xs .fmap (reaction))
+/**` fsnd : (b -> c) -> Pair a b -> Pair a c `*/
+const fsnd = <b, c>(morphism : (value : b) => c) => <a>(pair : Pair <a, b>) : Pair <a, c> =>
+	Pair (pair.fst, morphism (pair.snd))
 
-/**` maybeSingleton :: Maybe a -> List a `*/
-const maybeSingleton = <a>(maybe : Maybe <a>) : List <a> =>
-	maybe.CONS === 'Nothing'
-		? Nil
-		: singleton (maybe.INFO)
+/**` swap : Pair a b -> Pair b a `*/
+const swap = <a, b>(pair : Pair <a, b>) : Pair <b, a> =>
+	Pair (pair.snd, pair.fst)
 
-/**` maybeAt :: Number -> List a -> Maybe a `*/
-const maybeAt = (index : number) => <a>(xs : List <a>) : Maybe <a> =>
-{
-	if (index < 0 || !Number.isInteger)
-		return Nothing
-	for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs .tail)
-		if (i === index)
-			return Just (xs .head)
-	return Nothing
-}
+/**` same : a -> Pair a a `*/
+const same = <a>(value : a) : Pair <a, a> =>
+	Pair (value, value)
 
-/**` find :: (a -> Boolean) -> List a -> Maybe a `*/
-const find = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : Maybe <a> =>
-{
-	while (xs.CONS === 'Cons')
-		if (predicate (xs .head)) return Just (xs .head)
-		else xs = xs .tail
-	return Nothing
-}
+/**` pick : Boolean -> Pair a a -> a `*/
+const pick = (bool : boolean) : (<a>(pair : Pair <a, a>) => a) =>
+	bool ? fst : snd
 
-/**` elemIndex :: (Eq a) => a -> List a -> Maybe Number `*/
-const elemIndex = <a>(value : Eq <a>) => (xs : List <Eq <a>>) : Maybe <number> =>
-{
-	for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs .tail)
-		if (xs .head .eq (value))
-			return Just (i)
-	return Nothing
-}
+/**` curry : (Pair a b -> c) -> a -> b -> c `*/
+const curry = <a, b, c>(f : (parameters : Pair <a, b>) => c) => (first : a) => (second : b) : c =>
+	f (Pair (first, second))
 
-/**` findIndex :: (a -> Boolean) -> List a -> Maybe Number `*/
-const findIndex = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : Maybe <number> =>
-{
-	for (let i = 0; xs.CONS === 'Cons'; ++i, xs = xs .tail)
-		if (predicate (xs .head))
-			return Just (i)
-	return Nothing
-}
+/**` uncurry : (a -> b -> c) -> Pair a b -> c `*/
+const uncurry = <a, b, c>(f : (first : a) => (second : b) => c) => (parameters : Pair <a, b>) : c =>
+	f (parameters.fst) (parameters.snd)
 
-/**` lefts :: List (Either a b) -> List a `*/
-const lefts = <a, b>(eithers : List <Either <a, b>>) : List <a> =>
-	eithers.CONS === 'Nil'
-		? Nil
-		: eithers .head.CONS === 'Left'
-			? lprepend (eithers .head.INFO) (() => lefts (eithers .tail))
-			: lefts (eithers .tail)
-
-/**` rights :: List (Either a b) -> List b `*/
-const rights = <a, b>(eithers : List <Either <a, b>>) : List <b> =>
-	eithers.CONS === 'Nil'
-		? Nil
-		: eithers .head.CONS === 'Right'
-			? lprepend (eithers .head.INFO) (() => rights (eithers .tail))
-			: rights (eithers .tail)
+/**` pairToArray : Pair a b -> [a, b] `*/
+const pairToArray = <a, b>(pair : Pair <a, b>) : [a, b] =>
+	[pair.fst, pair.snd]
 
 /********************************************************************************************************************************/
-// Implementation of Micro-Functions|Constants for Enumerators //
+// Constants and Micro-Functions for Either //
 
-/**` relaxX :: X -> X `*/
-const relaxX = (direction : X) : X =>
-	direction === X.LL ? X.L :
-	direction === X.RR ? X.R :
-	direction
+/**` isLeft : Either a b -> Boolean `*/
+const isLeft = <a, b>(either : Either <a, b>) : either is Assert_Left <a, b> =>
+	either.variation === 'Left'
 
-/**` relaxY :: Y -> Y `*/
-const relaxY = (direction : Y) : Y =>
-	direction === Y.DD ? Y.D :
-	direction === Y.UU ? Y.U :
-	direction
+/**` isRight : Either a b -> Boolean `*/
+const isRight = <a, b>(either : Either <a, b>) : either is Assert_Right <a, b> =>
+	either.variation === 'Right'
 
-/**` relaxZ :: Z -> Z `*/
-const relaxZ = (direction : Z) : Z =>
-	direction === Z.BB ? Z.B :
-	direction === Z.FF ? Z.F :
-	direction
+/**` mapLeft : (a -> c) -> Either a b -> Either c b `*/
+const mapLeft = <a, c>(lf : (left : a) => c) => <b>(either : Either <a, b>) : Either <c, b> =>
+	either.variation === 'Left'
+		? Left (lf (either.value))
+		: either as Either <c, b>
 
-/**` isL :: X -> Boolean `*/
-const isL = (direction : X) : boolean => direction === X.L || direction === X.LL
+/**` mapRight : (b -> c) -> Either a b -> Either a c `*/
+const mapRight = <b, c>(rf : (right : b) => c) => <a>(either : Either <a, b>) : Either <a, c> =>
+	either.variation === 'Right'
+		? Right (rf (either.value))
+		: either as Either <a, c>
 
-/**` isR :: X -> Boolean `*/
-const isR = (direction : X) : boolean => direction === X.R || direction === X.RR
+/**` fromEither : (a -> c) -> (b -> c) -> Either a b -> c `*/
+const fromEither = <a, c>(lf : (left : a) => c) => <b>(rf : (right : b) => c) => (either : Either <a, b>) : c =>
+	either.variation === 'Left'
+		? lf (either.value)
+		: rf (either.value)
 
-/**` isD :: Y -> Boolean `*/
-const isD = (direction : Y) : boolean => direction === Y.D || direction === Y.DD
+/**` fromLeft : a -> Either a b -> a `*/
+const fromLeft = <a>(fallback : a) => <b>(either : Either <a, b>) : a =>
+	either.variation === 'Left'
+		? either.value
+		: fallback
 
-/**` isU :: Y -> Boolean `*/
-const isU = (direction : Y) : boolean => direction === Y.U || direction === Y.UU
+/**` fromRight : b -> Either a b -> a `*/
+const fromRight = <b>(fallback : b) => <a>(either : Either <a, b>) : b =>
+	either.variation === 'Right'
+		? either.value
+		: fallback
 
-/**` isB :: Z -> Boolean `*/
-const isB = (direction : Z) : boolean => direction === Z.B || direction === Z.BB
+/**` extractLeft : Either a b -> a `*/
+const extractLeft = <a, b>(either : Either <a, b>) : a =>
+	either.variation === 'Left'
+		? either.value
+		: error (`'fromLeft' received a Right value`)
 
-/**` isF :: Z -> Boolean `*/
-const isF = (direction : Z) : boolean => direction === Z.F || direction === Z.FF
+/**` extractRight : Either a b -> b `*/
+const extractRight = <a, b>(either : Either <a, b>) : b =>
+	either.variation === 'Right'
+		? either.value
+		: error (`'fromRight' received a Left value`)
 
-/**` mappingLineCap :: Mapping LineCap CanvasLineCap `*/
-const mappingLineCap : Mapping <LineCap, CanvasLineCap> =
-	Mapping (
+/********************************************************************************************************************************/
+// Constants and Micro-Functions for Vectors and Matrices //
+
+namespace V2
+{
+	/**` V2.zero : Vector2 `*/
+	export const zero : Vector2 = Vector2 (0, 0)
+
+	/**` V2.half : Vector2 `*/
+	export const half : Vector2 = Vector2 (0.5, 0.5)
+
+	/**` V2.unit : Vector2 `*/
+	export const unit : Vector2 = Vector2 (1, 1)
+
+	/**` V2.promoteV3 : Vector2 -> Vector3 `*/
+	export const promoteV3 = (v : Vector2) : Vector3 =>
+		Vector3 (v.x, v.y, 0)
+
+	/**` V2.promoteV4 : Vector2 -> Vector4 `*/
+	export const promoteV4 = (v : Vector2) : Vector4 =>
+		Vector4 (v.x, v.y, 0, 0)
+
+	/**` V2.translateX : Number -> Vector2 -> Vector2 `*/
+	export const translateX = (dx : number) => (v : Vector2) : Vector2 =>
+		Vector2 (v.x + dx, v.y)
+
+	/**` V2.translateY : Number -> Vector2 -> Vector2 `*/
+	export const translateY = (dy : number) => (v : Vector2) : Vector2 =>
+		Vector2 (v.x, v.y + dy)
+
+	/**` V2.translateXY : Number -> Number -> Vector2 -> Vector2 `*/
+	export const translateXY = (dx : number) => (dy : number) => (v : Vector2) : Vector2 =>
+		Vector2 (v.x + dx, v.y + dy)
+
+	/**` V2.untranslateX : Number -> Vector2 -> Vector2 `*/
+	export const untranslateX = (dx : number) => (v : Vector2) : Vector2 =>
+		Vector2 (v.x - dx, v.y)
+
+	/**` V2.untranslateY : Number -> Vector2 -> Vector2 `*/
+	export const untranslateY = (dy : number) => (v : Vector2) : Vector2 =>
+		Vector2 (v.x, v.y - dy)
+
+	/**` V2.untranslateXY : Number -> Number -> Vector2 -> Vector2 `*/
+	export const untranslateXY = (dx : number) => (dy : number) => (v : Vector2) : Vector2 =>
+		Vector2 (v.x - dx, v.y - dy)
+
+	/**` V2.scaleX : Number -> Vector2 -> Vector2 `*/
+	export const scaleX = (kx : number) => (v : Vector2) : Vector2 =>
+		Vector2 (v.x * kx, v.y)
+
+	/**` V2.scaleY : Number -> Vector2 -> Vector2 `*/
+	export const scaleY = (ky : number) => (v : Vector2) : Vector2 =>
+		Vector2 (v.x, v.y * ky)
+
+	/**` V2.scaleXY : Number -> Number -> Vector2 -> Vector2 `*/
+	export const scaleXY = (kx : number) => (ky : number) => (v : Vector2) : Vector2 =>
+		Vector2 (v.x * kx, v.y * ky)
+
+	/**` V2.unscaleX : Number -> Vector2 -> Vector2 `*/
+	export const unscaleX = (kx : number) => (v : Vector2) : Vector2 =>
+		Vector2 (v.x / kx, v.y)
+
+	/**` V2.unscaleY : Number -> Vector2 -> Vector2 `*/
+	export const unscaleY = (ky : number) => (v : Vector2) : Vector2 =>
+		Vector2 (v.x, v.y / ky)
+
+	/**` V2.unscaleXY : Number -> Number -> Vector2 -> Vector2 `*/
+	export const unscaleXY = (kx : number) => (ky : number) => (v : Vector2) : Vector2 =>
+		Vector2 (v.x / kx, v.y / ky)
+
+	/**` V2.scale : Number -> Vector2 -> Vector2 `*/
+	export const scale = (k : number) => (v : Vector2) : Vector2 =>
+		Vector2 (v.x * k, v.y * k)
+
+	/**` V2.unscale : Number -> Vector2 -> Vector2 `*/
+	export const unscale = (k : number) => (v : Vector2) : Vector2 =>
+		Vector2 (v.x / k, v.y / k)
+
+	/**` V2.translate : Vector2 -> Vector2 -> Vector2 `*/
+	export const translate = (v : Vector2) => (w : Vector2) : Vector2 =>
+		Vector2 (v.x + w.x, v.y + w.y)
+
+	/**` V2.untranslate : Vector2 -> Vector2 -> Vector2 `*/
+	export const untranslate = (v : Vector2) => (w : Vector2) : Vector2 =>
+		Vector2 (v.x - w.x, v.y - w.y)
+
+	/**` V2.norm : Vector2 -> Number `*/
+	export const norm = (v : Vector2) : number =>
+		Math.sqrt (v.x ** 2 + v.y ** 2)
+
+	/**` V2.normalize : Vector2 -> Vector2 `*/
+	export const normalize = (v : Vector2) : Vector2 =>
+	{
+		const x = Math.sqrt (v.x ** 2 + v.y ** 2)
+		return x === 0
+			? V2.zero
+			: Vector2 (v.x / x, v.y / x)
+	}
+
+	/**` V2.dot : Vector2 -> Vector2 -> Number `*/
+	export const dot = (v : Vector2) => (w : Vector2) : number =>
+		v.x * w.x + v.y * w.y
+
+	/**` V2.transform : Matrix2 -> Vector2 -> Vector2 `*/
+	export const transform = (m : Matrix2) => (v : Vector2) : Vector2 =>
+		Vector2 (
+			m.ix * v.x + m.jx * v.y,
+			m.iy * v.x + m.jy * v.y
+		)
+}
+
+namespace V3
+{
+	/**` V3.zero : Vector3 `*/
+	export const zero : Vector3 = Vector3 (0, 0, 0)
+
+	/**` V3.half : Vector3 `*/
+	export const half : Vector3 = Vector3 (0.5, 0.5, 0.5)
+
+	/**` V3.unit : Vector3 `*/
+	export const unit : Vector3 = Vector3 (1, 1, 1)
+
+	/**` V3.demoteV2 : Vector3 -> Vector2 `*/
+	export const demoteV2 = (v : Vector3) : Vector2 =>
+		Vector2 (v.x, v.y)
+
+	/**` V3.promoteV4 : Vector3 -> Vector4 `*/
+	export const promoteV4 = (v : Vector3) : Vector4 =>
+		Vector4 (v.x, v.y, v.z, 0)
+
+	/**` V3.translateX : Number -> Vector3 -> Vector3 `*/
+	export const translateX = (dx : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x + dx, v.y, v.z)
+
+	/**` V3.translateY : Number -> Vector3 -> Vector3 `*/
+	export const translateY = (dy : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x, v.y + dy, v.z)
+
+	/**` V3.translateZ : Number -> Vector3 -> Vector3 `*/
+	export const translateZ = (dz : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x, v.y, v.z + dz)
+
+	/**` V3.translateXYZ : Number -> Number -> Number -> Vector3 -> Vector3 `*/
+	export const translateXYZ = (dx : number) => (dy : number) => (dz : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x + dx, v.y + dy, v.z + dz)
+
+	/**` V3.untranslateX : Number -> Vector3 -> Vector3 `*/
+	export const untranslateX = (dx : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x - dx, v.y, v.z)
+
+	/**` V3.untranslateY : Number -> Vector3 -> Vector3 `*/
+	export const untranslateY = (dy : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x, v.y - dy, v.z)
+
+	/**` V3.untranslateZ : Number -> Vector3 -> Vector3 `*/
+	export const untranslateZ = (dz : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x, v.y, v.z - dz)
+
+	/**` V3.untranslateXYZ : Number -> Number -> Number -> Vector3 -> Vector3 `*/
+	export const untranslateXYZ = (dx : number) => (dy : number) => (dz : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x - dx, v.y - dy, v.z - dz)
+
+	/**` V3.scaleX : Number -> Vector3 -> Vector3 `*/
+	export const scaleX = (kx : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x * kx, v.y, v.z)
+
+	/**` V3.scaleY : Number -> Vector3 -> Vector3 `*/
+	export const scaleY = (ky : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x, v.y * ky, v.z)
+
+	/**` V3.scaleZ : Number -> Vector3 -> Vector3 `*/
+	export const scaleZ = (kz : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x, v.y, v.z * kz)
+
+	/**` V3.scaleXYZ : Number -> Number -> Number -> Vector3 -> Vector3 `*/
+	export const scaleXYZ = (kx : number) => (ky : number) => (kz : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x * kx, v.y * ky, v.z * kz)
+
+	/**` V3.unscaleX : Number -> Vector3 -> Vector3 `*/
+	export const unscaleX = (kx : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x / kx, v.y, v.z)
+
+	/**` V3.unscaleY : Number -> Vector3 -> Vector3 `*/
+	export const unscaleY = (ky : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x, v.y / ky, v.z)
+
+	/**` V3.unscaleZ : Number -> Vector3 -> Vector3 `*/
+	export const unscaleZ = (kz : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x, v.y, v.z / kz)
+
+	/**` V3.unscaleXYZ : Number -> Number -> Number -> Vector3 -> Vector3 `*/
+	export const unscaleXYZ = (kx : number) => (ky : number) => (kz : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x / kx, v.y / ky, v.z / kz)
+
+	/**` V3.scale : Number -> Vector3 -> Vector3 `*/
+	export const scale = (k : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x * k, v.y * k, v.z * k)
+
+	/**` V3.unscale : Number -> Vector3 -> Vector3 `*/
+	export const unscale = (k : number) => (v : Vector3) : Vector3 =>
+		Vector3 (v.x / k, v.y / k, v.z / k)
+
+	/**` V3.translate : Vector3 -> Vector3 -> Vector3 `*/
+	export const translate = (v : Vector3) => (w : Vector3) : Vector3 =>
+		Vector3 (v.x + w.x, v.y + w.y, v.z + w.z)
+
+	/**` V3.untranslate : Vector3 -> Vector3 -> Vector3 `*/
+	export const untranslate = (v : Vector3) => (w : Vector3) : Vector3 =>
+		Vector3 (v.x - w.x, v.y - w.y, v.z - w.z)
+
+	/**` V3.norm : Vector3 -> Number `*/
+	export const norm = (v : Vector3) : number =>
+		Math.sqrt (v.x ** 2 + v.y ** 2 + v.z ** 2)
+
+	/**` V3.normalize : Vector3 -> Vector3 `*/
+	export const normalize = (v : Vector3) : Vector3 =>
+	{
+		const x = Math.sqrt (v.x ** 2 + v.y ** 2 + v.z ** 2)
+		return x === 0
+			? V3.zero
+			: Vector3 (v.x / x, v.y / x, v.z / x)
+	}
+
+	/**` V3.dot : Vector3 -> Vector3 -> Number `*/
+	export const dot = (v : Vector3) => (w : Vector3) : number =>
+		v.x * w.x + v.y * w.y + v.z * w.z
+
+	/**` V3.transform : Matrix3 -> Vector3 -> Vector3 `*/
+	export const transform = (m : Matrix3) => (v : Vector3) : Vector3 =>
+		Vector3 (
+			m.ix * v.x + m.jx * v.y + m.kx * v.z,
+			m.iy * v.x + m.jy * v.y + m.ky * v.z,
+			m.iz * v.x + m.jz * v.y + m.kz * v.z
+		)
+}
+
+namespace V4
+{
+	/**` V4.zero : Vector4 `*/
+	export const zero : Vector4 = Vector4 (0, 0, 0, 0)
+
+	/**` V4.half : Vector4 `*/
+	export const half : Vector4 = Vector4 (0.5, 0.5, 0.5, 0.5)
+
+	/**` V4.unit : Vector4 `*/
+	export const unit : Vector4 = Vector4 (1, 1, 1, 1)
+
+	/**` V4.demoteV2 : Vector4 -> Vector2 `*/
+	export const demoteV2 = (v : Vector4) : Vector2 =>
+		Vector2 (v.x, v.y)
+
+	/**` V4.demoteV4 : Vector4 -> Vector3 `*/
+	export const demoteV4 = (v : Vector4) : Vector3 =>
+		Vector3 (v.x, v.y, v.z)
+
+	/**` V4.translateX : Number -> Vector4 -> Vector4 `*/
+	export const translateX = (dx : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x + dx, v.y, v.z, v.w)
+
+	/**` V4.translateY : Number -> Vector4 -> Vector4 `*/
+	export const translateY = (dy : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x, v.y + dy, v.z, v.w)
+
+	/**` V4.translateZ : Number -> Vector4 -> Vector4 `*/
+	export const translateZ = (dz : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x, v.y, v.z + dz, v.w)
+
+	/**` V4.translateW : Number -> Vector4 -> Vector4 `*/
+	export const translateW = (dw : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x, v.y, v.z, v.w + dw)
+
+	/**` V4.translateXYZW : Number -> Number -> Number -> Number -> Vector4 -> Vector4 `*/
+	export const translateXYZW = (dx : number) => (dy : number) => (dz : number) => (dw : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x + dx, v.y + dy, v.z + dz, v.w + dw)
+
+	/**` V4.untranslateX : Number -> Vector4 -> Vector4 `*/
+	export const untranslateX = (dx : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x - dx, v.y, v.z, v.w)
+
+	/**` V4.untranslateY : Number -> Vector4 -> Vector4 `*/
+	export const untranslateY = (dy : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x, v.y - dy, v.z, v.w)
+
+	/**` V4.untranslateZ : Number -> Vector4 -> Vector4 `*/
+	export const untranslateZ = (dz : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x, v.y, v.z - dz, v.w)
+
+	/**` V4.untranslateW : Number -> Vector4 -> Vector4 `*/
+	export const untranslateW = (dz : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x, v.y, v.z, v.w - dz)
+
+	/**` V4.untranslateXYZW : Number -> Number -> Number -> Number -> Vector4 -> Vector4 `*/
+	export const untranslateXYZW = (dx : number) => (dy : number) => (dz : number) => (dw : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x - dx, v.y - dy, v.z - dz, v.w - dw)
+
+	/**` V4.scaleX : Number -> Vector4 -> Vector4 `*/
+	export const scaleX = (kx : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x * kx, v.y, v.z, v.w)
+
+	/**` V4.scaleY : Number -> Vector4 -> Vector4 `*/
+	export const scaleY = (ky : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x, v.y * ky, v.z, v.w)
+
+	/**` V4.scaleZ : Number -> Vector4 -> Vector4 `*/
+	export const scaleZ = (kz : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x, v.y, v.z * kz, v.w)
+
+	/**` V4.scaleW : Number -> Vector4 -> Vector4 `*/
+	export const scaleW = (kw : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x, v.y, v.z, v.w * kw)
+
+	/**` V4.scaleXYZW : Number -> Number -> Number -> Number -> Vector4 -> Vector4 `*/
+	export const scaleXYZW = (kx : number) => (ky : number) => (kz : number) => (kw : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x * kx, v.y * ky, v.z * kz, v.w * kw)
+
+	/**` V4.unscaleX : Number -> Vector4 -> Vector4 `*/
+	export const unscaleX = (kx : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x / kx, v.y, v.z, v.w)
+
+	/**` V4.unscaleY : Number -> Vector4 -> Vector4 `*/
+	export const unscaleY = (ky : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x, v.y / ky, v.z, v.w)
+
+	/**` V4.unscaleZ : Number -> Vector4 -> Vector4 `*/
+	export const unscaleZ = (kz : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x, v.y, v.z / kz, v.w)
+
+	/**` V4.unscaleW : Number -> Vector4 -> Vector4 `*/
+	export const unscaleW = (kw : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x, v.y, v.z, v.w / kw)
+
+	/**` V4.unscaleXYZW : Number -> Number -> Number -> Number -> Vector4 -> Vector4 `*/
+	export const unscaleXYZW = (kx : number) => (ky : number) => (kz : number) => (kw : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x / kx, v.y / ky, v.z / kz, v.w / kw)
+
+	/**` V4.scale : Number -> Vector4 -> Vector4 `*/
+	export const scale = (k : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x * k, v.y * k, v.z * k, v.w * k)
+
+	/**` V4.unscale : Number -> Vector4 -> Vector4 `*/
+	export const unscale = (k : number) => (v : Vector4) : Vector4 =>
+		Vector4 (v.x / k, v.y / k, v.z / k, v.w / k)
+
+	/**` V4.translate : Vector4 -> Vector4 -> Vector4 `*/
+	export const translate = (v : Vector4) => (w : Vector4) : Vector4 =>
+		Vector4 (v.x + w.x, v.y + w.y, v.z + w.z, v.w + w.w)
+
+	/**` V4.untranslate : Vector4 -> Vector4 -> Vector4 `*/
+	export const untranslate = (v : Vector4) => (w : Vector4) : Vector4 =>
+		Vector4 (v.x - w.x, v.y - w.y, v.z - w.z, v.w - w.w)
+
+	/**` V3.norm : Vector4 -> Number `*/
+	export const norm = (v : Vector4) : number =>
+		Math.sqrt (v.x ** 2 + v.y ** 2 + v.z ** 2 + v.w ** 2)
+
+	/**` V3.normalize : Vector4 -> Vector4 `*/
+	export const normalize = (v : Vector4) : Vector4 =>
+	{
+		const x = Math.sqrt (v.x ** 2 + v.y ** 2 + v.z ** 2 + v.w ** 2)
+		return x === 0
+			? V4.zero
+			: Vector4 (v.x / x, v.y / x, v.z / x, v.w / x)
+	}
+
+	/**` V4.dot : Vector4 -> Vector4 -> Number `*/
+	export const dot = (v : Vector4) => (w : Vector4) : number =>
+		v.x * w.x + v.y * w.y + v.z * w.z + v.w * w.w
+
+	/**` V4.transform : Matrix4 -> Vector4 -> Vector4 `*/
+	export const transform = (m : Matrix4) => (v : Vector4) : Vector4 =>
+		Vector4 (
+			m.ix * v.x + m.jx * v.y + m.kx * v.z + m.lx * v.w,
+			m.iy * v.x + m.jy * v.y + m.ky * v.z + m.ly * v.w,
+			m.iz * v.x + m.jz * v.y + m.kz * v.z + m.lz * v.w,
+			m.iw * v.x + m.jw * v.y + m.kw * v.z + m.lw * v.w
+		)
+}
+
+namespace M2
+{
+	/**` M2.identity : Matrix2 `*/
+	export const identity : Matrix2 = Matrix2 (1, 0, 0, 1)
+
+	/**` M2.basis : (Vector2, Vector2) -> Matrix2 `*/
+	export const basis = (i : Vector2, j : Vector2) : Matrix2 =>
+		Matrix2 (i.x, j.x, i.y, j.y)
+
+	/**` M2.compose : Matrix2 -> Matrix2 -> Matrix2 `*/
+	export const compose = (m : Matrix2) => (n : Matrix2) : Matrix2 =>
+		Matrix2 (
+			m.ix * n.ix + m.jx * n.iy,
+			m.ix * n.jx + m.jx * n.jy,
+			m.iy * n.ix + m.jy * n.iy,
+			m.iy * n.jx + m.jy * n.jy
+		)
+}
+
+namespace M3
+{
+	/**` M3.identity : Matrix3 `*/
+	export const identity : Matrix3 = Matrix3 (1, 0, 0, 0, 1, 0, 0, 0, 1)
+
+	/**` M3.basis : (Vector3, Vector3, Vector3) -> Matrix3 `*/
+	export const basis = (i : Vector3, j : Vector3, k : Vector3) : Matrix3 =>
+		Matrix3 (i.x, j.x, k.x, i.y, j.y, k.y, i.z, j.z, k.z)
+
+	/**` M3.compose : Matrix3 -> Matrix3 -> Matrix3 `*/
+	export const compose = (m : Matrix3) => (n : Matrix3) : Matrix3 =>
+		Matrix3 (
+			m.ix * n.ix + m.jx * n.iy + m.kx * n.iz,
+			m.ix * n.jx + m.jx * n.jy + m.kx * n.jz,
+			m.ix * n.kx + m.jx * n.ky + m.kx * n.kz,
+			m.iy * n.ix + m.jy * n.iy + m.ky * n.iz,
+			m.iy * n.jx + m.jy * n.jy + m.ky * n.jz,
+			m.iy * n.kx + m.jy * n.ky + m.ky * n.kz,
+			m.iz * n.ix + m.jz * n.iy + m.kz * n.iz,
+			m.iz * n.jx + m.jz * n.jy + m.kz * n.jz,
+			m.iz * n.kx + m.jz * n.ky + m.kz * n.kz
+		)
+}
+
+namespace M4
+{
+	/**` M4.identity : Matrix4 `*/
+	export const identity = Matrix4 (1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+
+	/**` M4.basis : (Vector4, Vector4, Vector4, Vector4) -> Matrix4 `*/
+	export const fromBasis = (i : Vector4, j : Vector4, k : Vector4, l : Vector4) : Matrix4 =>
+		Matrix4 (i.x, j.x, k.x, l.x, i.y, j.y, k.y, l.y, i.z, j.z, k.z, l.z, i.w, j.w, k.w, l.w)
+
+	/**` M4.compose : Matrix4 -> Matrix4 -> Matrix4 `*/
+	export const compose = (m : Matrix4) => (n : Matrix4) : Matrix4 =>
+		Matrix4 (
+			m.ix * n.ix + m.jx * n.iy + m.kx * n.iz + m.lx * n.iw,
+			m.ix * n.jx + m.jx * n.jy + m.kx * n.jz + m.lx * n.jw,
+			m.ix * n.kx + m.jx * n.ky + m.kx * n.kz + m.lx * n.kw,
+			m.ix * n.lx + m.jx * n.ly + m.kx * n.lz + m.lx * n.lw,
+			m.iy * n.ix + m.jy * n.iy + m.ky * n.iz + m.ly * n.iw,
+			m.iy * n.jx + m.jy * n.jy + m.ky * n.jz + m.ly * n.jw,
+			m.iy * n.kx + m.jy * n.ky + m.ky * n.kz + m.ly * n.kw,
+			m.iy * n.lx + m.jy * n.ly + m.ky * n.lz + m.ly * n.lw,
+			m.iz * n.ix + m.jz * n.iy + m.kz * n.iz + m.lz * n.iw,
+			m.iz * n.jx + m.jz * n.jy + m.kz * n.jz + m.lz * n.jw,
+			m.iz * n.kx + m.jz * n.ky + m.kz * n.kz + m.lz * n.kw,
+			m.iz * n.lx + m.jz * n.ly + m.kz * n.lz + m.lz * n.lw,
+			m.iw * n.ix + m.jw * n.iy + m.kw * n.iz + m.lw * n.iw,
+			m.iw * n.jx + m.jw * n.jy + m.kw * n.jz + m.lw * n.jw,
+			m.iw * n.kx + m.jw * n.ky + m.kw * n.kz + m.lw * n.kw,
+			m.iw * n.lx + m.jw * n.ly + m.kw * n.lz + m.lw * n.lw
+		)
+}
+
+/********************************************************************************************************************************/
+// Constants and Micro-Functions for Enums //
+
+/**` isDown : Vertical -> Boolean `*/
+const isDown = (vertical : Vertical) : boolean =>
+	vertical === Vertical.Downward || vertical === Vertical.Down
+
+/**` isUp : Vertical -> Boolean `*/
+const isUp = (vertical : Vertical) : boolean =>
+	vertical === Vertical.Upward || vertical === Vertical.Up
+
+/**` relaxVertical : Vertical -> Vertical `*/
+const relaxVertical = (vertical : Vertical) : Vertical =>
+	vertical === Vertical.Downward ? Vertical.Down :
+	vertical === Vertical.Upward   ? Vertical.Up  :
+	vertical
+
+/**` signVertical : Vertical -> Number `*/
+const signVertical = (vertical : Vertical) : number =>
+	vertical === Vertical.Downward || vertical === Vertical.Down ? -1 :
+	vertical === Vertical.Upward   || vertical === Vertical.Up  ?  1 :
+	0
+
+/**` mappingLineCapToHTML5 : Mapping LineCap CanvasLineCap `*/
+const mappingLineCapToHTML5 : Mapping <LineCap, CanvasLineCap> =
+	Mapping <LineCap, CanvasLineCap> (
 		[LineCap.Butt   , 'butt'  ],
 		[LineCap.Round  , 'round' ],
 		[LineCap.Square , 'square']
 	)
 
-/**` mappingLineJoin :: Mapping LineJoin CanvasLineJoin `*/
-const mappingLineJoin : Mapping <LineJoin, CanvasLineJoin> =
-	Mapping (
+/**` mappingLineJoinToHTML5 : Mapping LineJoin CanvasLineJoin `*/
+const mappingLineJoinToHTML5 : Mapping <LineJoin, CanvasLineJoin> =
+	Mapping <LineJoin, CanvasLineJoin> (
 		[LineJoin.Round , 'round'],
 		[LineJoin.Bevel , 'bevel'],
 		[LineJoin.Miter , 'miter']
 	)
 
-/**` mappingTextAlign :: Mapping TextAlign CanvasTextAlign `*/
-const mappingTextAlign : Mapping <TextAlign, CanvasTextAlign> =
-	Mapping (
+/**` mappingTextAlignToHTML5 : Mapping TextAlign CanvasTextAlign `*/
+const mappingTextAlignToHTML5 : Mapping <TextAlign, CanvasTextAlign> =
+	Mapping <TextAlign, CanvasTextAlign> (
 		[TextAlign.Center    , 'center'],
 		[TextAlign.End       , 'end'   ],
 		[TextAlign.Leftside  , 'left'  ],
@@ -2762,9 +2937,9 @@ const mappingTextAlign : Mapping <TextAlign, CanvasTextAlign> =
 		[TextAlign.Start     , 'start' ]
 	)
 
-/**` mappingTextBaseline :: Mapping TextBaseline CanvasTextBaseline `*/
-const mappingTextBaseline : Mapping <TextBaseline, CanvasTextBaseline> =
-	Mapping (
+/**` mappingTextBaselineToHTML5 : Mapping TextBaseline CanvasTextBaseline `*/
+const mappingTextBaselineToHTML5 : Mapping <TextBaseline, CanvasTextBaseline> =
+	Mapping <TextBaseline, CanvasTextBaseline> (
 		[TextBaseline.Alphabetic  , 'alphabetic' ],
 		[TextBaseline.Bottom      , 'bottom'     ],
 		[TextBaseline.Hanging     , 'hanging'    ],
@@ -2773,9 +2948,9 @@ const mappingTextBaseline : Mapping <TextBaseline, CanvasTextBaseline> =
 		[TextBaseline.Top         , 'top'        ]
 	)
 
-/**` mappingComposition :: Mapping Composition String `*/
-const mappingComposition : Mapping <Composition, string> =
-	Mapping (
+/**` mappingCompositionToHTML5 : Mapping Composition String `*/
+const mappingCompositionToHTML5 : Mapping <Composition, string> =
+	Mapping <Composition, string> (
 		[Composition.SourceOver      , 'source-over'     ],
 		[Composition.SourceIn        , 'source-in'       ],
 		[Composition.SourceOut       , 'source-out'      ],
@@ -2805,36 +2980,193 @@ const mappingComposition : Mapping <Composition, string> =
 	)
 
 /********************************************************************************************************************************/
-// Implementation of Monadic 'unit' and 'Do' //
+// Constants and Micro-Functions for Multiple Algebraic Data Types //
 
-const unit =
-	{
-		/**` unit.IO :: a -> IO a `*/
-		IO : <a>(outcome : a) : IO <a> => IO (() => outcome),
+/**` sequenceIOs : List (IO a) -> IO (List a) `*/
+const sequenceIOs = <a>(ios : List <IO <a>>) : IO <List <a>> =>
+	IO (() => ios .fmap (io => io.effect ()))
 
-		/**` unit.Maybe :: a -> Maybe a `*/
-		Maybe : Just,
+/**` executeIOs : List (IO a) -> IO a `*/
+const executeIOs = <a>(ios : List <IO <a>>) : IO <null> =>
+	IO (() => {
+		for (let i = 0, xs = ios; xs.variation === 'Cons'; ++i)
+			if (i === MAXI)
+				error (`'executeIOs' traversed too many elements (${MAXI}); ${STAP}`)
+			else
+				xs.head.effect (),
+				xs = xs.tail
+		return null
+	})
 
-		/**` unit.Process :: a -> Process s a `*/
-		Process : <a>(output : a) : Process <unknown, a> => Process (s => Pair (s, output)),
+/**` maybeHead : List a -> Maybe a `*/
+const maybeHead = <a>(xs : List <a>) : Maybe <a> =>
+	xs.variation === 'Nil'
+		? Nothing
+		: Just (xs .head)
 
-		/**` unit.List :: a -> List a `*/
-		List : singleton
-	}
+/**` maybeLast : List a -> Maybe a `*/
+const maybeLast = <a>(xs : List <a>) : Maybe <a> =>
+	xs.variation === 'Nil'
+		? Nothing
+		: Just (last (xs))
+
+/**` maybeTail : List a -> Maybe (List a) `*/
+const maybeTail = <a>(xs : List <a>) : Maybe <List <a>> =>
+	xs.variation === 'Nil'
+		? Nothing
+		: Just (xs .tail)
+
+/**` maybeInit : List a -> Maybe (List a) `*/
+const maybeInit = <a>(xs : List <a>) : Maybe <List <a>> =>
+	xs.variation === 'Nil'
+		? Nothing
+		: Just (init (xs))
+
+/**` maybeSingleton : Maybe a -> List a `*/
+const maybeSingleton = <a>(maybe : Maybe <a>) : List <a> =>
+	maybe.variation === 'Nothing'
+		? Nil
+		: singleton (maybe.value)
+
+/**` pairToVector : Pair Number Number -> Vector2 `*/
+const pairToVector = (pair : Pair <number, number>) : Vector2 =>
+	Vector2 (pair.fst, pair.snd)
+
+/**` vectorToPair : Vector2 -> Pair Number Number `*/
+const vectorToPair = (v : Vector2) : Pair <number, number> =>
+	Pair (v.x, v.y)
+
+/**` pairOfMaybes : Pair (Maybe a) (Maybe b) -> Maybe (Pair a b) `*/
+const pairOfMaybes = <a, b>(pair : Pair <Maybe <a>, Maybe <b>>) : Maybe <Pair <a, b>> =>
+	pair.fst.variation === 'Just' && pair.snd.variation === 'Just'
+		? Just (Pair (pair.fst.value, pair.snd.value))
+		: Nothing
+
+/**` find : (a -> Boolean) -> List a -> Maybe a `*/
+const find = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : Maybe <a> =>
+{
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'find' traversed too many elements (${MAXI}); ${STAP}`)
+		else if (predicate (xs.head))
+			return Just (xs.head)
+		else
+			xs = xs.tail
+	return Nothing
+}
+
+/**` elemIndex : (Eq a) => a -> List a -> Maybe Number `*/
+const elemIndex = <a>(value : Eq <a>) => (xs : List <Eq <a>>) : Maybe <number> =>
+{
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'elemIndex' traversed too many elements (${MAXI}); ${STAP}`)
+		else if (xs.head .eq (value))
+			return Just (i)
+		else
+			xs = xs.tail
+	return Nothing
+}
+
+/**` findIndex : (a -> Boolean) -> List a -> Maybe Number `*/
+const findIndex = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : Maybe <number> =>
+{
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'findIndex' traversed too many elements (${MAXI}); ${STAP}`)
+		else if (predicate (xs.head))
+			return Just (i)
+		else
+			xs = xs.tail
+	return Nothing
+}
+
+/**` flattenMaybes : List (Maybe a) -> List a `*/
+const flattenMaybes = <a>(maybes : List <Maybe <a>>) : List <a> =>
+{
+	for (let i = 0; maybes.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'flattenMaybes' traversed too many elements (${MAXI}); ${STAP}`)
+		else if (maybes.head.variation === 'Just')
+			return lrprepend (maybes.head.value) (() => flattenMaybes ((maybes as any).tail))
+		else
+			maybes = maybes.tail
+	return Nil
+}
+
+/**` mapMaybe : (a -> Maybe b) -> List a -> List b `*/
+const mapMaybe = <a, b>(mapping : (element : a) => Maybe <b>) => (xs : List <a>) : List <b> =>
+{
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'mapMaybe' traversed too many elements (${MAXI}); ${STAP}`)
+		else
+		{
+			const x = mapping (xs.head)
+			if (x.variation === 'Just')
+				return lrprepend (x.value) (() => mapMaybe (mapping) ((xs as any).tail))
+			xs = xs.tail
+		}
+	return Nil
+}
+
+/**` lefts : List (Either a b) -> List a `*/
+const lefts = <a, b>(eithers : List <Either <a, b>>) : List <a> =>
+{
+	for (let i = 0; eithers.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'lefts' traversed too many elements (${MAXI}); ${STAP}`)
+		else if (eithers.head.variation === 'Left')
+			return lrprepend (eithers.head.value) (() => lefts ((eithers as any).tail))
+		else
+			eithers = eithers.tail
+	return Nil
+}
+
+/**` rights : List (Either a b) -> List b `*/
+const rights = <a, b>(eithers : List <Either <a, b>>) : List <b> =>
+{
+	for (let i = 0; eithers.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'rights' traversed too many elements (${MAXI}); ${STAP}`)
+		else if (eithers.head.variation === 'Right')
+			return lrprepend (eithers.head.value) (() => rights ((eithers as any).tail))
+		else
+			eithers = eithers.tail
+	return Nil
+}
+
+/**` maybeAt : Number -> List a -> Maybe a `*/
+const maybeAt = (index : number) => <a>(xs : List <a>) : Maybe <a> =>
+{
+	if (index > MAXI)
+		error (`'maybeAt' would be traversing too many elements (${MAXI}); ${STAP}`)
+	if (index < 0 || !Number.isInteger (index))
+		return Nothing
+	for (let i = 0; xs.variation === 'Cons'; ++i)
+		if (i === index)
+			return Just (xs.head)
+		else
+			xs = xs .tail
+	return Nothing
+}
+
+/********************************************************************************************************************************/
+// Do Notation //
 
 const Do =
 	{
-		IO      : unit.IO      <{}> (Object.create (null)),
-		Maybe   : unit.Maybe   <{}> (Object.create (null)),
-		Process : unit.Process <{}> (Object.create (null)),
-		List    : unit.List    <{}> (Object.create (null))
+		IO      : IO        <     {}> (() => Object.create(null)),
+		Process : Process   <any, {}> (s  => Pair (s, Object.create(null))),
+		List    : singleton <     {}> (Object.create(null)),
+		Maybe   : Just      <     {}> (Object.create(null))
 	}
 
 /********************************************************************************************************************************/
-// Implementation of IO Operations //
+// IO Interfacing //
 
-/**` KEYBOARD :: [String] `*/
-const KEYBOARD =
+/**` keyboardKeysArray : [String] `*/
+const keyboardKeysArray =
 	[
 		'AltLeft'        , 'AltRight'  , 'ArrowDown'   , 'ArrowLeft'     , 'ArrowRight'   , 'ArrowUp'     , 'Backquote'      ,
 		'Backslash'      , 'Backspace' , 'BracketLeft' , 'BracketRight'  , 'CapsLock'     , 'Comma'       , 'ControlLeft'    ,
@@ -2850,9 +3182,9 @@ const KEYBOARD =
 		'KeyT'           , 'KeyU'      , 'KeyV'        , 'KeyW'          , 'KeyX'         , 'KeyY'        , 'KeyZ'
 	] as const
 
-type KeyboardKey = typeof KEYBOARD[number]
+type KeyboardKey = typeof keyboardKeysArray[number]
 
-const λ =
+const Ψ =
 	{
 		MUTABLE         : {} as any,
 		ctxs            : [] as Array <CanvasRenderingContext2D>,
@@ -2862,1991 +3194,2155 @@ const λ =
 		isPointerLocked : false,
 		seed            : (Math.random() - 0.5) * Date.now(),
 		debugCounter    : 0,
-		image           : Object.create (null) as { [key : string] : HTMLImageElement },
-		audio           : Object.create (null) as { [key : string] : HTMLAudioElement },
+		image           : Object.create(null) as { [x : string] : HTMLImageElement },
+		audio           : Object.create(null) as { [x : string] : HTMLAudioElement },
 		mouseScreenX    : 0, mouseScreenY : 0,
 		mouseWindowX    : 0, mouseWindowY : 0,
 		mouseCanvasX    : 0, mouseCanvasY : 0,
 		mouseDeltaX     : 0, mouseDeltaY  : 0,
-		mouseScroll     : Y.Rest,
-		mouseButtons    : Array (5) .fill (Y.U) as [Y, Y, Y, Y, Y],
-		keyboard        : KEYBOARD .reduce (($, k) => ({ ...$, [k] : Y.U }), Object.create (null)) as { [x in KeyboardKey] : Y }
+		mouseScroll     : Vertical.Rest,
+		mouseButtons    : Array(5).fill(Vertical.Up) as [Vertical, Vertical, Vertical, Vertical, Vertical],
+		keyboard        :
+			keyboardKeysArray.reduce(
+				($, k) => ({ ...$, [k] : Vertical.Up }),
+				Object.create (null)
+			) as { [x in KeyboardKey] : Vertical }
 	}
 
-const Input =
-	{
-		Norm :
-			{
-				/**` Input.Norm.mouseX :: IO Number `*/
-				mouseX : IO (() => λ.mouseCanvasX / λ.ctx.canvas.width),
-
-				/**` Input.Norm.mouseY :: IO Number `*/
-				mouseY : IO (() => λ.mouseCanvasY / λ.ctx.canvas.height),
-
-				/**` Input.Norm.mouseP :: IO (Pair Number Number) `*/
-				mouseP : IO (() => Pair (λ.mouseCanvasX / λ.ctx.canvas.width, λ.mouseCanvasY / λ.ctx.canvas.height)),
-
-				/**` Input.Norm.mouseV :: IO Vector2 `*/
-				mouseV : IO (() => Vector2 (λ.mouseCanvasX / λ.ctx.canvas.width, λ.mouseCanvasY / λ.ctx.canvas.height)),
-
-				/**` Input.Norm.mouseDX :: IO Number `*/
-				mouseDX : IO (() => λ.mouseDeltaX / λ.ctx.canvas.width),
-
-				/**` Input.Norm.mouseDY :: IO Number `*/
-				mouseDY : IO (() => λ.mouseDeltaY / λ.ctx.canvas.height),
-
-				/**` Input.Norm.mouseDP :: IO (Pair Number Number) `*/
-				mouseDP : IO (() => Pair (λ.mouseDeltaX / λ.ctx.canvas.width, λ.mouseDeltaY / λ.ctx.canvas.height)),
-
-				/**` Input.Norm.mouseDV :: IO Vector2 `*/
-				mouseDV : IO (() => Vector2 (λ.mouseDeltaX / λ.ctx.canvas.width, λ.mouseDeltaY / λ.ctx.canvas.height)),
-
-				/**` Input.Norm.lineThickness :: IO Number `*/
-				lineThickness : IO (() => λ.ctx.lineWidth / λ.ctx.canvas.width),
-
-				/**` Input.Norm.lineDashPattern :: IO (List Number) `*/
-				lineDashPattern : IO (() => List (...λ.ctx.getLineDash() .map (x => x / λ.ctx.canvas.width))),
-
-				/**` Input.Norm.lineDashOffset :: IO Number `*/
-				lineDashOffset : IO (() => λ.ctx.lineDashOffset / λ.ctx.canvas.width),
-
-				/**` Input.Norm.fontSize :: IO Number `*/
-				fontSize : IO (() => parseFloat (λ.ctx.font) / λ.ctx.canvas.width),
-
-				/**` Input.Norm.shadowDX :: IO Number `*/
-				shadowDX : IO (() => λ.ctx.shadowOffsetX / λ.ctx.canvas.width),
-
-				/**` Input.Norm.shadowDY :: IO Number `*/
-				shadowDY : IO (() => λ.ctx.shadowOffsetY / λ.ctx.canvas.height),
-
-				/**` Input.Norm.shadowDP :: IO (Pair Number Number) `*/
-				shadowDP :
-					IO (() => Pair (λ.ctx.shadowOffsetX / λ.ctx.canvas.width, λ.ctx.shadowOffsetY / λ.ctx.canvas.height)),
-
-				/**` Input.Norm.shadowDV :: IO Vector2 `*/
-				shadowDV :
-					IO (() => Vector2 (λ.ctx.shadowOffsetX / λ.ctx.canvas.width, λ.ctx.shadowOffsetY / λ.ctx.canvas.height)),
-
-				/**` Input.Norm.transformationMatrix :: IO Matrix3 `*/
-				transformationMatrix :
-					IO (() => {
-						const m = λ.ctx.getTransform()
-						return Matrix3 (m.a, m.c, m.e / λ.ctx.canvas.width, m.b, m.d, m.f / λ.ctx.canvas.height, 0, 0, 1)
-					})
-				},
-
-		/**` Input.layer :: IO Number `*/
-		layer : IO (() => λ.ctxs .findIndex (ctx => ctx === λ.ctx)),
-
-		/**` Input.isWindowResized :: IO Boolean `*/
-		isWindowResized : IO (() => λ.isResized),
-
-		/**` Input.isPointerLocked :: IO Boolean `*/
-		isPointerLocked : IO (() => λ.isPointerLocked),
-
-		/**` Input.seed :: IO Number `*/
-		seed : unit.IO (λ.seed),
-
-		/**` Input.screenW :: IO Number `*/
-		screenW : IO (() => screen.width),
-
-		/**` Input.screenH :: IO Number `*/
-		screenH : IO (() => screen.height),
-
-		/**` Input.screenP :: IO (Pair Number Number) `*/
-		screenP : IO (() => Pair (screen.width, screen.height)),
-
-		/**` Input.screenV :: IO Vector2 `*/
-		screenV : IO (() => Vector2 (screen.width, screen.height)),
-
-		/**` Input.windowW :: IO Number `*/
-		windowW : IO (() => innerWidth),
-
-		/**` Input.windowH :: IO Number `*/
-		windowH : IO (() => innerHeight),
-
-		/**` Input.windowP :: IO (Pair Number Number) `*/
-		windowP : IO (() => Pair (innerWidth, innerHeight)),
-
-		/**` Input.windowV :: IO Vector2 `*/
-		windowV : IO (() => Vector2 (innerWidth, innerHeight)),
-
-		/**` Input.canvasW :: IO Number `*/
-		canvasW : IO (() => λ.ctx.canvas.width),
-
-		/**` Input.canvasH :: IO Number `*/
-		canvasH : IO (() => λ.ctx.canvas.height),
-
-		/**` Input.canvasP :: IO (Pair Number Number) `*/
-		canvasP : IO (() => Pair (λ.ctx.canvas.width, λ.ctx.canvas.height)),
-
-		/**` Input.canvasV :: IO Vector2 `*/
-		canvasV : IO (() => Vector2 (λ.ctx.canvas.width, λ.ctx.canvas.height)),
-
-		/**` Input.mouseScreenX :: IO Number `*/
-		mouseScreenX : IO (() => λ.mouseScreenX),
-
-		/**` Input.mouseScreenY :: IO Number `*/
-		mouseScreenY : IO (() => λ.mouseScreenY),
-
-		/**` Input.mouseScreenP :: IO (Pair Number Number) `*/
-		mouseScreenP : IO (() => Pair (λ.mouseScreenX, λ.mouseScreenY)),
-
-		/**` Input.mouseScreenV :: IO Vector2 `*/
-		mouseScreenV : IO (() => Vector2 (λ.mouseScreenX, λ.mouseScreenY)),
-
-		/**` Input.mouseWindowX :: IO Number `*/
-		mouseWindowX : IO (() => λ.mouseWindowX),
-
-		/**` Input.mouseWindowY :: IO Number `*/
-		mouseWindowY : IO (() => λ.mouseWindowY),
-
-		/**` Input.mouseWindowP :: IO (Pair Number Number) `*/
-		mouseWindowP : IO (() => Pair (λ.mouseWindowX, λ.mouseWindowY)),
-
-		/**` Input.mouseWindowV :: IO Vector2 `*/
-		mouseWindowV : IO (() => Vector2 (λ.mouseWindowX, λ.mouseWindowY)),
-
-		/**` Input.mouseX :: IO Number `*/
-		mouseX : IO (() => λ.mouseCanvasX),
-
-		/**` Input.mouseY :: IO Number `*/
-		mouseY : IO (() => λ.mouseCanvasY),
-
-		/**` Input.mouseP :: IO (Pair Number Number) `*/
-		mouseP : IO (() => Pair (λ.mouseCanvasX, λ.mouseCanvasY)),
-
-		/**` Input.mouseV :: IO Vector2 `*/
-		mouseV : IO (() => Vector2 (λ.mouseCanvasX, λ.mouseCanvasY)),
-
-		/**` Input.mouseDX :: IO Number `*/
-		mouseDX : IO (() => λ.mouseDeltaX),
-
-		/**` Input.mouseDY :: IO Number `*/
-		mouseDY : IO (() => λ.mouseDeltaY),
-
-		/**` Input.mouseDP :: IO (Pair Number Number) `*/
-		mouseDP : IO (() => Pair (λ.mouseDeltaX, λ.mouseDeltaY)),
-
-		/**` Input.mouseDV :: IO Vector2 `*/
-		mouseDV : IO (() => Vector2 (λ.mouseDeltaX, λ.mouseDeltaY)),
-
-		/**` Input.mouseScroll :: IO Y `*/
-		mouseScroll : IO (() => λ.mouseScroll),
-
-		/**` Input.mouseLeft :: IO Y `*/
-		mouseLeft : IO (() => λ.mouseButtons[0]),
-
-		/**` Input.mouseMiddle :: IO Y `*/
-		mouseMiddle : IO (() => λ.mouseButtons[1]),
-
-		/**` Input.mouseRight :: IO Y `*/
-		mouseRight : IO (() => λ.mouseButtons[2]),
-
-		/**` Input.mouseA :: IO Y `*/
-		mouseA : IO (() => λ.mouseButtons[3]),
-
-		/**` Input.mouseB :: IO Y `*/
-		mouseB : IO (() => λ.mouseButtons[4]),
-
-		/**` Input.keyboard :: KeyboardKey -> IO Y `*/
-		keyboard : (key : KeyboardKey) : IO <Y> => IO (() => λ.keyboard[key]),
-
-		/**` Input.time :: IO Number `*/
-		time : IO (Date.now),
-
-		/**` Input.textMeasurement :: String -> IO TextMeasurement `*/
-		textMeasurement : (text : string) : IO <TextMeasurement> =>
-			IO (() => {
-				const metrics = λ.ctx.measureText(text)
-				return TextMeasurement
-					(text)
-					(Math.abs (metrics.actualBoundingBoxLeft)   + Math.abs (metrics.actualBoundingBoxRight)  )
-					(Math.abs (metrics.actualBoundingBoxAscent) + Math.abs (metrics.actualBoundingBoxDescent))
-			}),
-
-		/**` Input.lineThickness :: IO Number `*/
-		lineThickness : IO (() => λ.ctx.lineWidth),
-
-		/**` Input.lineCap :: IO LineCap `*/
-		lineCap : IO (() => mappingLineCap .domain (λ.ctx.lineCap)),
-
-		/**` Input.lineJoin :: IO LineJoin `*/
-		lineJoin : IO (() => mappingLineJoin .domain (λ.ctx.lineJoin)),
-
-		/**` Input.lineDashPattern :: IO (List Number) `*/
-		lineDashPattern : IO (() => List (...λ.ctx.getLineDash())),
-
-		/**` Input.lineDashOffset :: IO Number `*/
-		lineDashOffset : IO (() => λ.ctx.lineDashOffset),
-
-		/**` Input.miterLimit :: IO Number `*/
-		miterLimit : IO (() => λ.ctx.miterLimit),
-
-		/**` Input.font :: IO String `*/
-		font : IO (() => λ.ctx.font),
-
-		/**` Input.fontSize :: IO Number `*/
-		fontSize : IO (() => parseFloat (λ.ctx.font)),
-
-		/**` Input.fontFamily :: IO String `*/
-		fontFamily : IO (() => λ.ctx.font .slice (λ.ctx.font .indexOf (" ") + 1)),
-
-		/**` Input.textAlign :: IO TextAlign `*/
-		textAlign : IO (() => mappingTextAlign .domain (λ.ctx.textAlign)),
-
-		/**` Input.textBaseline :: IO TextBaseline `*/
-		textBaseline : IO (() => mappingTextBaseline .domain (λ.ctx.textBaseline)),
-
-		/**` Input.shadowBlurAmount :: IO Number `*/
-		shadowBlurAmount : IO (() => λ.ctx.shadowBlur),
-
-		/**` Input.shadowColor :: IO String `*/
-		shadowColor : IO (() => λ.ctx.shadowColor),
-
-		/**` Input.shadowDX :: IO Number `*/
-		shadowDX : IO (() => λ.ctx.shadowOffsetX),
-
-		/**` Input.shadowDY :: IO Number `*/
-		shadowDY : IO (() => λ.ctx.shadowOffsetY),
-
-		/**` Input.shadowDP :: IO (Pair Number Number) `*/
-		shadowDP : IO (() => Pair (λ.ctx.shadowOffsetX, λ.ctx.shadowOffsetY)),
-
-		/**` Input.shadowDV :: IO Vector2 `*/
-		shadowDV : IO (() => Vector2 (λ.ctx.shadowOffsetX, λ.ctx.shadowOffsetY)),
-
-		/**` Input.isInEvenOddPathP :: Number -> Number -> IO Boolean `*/
-		isInEvenOddPathP : (x : number) => (y : number) : IO <boolean> => IO (() => λ.ctx.isPointInPath(x, y, 'evenodd')),
-
-		/**` Input.isInEvenOddPathV :: Vector2 -> IO Boolean `*/
-		isInEvenOddPathV : (v : Vector2) : IO <boolean> => IO (() => λ.ctx.isPointInPath(v.x, v.y, 'evenodd')),
-
-		/**` Input.isInNonZeroPathP :: Number -> Number -> IO Boolean `*/
-		isInNonZeroPathP : (x : number) => (y : number) : IO <boolean> => IO (() => λ.ctx.isPointInPath(x, y, 'nonzero')),
-
-		/**` Input.isInNonZeroPathV :: Vector2 -> IO Boolean `*/
-		isInNonZeroPathV : (v : Vector2) : IO <boolean> => IO (() => λ.ctx.isPointInPath(v.x, v.y, 'nonzero')),
-
-		/**` Input.isInStrokeP :: Number -> Number -> IO Boolean `*/
-		isInStrokeP : (x : number) => (y : number) : IO <boolean> => IO (() => λ.ctx.isPointInStroke(x, y)),
-
-		/**` Input.isInStrokeV :: Vector2 -> IO Boolean `*/
-		isInStrokeV : (v : Vector2) : IO <boolean> => IO (() => λ.ctx.isPointInStroke(v.x, v.y)),
-
-		/**` Input.transformationMatrix :: IO Matrix3 `*/
-		transformationMatrix :
-			IO (() => {
-				const m = λ.ctx.getTransform()
-				return Matrix3 (m.a, m.c, m.e, m.b, m.d, m.f, 0, 0, 1)
-			}),
-
-		/**` Input.alpha :: IO Number `*/
-		alpha : IO (() => λ.ctx.globalAlpha),
-
-		/**` Input.composition :: IO Composition `*/
-		composition : IO (() => mappingComposition .domain (λ.ctx.globalCompositeOperation)),
-
-		/**` Input.wasd :: IO Vector2 `*/
-		wasd :
-			IO (() =>
-				Vector2 (
-					BIT (isD (λ.keyboard['KeyD'])) - BIT (isD (λ.keyboard['KeyA'])),
-					BIT (isD (λ.keyboard['KeyS'])) - BIT (isD (λ.keyboard['KeyW']))
-				) .pipe (V2.normalize)
-			),
-
-		/**` Input.wasdY :: IO Vector3 `*/
-		wasdY :
-			IO (() =>
-				Vector3 (
-					BIT (isD (λ.keyboard['KeyD']))  - BIT (isD (λ.keyboard['KeyA'])),
-					BIT (isD (λ.keyboard['Space'])) - BIT (isD (λ.keyboard['ShiftLeft'])),
-					BIT (isD (λ.keyboard['KeyS']))  - BIT (isD (λ.keyboard['KeyW']))
-				) .pipe (V3.normalize)
-			),
-
-		/**` Input.arrows :: IO Vector2 `*/
-		arrows :
-			IO (() =>
-				Vector2 (
-					BIT (isD (λ.keyboard['ArrowRight'])) - BIT (isD (λ.keyboard['ArrowLeft'])),
-					BIT (isD (λ.keyboard['ArrowDown']))  - BIT (isD (λ.keyboard['ArrowUp']))
-				) .pipe (V2.normalize)
+namespace I
+{
+	/**` I.n_mouseScreenX : IO Number `*/
+	export const n_mouseScreenX : IO <number> = IO (() => Ψ.mouseScreenX / Ψ.ctx.canvas.width)
+
+	/**` I.n_mouseScreenY : IO Number `*/
+	export const n_mouseScreenY : IO <number> = IO (() => Ψ.mouseScreenY / Ψ.ctx.canvas.height)
+
+	/**` I.n_mouseScreenXY : IO (Pair Number Number) `*/
+	export const n_mouseScreenXY : IO <Pair <number, number>> =
+		IO (() => Pair (Ψ.mouseScreenX / Ψ.ctx.canvas.width, Ψ.mouseScreenY / Ψ.ctx.canvas.height))
+
+	/**` I.n_mouseScreenV2 : IO Vector2 `*/
+	export const n_mouseScreenV2 : IO <Vector2> =
+		IO (() => Vector2 (Ψ.mouseScreenX / Ψ.ctx.canvas.width, Ψ.mouseScreenY / Ψ.ctx.canvas.height))
+
+	/**` I.n_mouseWindowX : IO Number `*/
+	export const n_mouseWindowX : IO <number> = IO (() => Ψ.mouseWindowX / Ψ.ctx.canvas.width)
+
+	/**` I.n_mouseWindowY : IO Number `*/
+	export const n_mouseWindowY : IO <number> = IO (() => Ψ.mouseWindowY / Ψ.ctx.canvas.height)
+
+	/**` I.n_mouseWindowXY : IO (Pair Number Number) `*/
+	export const n_mouseWindowXY : IO <Pair <number, number>> =
+		IO (() => Pair (Ψ.mouseWindowX / Ψ.ctx.canvas.width, Ψ.mouseWindowY / Ψ.ctx.canvas.height))
+
+	/**` I.n_mouseWindowV2 : IO Vector2 `*/
+	export const n_mouseWindowV2 : IO <Vector2> =
+		IO (() => Vector2 (Ψ.mouseWindowX / Ψ.ctx.canvas.width, Ψ.mouseWindowY / Ψ.ctx.canvas.height))
+
+	/**` I.n_mouseCanvasX : IO Number `*/
+	export const n_mouseCanvasX : IO <number> = IO (() => Ψ.mouseCanvasX / Ψ.ctx.canvas.width)
+
+	/**` I.n_mouseCanvasY : IO Number `*/
+	export const n_mouseCanvasY : IO <number> = IO (() => Ψ.mouseCanvasY / Ψ.ctx.canvas.height)
+
+	/**` I.n_mouseCanvasXY : IO (Pair Number Number) `*/
+	export const n_mouseCanvasXY : IO <Pair <number, number>> =
+		IO (() => Pair (Ψ.mouseCanvasX / Ψ.ctx.canvas.width, Ψ.mouseCanvasY / Ψ.ctx.canvas.height))
+
+	/**` I.n_mouseCanvasV2 : IO Vector2 `*/
+	export const n_mouseCanvasV2 : IO <Vector2> =
+		IO (() => Vector2 (Ψ.mouseCanvasX / Ψ.ctx.canvas.width, Ψ.mouseCanvasY / Ψ.ctx.canvas.height))
+
+	/**` I.n_mouseDeltaX : IO Number `*/
+	export const n_mouseDeltaX : IO <number> = IO (() => Ψ.mouseDeltaX / Ψ.ctx.canvas.width)
+
+	/**` I.n_mouseDeltaY : IO Number `*/
+	export const n_mouseDeltaY : IO <number> = IO (() => Ψ.mouseDeltaY / Ψ.ctx.canvas.height)
+
+	/**` I.n_mouseDeltaXY : IO (Pair Number Number) `*/
+	export const n_mouseDeltaXY : IO <Pair <number, number>> =
+		IO (() => Pair (Ψ.mouseDeltaX / Ψ.ctx.canvas.width, Ψ.mouseDeltaY / Ψ.ctx.canvas.height))
+
+	/**` I.n_mouseDeltaV2 : IO Vector2 `*/
+	export const n_mouseDeltaV2 : IO <Vector2> =
+		IO (() => Vector2 (Ψ.mouseDeltaX / Ψ.ctx.canvas.width, Ψ.mouseDeltaY / Ψ.ctx.canvas.height))
+
+	/**` I.n_textW : String -> IO Number `*/
+	export const n_textW = (text : string) : IO <number> =>
+		IO (() => {
+			const m = Ψ.ctx.measureText(text)
+			return Math.abs (m.actualBoundingBoxLeft) + Math.abs (m.actualBoundingBoxRight) / Ψ.ctx.canvas.width
+		})
+
+	/**` I.n_textH : String -> IO Number `*/
+	export const n_textH = (text : string) : IO <number> =>
+		IO (() => {
+			const m = Ψ.ctx.measureText(text)
+			return Math.abs (m.actualBoundingBoxAscent) + Math.abs (m.actualBoundingBoxDescent) / Ψ.ctx.canvas.height
+		})
+
+	/**` I.n_textWH : String -> IO (Pair Number Number) `*/
+	export const n_textWH = (text : string) : IO <Pair <number, number>> =>
+		IO (() => {
+			const m = Ψ.ctx.measureText(text)
+			return Pair (
+				(Math.abs (m.actualBoundingBoxLeft)   + Math.abs (m.actualBoundingBoxRight))   / Ψ.ctx.canvas.width,
+				(Math.abs (m.actualBoundingBoxAscent) + Math.abs (m.actualBoundingBoxDescent)) / Ψ.ctx.canvas.height
 			)
-	}
-
-const Reput =
-	{
-		Norm :
-			{
-				/**` Reput.Norm.canvasW :: Number -> IO () `*/
-				canvasW : (w : number) : IO <null> =>
-					IO (() => (λ.ctx.canvas.width = w * innerWidth, null)),
-
-				/**` Reput.Norm.canvasH :: Number -> IO () `*/
-				canvasH : (h : number) : IO <null> =>
-					IO (() => (λ.ctx.canvas.height = h * innerHeight, null)),
-
-				/**` Reput.Norm.canvasWH :: Number -> Number -> IO () `*/
-				canvasWH : (w : number) => (h : number) : IO <null> =>
-					IO (() => (λ.ctx.canvas.width = w * innerWidth, λ.ctx.canvas.height = h * innerHeight, null)),
-
-				/**` Reput.Norm.canvasP :: Pair Number Number -> IO () `*/
-				canvasP : (p : Pair <number, number>) : IO <null> =>
-					IO (() => (λ.ctx.canvas.width = p .fst * innerWidth, λ.ctx.canvas.height = p .snd * innerHeight, null)),
-
-				/**` Reput.Norm.canvasV :: Vector2 -> IO () `*/
-				canvasV : (v : Vector2) : IO <null> =>
-					IO (() => (λ.ctx.canvas.width = v.x * innerWidth, λ.ctx.canvas.height = v.y * innerHeight, null)),
-
-				/**` Reput.Norm.lineThickness :: Number -> IO () `*/
-				lineThickness : (t : number) : IO <null> =>
-					IO (() => (λ.ctx.lineWidth = t * λ.ctx.canvas.width, null)),
-
-				/**` Reput.Norm.lineDashPattern :: List Number -> IO () `*/
-				lineDashPattern : (pattern : List <number>) : IO <null> =>
-					IO (() => (λ.ctx.setLineDash (array (pattern) .map (x => x * λ.ctx.canvas.width)), null)),
-
-				/**` Reput.Norm.lineDashOffset :: Number -> IO () `*/
-				lineDashOffset : (offset : number) : IO <null> =>
-					IO (() => (λ.ctx.lineDashOffset = offset * λ.ctx.canvas.width, null)),
-
-				/**` Reput.Norm.fontSize :: Number -> IO () `*/
-				fontSize : (size : number) : IO <null> =>
-					IO (() => (λ.ctx.font = `${size * λ.ctx.canvas.width}px${λ.ctx.font.slice(λ.ctx.font.indexOf(" "))}`, null)),
-
-				/**` Reput.Norm.fillRGBA :: Number -> Number -> Number -> Number -> IO () `*/
-				fillRGBA : (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
-					IO (() => (λ.ctx.fillStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null)),
-
-				/**` Reput.Norm.fillRGBAV :: Vector4 -> IO () `*/
-				fillRGBAV : (v : Vector4) : IO <null> =>
-					IO (() => (λ.ctx.fillStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null)),
-
-				/**` Reput.Norm.strokeRGBA :: Number -> Number -> Number -> Number -> IO () `*/
-				strokeRGBA : (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
-					IO (() => (λ.ctx.strokeStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null)),
-
-				/**` Reput.Norm.strokeRGBAV :: Vector4 -> IO () `*/
-				strokeRGBAV : (v : Vector4) : IO <null> =>
-					IO (() => (λ.ctx.strokeStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null)),
-
-				/**` Reput.Norm.shadowRGBA :: Number -> Number -> Number -> Number -> IO () `*/
-				shadowRGBA : (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
-					IO (() => (λ.ctx.shadowColor = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null)),
-
-				/**` Reput.Norm.shadowRGBAV :: Vector4 -> IO () `*/
-				shadowRGBAV : (v : Vector4) : IO <null> =>
-					IO (() => (λ.ctx.shadowColor = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null)),
-
-				/**` Reput.Norm.shadowOffsetX :: Number -> IO () `*/
-				shadowOffsetX : (x : number) : IO <null> =>
-					IO (() => (λ.ctx.shadowOffsetX = x * λ.ctx.canvas.width, null)),
-
-				/**` Reput.Norm.shadowOffsetY :: Number -> IO () `*/
-				shadowOffsetY : (y : number) : IO <null> =>
-					IO (() => (λ.ctx.shadowOffsetY = y * λ.ctx.canvas.height, null)),
-
-				/**` Reput.Norm.shadowOffsetXY :: Number -> Number -> IO () `*/
-				shadowOffsetXY : (x : number) => (y : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.shadowOffsetX = x * λ.ctx.canvas.width,
-						λ.ctx.shadowOffsetY = y * λ.ctx.canvas.height,
-						null
-					)),
-
-				/**` Reput.Norm.shadowOffsetP :: Pair Number Number -> IO () `*/
-				shadowOffsetP : (p : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.shadowOffsetX = p .fst * λ.ctx.canvas.width,
-						λ.ctx.shadowOffsetY = p .snd * λ.ctx.canvas.height,
-						null
-					)),
-
-				/**` Reput.Norm.shadowOffsetV :: Vector2 -> IO () `*/
-				shadowOffsetV : (v : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.shadowOffsetX = v.x * λ.ctx.canvas.width,
-						λ.ctx.shadowOffsetY = v.y * λ.ctx.canvas.height,
-						null
-					)),
-
-				/**` Reput.Norm.transformationMatrix :: Matrix3 -> IO () `*/
-				transformationMatrix : (m : Matrix3) : IO <null> =>
-					IO (() => (
-						λ.ctx.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx * λ.ctx.canvas.width, m.ky * λ.ctx.canvas.height),
-						null
-					))
-			},
-
-		/**` Reput.layer :: Number -> IO () `*/
-		layer : (index : number) : IO <null> =>
-			IO (() => {
-				if (λ.ctxs[index])
-					λ.ctx = λ.ctxs[index]!
-				else
-					THROW (`'(Reput.layer)' only accepts integers in interval [0, ${λ.ctxs.length}); instead received '${index}'`)
-				return null
-			}),
-
-		/**` Reput.canvasW :: Number -> IO () `*/
-		canvasW : (w : number) : IO <null> =>
-			IO (() => (λ.ctxs.forEach(ctx => ctx.canvas.width = w), null)),
-
-		/**` Reput.canvasH :: Number -> IO () `*/
-		canvasH : (h : number) : IO <null> =>
-			IO (() => (λ.ctxs.forEach(ctx => ctx.canvas.height = h), null)),
-
-		/**` Reput.canvasWH :: Number -> Number -> IO () `*/
-		canvasWH : (w : number) => (h : number) : IO <null> =>
-			IO (() => (λ.ctxs.forEach(ctx => (ctx.canvas.width = w, ctx.canvas.height = h)), null)),
-
-		/**` Reput.canvasP :: Pair Number Number -> IO () `*/
-		canvasP : (p : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctxs.forEach(ctx => (ctx.canvas.width = p .fst, ctx.canvas.height = p .snd)), null)),
-
-		/**` Reput.canvasV :: Vector2 -> IO () `*/
-		canvasV : (v : Vector2) : IO <null> =>
-			IO (() => (λ.ctxs.forEach(ctx => (ctx.canvas.width = v.x, ctx.canvas.height = v.y)), null)),
-
-		/**` Reput.lineThickness :: Number -> IO () `*/
-		lineThickness : (t : number) : IO <null> =>
-			IO (() => (λ.ctx.lineWidth = t, null)),
-
-		/**` Reput.lineCap :: LineCap -> IO () `*/
-		lineCap : (cap : LineCap) : IO <null> =>
-			IO (() => (λ.ctx.lineCap = mappingLineCap .codomain (cap), null)),
-
-		/**` Reput.lineJoin :: LineJoin -> IO () `*/
-		lineJoin : (joining : LineJoin) : IO <null> =>
-			IO (() => (λ.ctx.lineJoin = mappingLineJoin .codomain (joining), null)),
-
-		/**` Reput.lineDashPattern :: List Number -> IO () `*/
-		lineDashPattern : (pattern : List <number>) : IO <null> =>
-			IO (() => (λ.ctx.setLineDash (array (pattern)), null)),
-
-		/**` Reput.lineDashOffset :: Number -> IO () `*/
-		lineDashOffset : (offset : number) : IO <null> =>
-			IO (() => (λ.ctx.lineDashOffset = offset, null)),
-
-		/**` Reput.miterLimit :: Number -> IO () `*/
-		miterLimit : (limit : number) : IO <null> =>
-			IO (() => (λ.ctx.miterLimit = limit, null)),
-
-		/**` Reput.font :: String -> IO () `*/
-		font : (fontInfo : string) : IO <null> =>
-			IO (() => (λ.ctx.font = fontInfo, null)),
-
-		/**` Reput.fontSize :: Number -> IO () `*/
-		fontSize : (size : number) : IO <null> =>
-			IO (() => (λ.ctx.font = `${size}px${λ.ctx.font.slice(λ.ctx.font.indexOf(" "))}`, null)),
-
-		/**` Reput.fontFamily :: String -> IO () `*/
-		fontFamily : (family : string) : IO <null> =>
-			IO (() => (λ.ctx.font = `${parseFloat(λ.ctx.font)}px ${family}`, null)),
-
-		/**` Reput.textAlign :: TextAlign -> IO () `*/
-		textAlign : (align : TextAlign) : IO <null> =>
-			IO (() => (λ.ctx.textAlign = mappingTextAlign .codomain (align), null)),
-
-		/**` Reput.textBaseline :: TextBaseline -> IO () `*/
-		textBaseline : (baseline : TextBaseline) : IO <null> =>
-			IO (() => (λ.ctx.textBaseline = mappingTextBaseline .codomain (baseline), null)),
-
-		/**` Reput.fillColor :: String -> IO () `*/
-		fillColor : (color : string) : IO <null> =>
-			IO (() => (λ.ctx.fillStyle = color, null)),
-
-		/**` Reput.fillRGBA :: Number -> Number -> Number -> Number -> IO () `*/
-		fillRGBA : (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
-			IO (() => (λ.ctx.fillStyle = `rgba(${r},${g},${b},${a})`, null)),
-
-		/**` Reput.fillRGBAV :: Vector4 -> IO () `*/
-		fillRGBAV : (v : Vector4) : IO <null> =>
-			IO (() => (λ.ctx.fillStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`, null)),
-
-		/**` Reput.strokeColor :: String -> IO () `*/
-		strokeColor : (color : string) : IO <null> =>
-			IO (() => (λ.ctx.strokeStyle = color, null)),
-
-		/**` Reput.strokeRGBA :: Number -> Number -> Number -> Number -> IO () `*/
-		strokeRGBA : (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
-			IO (() => (λ.ctx.strokeStyle = `rgba(${r},${g},${b},${a})`, null)),
-
-		/**` Reput.strokeRGBAV :: Vector4 -> IO () `*/
-		strokeRGBAV : (v : Vector4) : IO <null> =>
-			IO (() => (λ.ctx.strokeStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`, null)),
-
-		/**` Reput.shadowBlurAmount :: Number -> IO () `*/
-		shadowBlurAmount : (amount : number) : IO <null> =>
-			IO (() => (λ.ctx.shadowBlur = amount, null)),
-
-		/**` Reput.shadowColor :: String -> IO () `*/
-		shadowColor : (color : string) : IO <null> =>
-			IO (() => (λ.ctx.shadowColor = color, null)),
-
-		/**` Reput.shadowRGBA :: Number -> Number -> Number -> Number -> IO () `*/
-		shadowRGBA : (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
-			IO (() => (λ.ctx.shadowColor = `rgba(${r},${g},${b},${a})`, null)),
-
-		/**` Reput.shadowRGBAV :: Vector4 -> IO () `*/
-		shadowRGBAV : (v : Vector4) : IO <null> =>
-			IO (() => (λ.ctx.shadowColor = `rgba(${v.x},${v.y},${v.z},${v.w})`, null)),
-
-		/**` Reput.shadowOffsetX :: Number -> IO () `*/
-		shadowOffsetX : (x : number) : IO <null> =>
-			IO (() => (λ.ctx.shadowOffsetX = x, null)),
-
-		/**` Reput.shadowOffsetY :: Number -> IO () `*/
-		shadowOffsetY : (y : number) : IO <null> =>
-			IO (() => (λ.ctx.shadowOffsetY = y, null)),
-
-		/**` Reput.shadowOffsetXY :: Number -> Number -> IO () `*/
-		shadowOffsetXY : (x : number) => (y : number) : IO <null> =>
-			IO (() => (λ.ctx.shadowOffsetX = x, λ.ctx.shadowOffsetY = y, null)),
-
-		/**` Reput.shadowOffsetV :: Vector2 -> IO () `*/
-		shadowOffsetV : (v : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.shadowOffsetX = v.x, λ.ctx.shadowOffsetY = v.y, null)),
-
-		/**` Reput.transformationMatrix :: Matrix3 -> IO () `*/
-		transformationMatrix : (m : Matrix3) : IO <null> =>
-			IO (() => (λ.ctx.setTransform(m.ix, m.iy, m.jx, m.jy, m.kx, m.ky), null)),
-
-		/**` Reput.alpha :: Number -> IO () `*/
-		alpha : (opacity : number) : IO <null> =>
-			IO (() => (λ.ctx.globalAlpha = opacity, null)),
-
-		/**` Reput.compositionOperation :: Composition -> IO () `*/
-		compositionOperation : (composition : Composition) : IO <null> =>
-			IO (() => (λ.ctx.globalCompositeOperation = mappingComposition .codomain (composition), null))
-	}
-
-const Output =
-	{
-		Norm :
-			{
-				/**` Output.Norm.drawImage :: String -> Number -> Number -> IO () `*/
-				drawImage : (path : string) => (x : number) => (y : number) : IO <null> =>
-					IO (() => (λ.ctx.drawImage(λ.image[path]!, x * λ.ctx.canvas.width, y * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.drawImageP :: String -> Pair Number Number -> IO () `*/
-				drawImageP : (path : string) => (xy : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.drawImage(λ.image[path]!, xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height
-					), null)),
-
-				/**` Output.Norm.drawImageV :: String -> Vector2 -> Vector2 -> IO () `*/
-				drawImageV : (path : string) => (xy : Vector2) : IO <null> =>
-					IO (() => (λ.ctx.drawImage(λ.image[path]!, xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.drawCroppedImage :: String -> ...8 Number -> IO () `*/
-				drawCroppedImage :
-					(path : string) =>
-					(cx   : number) => (cy : number) => (cw : number) => (ch : number) =>
-					(x    : number) => (y  : number) => (w  : number) => (h  : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.drawImage(
-							λ.image[path]!,
-							cx * λ.image[path]!.width, cy * λ.image[path]!.height,
-							cw * λ.image[path]!.width, ch * λ.image[path]!.height,
-							x * λ.ctx.canvas.width, y * λ.ctx.canvas.height,
-							w * λ.ctx.canvas.width, h * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.drawCroppedImageP :: String -> ...4 Pair Number Number -> IO () `*/
-				drawCroppedImageP :
-					(path : string) =>
-					(cxy  : Pair <number, number>) => (cwh  : Pair <number, number>) =>
-					(xy   : Pair <number, number>) => (wh   : Pair <number, number>) : IO <null> =>
-					IO (() => {
-						λ.ctx.drawImage(
-							λ.image[path]!,
-							cxy .fst * λ.image[path]!.width, cxy .snd * λ.image[path]!.width,
-							cwh .fst * λ.image[path]!.width, cwh .snd * λ.image[path]!.width,
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height,
-							wh .fst * λ.ctx.canvas.width, wh .snd * λ.ctx.canvas.height
-						)
-						return null
-					}),
-
-				/**` Output.Norm.drawCroppedImageV :: String -> ...4 Vector2 -> IO () `*/
-				drawCroppedImageV :
-					(path : string ) =>
-					(cxy  : Vector2) => (cwh : Vector2) =>
-					(xy   : Vector2) => (wh  : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.drawImage(
-							λ.image[path]!,
-							cxy.x * λ.image[path]!.width,  cxy.y * λ.image[path]!.width,
-							cwh.x * λ.image[path]!.height, cwh.y * λ.image[path]!.height,
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							wh.x * λ.ctx.canvas.width, wh.y * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.drawFullImage :: String -> ...4 Number -> IO () `*/
-				drawFullImage : (path : string) => (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.drawImage(
-							λ.image[path]!,
-							x * λ.ctx.canvas.width, y * λ.ctx.canvas.height,
-							w * λ.ctx.canvas.width, h * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.drawFullImageP :: String -> Pair Number Number -> Pair Number Number -> IO () `*/
-				drawFullImageP : (path : string) => (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.drawImage(
-							λ.image[path]!,
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height,
-							wh .fst * λ.ctx.canvas.width, wh .snd * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.drawFullImageV :: String -> Vector2 -> Vector2 -> IO () `*/
-				drawFullImageV : (path : string)  => (xy : Vector2) => (wh : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.drawImage(
-							λ.image[path]!,
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							wh.x * λ.ctx.canvas.width, wh.y * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.drawSquareImage :: String -> Number -> Number -> Number -> IO () `*/
-				drawSquareImage : (path : string) => (k : number) => (x : number) => (y : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.drawImage(
-							λ.image[path]!,
-							x * λ.ctx.canvas.width, y * λ.ctx.canvas.height,
-							k, k
-						), null
-					)),
-
-				/**` Output.Norm.drawSquareImageP :: String -> Number -> Pair Number Number -> IO () `*/
-				drawSquareImageP : (path : string) => (k : number) => (xy : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.drawImage(
-							λ.image[path]!,
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height,
-							k, k
-						), null
-					)),
-
-				/**` Output.Norm.drawSquareImageV :: String -> Number -> Vector2 -> IO () `*/
-				drawSquareImageV : (path : string) => (k : number) => (xy : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.drawImage(
-							λ.image[path]!,
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							k, k
-						), null
-					)),
-
-				/**` Output.Norm.drawScaledImage :: String -> Number -> Number -> Number -> IO () `*/
-				drawScaledImage : (path : string) => (k : number) => (x : number) => (y : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.drawImage(
-							λ.image[path]!,
-							x * λ.ctx.canvas.width, y * λ.ctx.canvas.height,
-							λ.image[path]!.width * k, λ.image[path]!.height * k
-						), null
-					)),
-
-				/**` Output.Norm.drawScaledImageP :: String -> Number -> Pair Number Number -> IO () `*/
-				drawScaledImageP : (path : string) => (k : number) => (xy : Pair <number, number>) : IO <null> =>
-					IO (() => {
-						λ.ctx.drawImage(
-							λ.image[path]!,
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height,
-							λ.image[path]!.width * k, λ.image[path]!.height * k
-						)
-						return null
-					}),
-
-				/**` Output.Norm.drawScaledImageV :: String -> Number -> Vector2 -> IO () `*/
-				drawScaledImageV : (path : string) => (k : number) => (xy : Vector2) : IO <null> =>
-					IO (() => {
-						λ.ctx.drawImage(
-							λ.image[path]!,
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							λ.image[path]!.width * k, λ.image[path]!.height * k)
-						return null
-					}),
-
-				/**` Output.Norm.clearRectangle :: Number -> Number -> Number -> Number -> IO () `*/
-				clearRectangle : (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.clearRect(
-							x * λ.ctx.canvas.width, y * λ.ctx.canvas.width,
-							w * λ.ctx.canvas.width, h * λ.ctx.canvas.width
-						), null
-					)),
-
-				/**` Output.Norm.clearRectangleP :: Pair Number Number -> Pair Number Number -> IO () `*/
-				clearRectangleP : (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.clearRect(
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height,
-							wh .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.clearRectangleV :: Vector2 -> Vector2 -> IO () `*/
-				clearRectangleV : (xy : Vector2) => (wh : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.clearRect(
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							wh.x * λ.ctx.canvas.width, wh.y * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.rotate :: Number -> IO () `*/
-				rotate : (angle : number) : IO <null> => IO (() => (λ.ctx.rotate(angle * TAU), null)),
-
-				/**` Output.Norm.scaleAxisP :: Pair Number Number -> IO () `*/
-				scaleAxisP : (kxy : Pair <number, number>) : IO <null> =>
-					IO (() => (λ.ctx.scale(kxy .fst * λ.ctx.canvas.width, kxy .snd * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.scaleAxisV :: Vector2 -> IO () `*/
-				scaleAxisV : (kxy : Vector2) : IO <null> =>
-					IO (() => (λ.ctx.scale(kxy.x * λ.ctx.canvas.width, kxy.y * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.translateX :: Number -> IO () `*/
-				translateX : (dx : number) : IO <null> =>
-					IO (() => (λ.ctx.translate(dx * λ.ctx.canvas.width, 0), null)),
-
-				/**` Output.Norm.translateY :: Number -> IO () `*/
-				translateY : (dy : number) : IO <null> =>
-					IO (() => (λ.ctx.translate(0, dy * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.translate :: Number -> Number -> IO () `*/
-				translate : (dx : number) => (dy : number) : IO <null> =>
-					IO (() => (λ.ctx.translate(dx * λ.ctx.canvas.width, dy * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.translateP :: Pair Number Number -> IO () `*/
-				translateP : (dxy : Pair <number, number>) : IO <null> =>
-					IO (() => (λ.ctx.translate(dxy .fst * λ.ctx.canvas.width, dxy .snd * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.translateV :: Vector2 -> IO () `*/
-				translateV : (dxy : Vector2) : IO <null> =>
-					IO (() => (λ.ctx.translate(dxy.x * λ.ctx.canvas.width, dxy.y * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.transformation :: Matrix3 -> IO () `*/
-				transformation : (m : Matrix3) : IO <null> =>
-					IO (() => (
-						λ.ctx.transform(m.ix, m.iy, m.jx, m.jy, m.kx * λ.ctx.canvas.width, m.ky * λ.ctx.canvas.height),
-						null
-					)),
-
-				/**` Output.Norm.moveTo :: Number -> Number -> IO () `*/
-				moveTo : (x : number) => (y : number) : IO <null> =>
-					IO (() => (λ.ctx.moveTo(x * λ.ctx.canvas.width, y * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.moveToP :: Pair Number Number -> IO () `*/
-				moveToP : (xy : Pair <number, number>) : IO <null> =>
-					IO (() => (λ.ctx.moveTo(xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.moveToV :: Vector2 -> IO () `*/
-				moveToV : (xy : Vector2) : IO <null> =>
-					IO (() => (λ.ctx.moveTo(xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.lineTo :: Number -> Number -> IO () `*/
-				lineTo : (x : number) => (y : number) : IO <null> =>
-					IO (() => (λ.ctx.lineTo(x * λ.ctx.canvas.width, y * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.lineToP :: Pair Number Number -> IO () `*/
-				lineToP : (xy : Pair <number, number>) : IO <null> =>
-					IO (() => (λ.ctx.lineTo(xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.lineToV :: Vector2 -> IO () `*/
-				lineToV : (xy : Vector2) : IO <null> =>
-					IO (() => (λ.ctx.lineTo(xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.bezierCurveTo :: ...6 Number -> IO () `*/
-				bezierCurveTo :
-					(cx0 : number) => (cy0 : number) =>
-					(cx1 : number) => (cy1 : number) =>
-					(x   : number) => (y   : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.bezierCurveTo(
-							cx0 * λ.ctx.canvas.width, cy0 * λ.ctx.canvas.height,
-							cx1 * λ.ctx.canvas.width, cy1 * λ.ctx.canvas.height,
-							x   * λ.ctx.canvas.width, y   * λ.ctx.canvas.height),
-							null
-						)),
-
-				/**` Output.Norm.bezierCurveToP :: Pair Number Number -> Pair Number Number -> Pair Number Number -> IO () `*/
-				bezierCurveToP :
-					(cxy0 : Pair <number, number>) =>
-					(cxy1 : Pair <number, number>) =>
-					(xy   : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.bezierCurveTo(
-							cxy0 .fst * λ.ctx.canvas.width, cxy0 .snd * λ.ctx.canvas.height,
-							cxy1 .fst * λ.ctx.canvas.width, cxy1 .snd * λ.ctx.canvas.height,
-							xy   .fst * λ.ctx.canvas.width, xy   .snd * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.bezierCurveToV :: Vector2 -> Vector2 -> Vector2 -> IO () `*/
-				bezierCurveToV : (cxy0 : Vector2) => (cxy1 : Vector2) => (xy : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.bezierCurveTo(
-							cxy0.x * λ.ctx.canvas.width, cxy0.y * λ.ctx.canvas.height,
-							cxy1.x * λ.ctx.canvas.width, cxy1.y * λ.ctx.canvas.height,
-							xy.x   * λ.ctx.canvas.width, xy.y   * λ.ctx.canvas.height
-						), null)),
-
-				/**` Output.Norm.quadraticCurveTo :: Number -> Number -> Number -> Number -> IO () `*/
-				quadraticCurveTo : (cx : number) => (cy : number) => (x : number) => (y : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.quadraticCurveTo(
-							cx * λ.ctx.canvas.width, cy * λ.ctx.canvas.width,
-							x  * λ.ctx.canvas.width, y  * λ.ctx.canvas.width
-						), null
-					)),
-
-				/**` Output.Norm.quadraticCurveToP :: Pair Number Number -> Pair Number Number -> IO () `*/
-				quadraticCurveToP : (cxy : Pair <number, number>) => (xy : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.quadraticCurveTo(
-							cxy .fst * λ.ctx.canvas.width, cxy .snd * λ.ctx.canvas.height,
-							xy  .fst * λ.ctx.canvas.width, xy  .snd * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.quadraticCurveToV :: Vector2 -> Vector2 -> IO () `*/
-				quadraticCurveToV : (cxy : Vector2) => (xy : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.quadraticCurveTo(
-							cxy.x * λ.ctx.canvas.width, cxy.y * λ.ctx.canvas.height,
-							xy.x  * λ.ctx.canvas.width, xy.y  * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.arcTo :: ...5 Number -> IO () `*/
-				arcTo : (r : number) => (cx0 : number) => (cy0 : number) => (cx1 : number) => (cy1 : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.arcTo(
-							cx0 * λ.ctx.canvas.width, cy0 * λ.ctx.canvas.height,
-							cx1 * λ.ctx.canvas.width, cy1 * λ.ctx.canvas.height,
-							r   * λ.ctx.canvas.width
-						), null
-					)),
-
-				/**` Output.Norm.arcToP :: Number -> Pair Number Number -> Pair Number Number -> IO () `*/
-				arcToP : (r : number) => (cxy0 : Pair <number, number>) => (cxy1 : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.arcTo(
-							cxy0 .fst * λ.ctx.canvas.width, cxy0 .snd * λ.ctx.canvas.height,
-							cxy1 .fst * λ.ctx.canvas.width, cxy1 .snd * λ.ctx.canvas.height,
-							r         * λ.ctx.canvas.width
-						), null
-					)),
-
-				/**` Output.Norm.arcToV :: Number -> Vector2 -> Vector2 -> IO () `*/
-				arcToV : (r : number) => (cxy0 : Vector2) => (cxy1 : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.arcTo(
-							cxy0.x * λ.ctx.canvas.width, cxy0.y * λ.ctx.canvas.height,
-							cxy1.x * λ.ctx.canvas.width, cxy1.y * λ.ctx.canvas.height,
-							r      * λ.ctx.canvas.width
-						), null
-					)),
-
-				/**` Output.Norm.rectangle :: Number -> Number -> Number -> Number -> IO () `*/
-				rectangle : (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.rect(
-							x * λ.ctx.canvas.width, y * λ.ctx.canvas.height,
-							w * λ.ctx.canvas.width, h * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.rectangleP :: Pair Number Number -> Pair Number Number -> IO () `*/
-				rectangleP : (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.rect(
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.width,
-							wh .fst * λ.ctx.canvas.width, wh .snd * λ.ctx.canvas.width
-						), null
-					)),
-
-				/**` Output.Norm.rectangleV :: Vector2 -> Vector2 -> IO () `*/
-				rectangleV : (xy : Vector2) => (wh : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.rect(
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							wh.x * λ.ctx.canvas.width, wh.y * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.fillRectangle :: Number -> Number -> Number -> Number -> IO () `*/
-				fillRectangle : (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.fillRect(
-							x * λ.ctx.canvas.width, y * λ.ctx.canvas.height,
-							w * λ.ctx.canvas.width, h * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.fillRectangleP :: Pair Number Number -> Pair Number Number -> IO () `*/
-				fillRectangleP : (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.fillRect(
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height,
-							wh .fst * λ.ctx.canvas.width, wh .snd * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.fillRectangleV :: Vector2 -> Vector2 -> IO () `*/
-				fillRectangleV : (xy : Vector2) => (wh : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.fillRect(
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							wh.x * λ.ctx.canvas.width, wh.y * λ.ctx.canvas.height
-						), null)),
-
-				/**` Output.Norm.strokeRectangle :: Number -> Number -> Number -> Number -> IO () `*/
-				strokeRectangle : (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.strokeRect(
-							x * λ.ctx.canvas.width, y * λ.ctx.canvas.height,
-							w * λ.ctx.canvas.width, h * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.strokeRectangleP :: Pair Number Number -> Pair Number Number -> IO () `*/
-				strokeRectangleP : (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.strokeRect(
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height,
-							wh .fst * λ.ctx.canvas.width, wh .snd * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.strokeRectangleV :: Vector2 -> Vector2 -> IO () `*/
-				strokeRectangleV : (xy : Vector2) => (wh : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.strokeRect(
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							wh.x * λ.ctx.canvas.width, wh.y * λ.ctx.canvas.height
-						), null
-					)),
-
-				/**` Output.Norm.arc :: ...5 Number -> IO () `*/
-				arc : (r : number) => (a : number) => (b : number) => (x : number) => (y : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.arc(
-							x * λ.ctx.canvas.width, y * λ.ctx.canvas.height,
-							r * λ.ctx.canvas.width, a * TAU, b * TAU
-						), null
-					)),
-
-				/**` Output.Norm.arcP :: Number -> Number -> Number -> Pair Number Number -> IO () `*/
-				arcP : (r : number) => (a : number) => (b : number) => (xy : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.arc(
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height,
-							r       * λ.ctx.canvas.width, a * TAU, b * TAU
-						), null
-					)),
-
-				/**` Output.Norm.arcV :: Number -> Number -> Number -> Vector2 -> IO () `*/
-				arcV : (r : number) => (a : number) => (b : number) => (xy : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.arc(
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							r    * λ.ctx.canvas.width, a * TAU, b * 360
-						), null
-					)),
-
-				/**` Output.Norm.circle :: Number -> Number -> Number -> IO () `*/
-				circle : (r : number) => (x : number) => (y : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.arc(
-							x * λ.ctx.canvas.width, y * λ.ctx.canvas.height,
-							r * λ.ctx.canvas.width, 0, TAU
-						), null
-					)),
-
-				/**` Output.Norm.circleP :: Number -> Pair Number Number -> IO () `*/
-				circleP : (r : number) => (xy : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.arc(
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height,
-							r       * λ.ctx.canvas.width, 0, TAU
-						), null
-					)),
-
-				/**` Output.Norm.circleV :: Number -> Vector2 -> IO () `*/
-				circleV : (r : number) => (xy : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.arc(
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							r    * λ.ctx.canvas.width, 0, TAU
-						), null
-					)),
-
-				/**` Output.Norm.strokeCircle :: Number -> Number -> Number -> IO () `*/
-				strokeCircle : (r : number) => (x : number) => (y : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.arc(
-							x * λ.ctx.canvas.width, y * λ.ctx.canvas.height,
-							r * λ.ctx.canvas.width, 0, TAU
-						), λ.ctx.stroke(), null
-					)),
-
-				/**` Output.Norm.strokeCircleP :: Number -> Pair Number Number -> IO () `*/
-				strokeCircleP : (r : number) => (xy : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.arc(
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height,
-							r       * λ.ctx.canvas.width, 0, TAU
-						), λ.ctx.stroke(), null
-					)),
-
-				/**` Output.Norm.strokeCircleV :: Number -> Vector2 -> IO () `*/
-				strokeCircleV : (r : number) => (xy : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.arc(
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							r    * λ.ctx.canvas.width, 0, TAU
-						), λ.ctx.stroke(), null
-					)),
-
-				/**` Output.Norm.fillCircle :: Number -> Number -> Number -> IO () `*/
-				fillCircle : (r : number) => (x : number) => (y : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.arc(
-							x * λ.ctx.canvas.width, y * λ.ctx.canvas.height,
-							r * λ.ctx.canvas.width, 0, TAU
-						), λ.ctx.fill(), null
-					)),
-
-				/**` Output.Norm.fillCircleP :: Number -> Pair Number Number -> IO () `*/
-				fillCircleP : (r : number) => (xy : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.arc(
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height,
-							r       * λ.ctx.canvas.height, 0, TAU
-						), λ.ctx.fill(), null
-					)),
-
-				/**` Output.Norm.fillCircleV :: Number -> Vector2 -> IO () `*/
-				fillCircleV : (r : number) => (xy : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.arc(
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							r    * λ.ctx.canvas.width, 0, TAU
-						), λ.ctx.fill(), null
-					)),
-
-				/**` Output.Norm.elliptic :: ...7 Number -> IO () `*/
-				elliptic :
-					(r : number) => (a : number) => (b  : number) =>
-					(x : number) => (y : number) => (kx : number) => (ky : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.ellipse(
-							x  * λ.ctx.canvas.width, y  * λ.ctx.canvas.height,
-							kx * λ.ctx.canvas.width, ky * λ.ctx.canvas.height,
-							r  * λ.ctx.canvas.width, a  * TAU, b * TAU
-						), null
-					)),
-
-				/**` Output.Norm.ellipticP :: Number -> Number -> Number -> Pair Number Number -> Pair Number Number -> IO () `*/
-				ellipticP :
-					(r  : number) => (a : number) => (b  : number) =>
-					(xy : Pair <number, number>)  => (wh : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.ellipse(
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height,
-							wh .fst * λ.ctx.canvas.width, wh .snd * λ.ctx.canvas.height,
-							r       * λ.ctx.canvas.width, a * TAU, b * TAU
-						), null
-					)),
-
-				/**` Output.Norm.ellipticVector :: Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
-				ellipticV :
-					(r  : number)  => (a  : number ) => (b : number) =>
-					(xy : Vector2) => (wh : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.ellipse(
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							wh.x * λ.ctx.canvas.width, wh.y * λ.ctx.canvas.height,
-							r    * λ.ctx.canvas.width, a * TAU, b * TAU
-						), null
-					)),
-
-				/**` Output.Norm.ellipse :: ...5 Number -> IO () `*/
-				ellipse : (r : number) => (x : number) => (y : number) => (kx : number) => (ky : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.ellipse(
-							x  * λ.ctx.canvas.width, y  * λ.ctx.canvas.height,
-							kx * λ.ctx.canvas.width, ky * λ.ctx.canvas.height,
-							r  * λ.ctx.canvas.width, 0, TAU
-						), null
-					)),
-
-				/**` Output.Norm.ellipseP :: Number -> Pair Number Number -> Pair Number Number -> IO () `*/
-				ellipseP : (r : number) => (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-					IO (() => (
-						λ.ctx.ellipse(
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height,
-							wh .fst * λ.ctx.canvas.width, wh .snd * λ.ctx.canvas.height,
-							r       * λ.ctx.canvas.width, 0, TAU
-						), null
-					)),
-
-				/**` Output.Norm.ellipseV :: Number -> Vector2 -> Vector2 -> IO () `*/
-				ellipseV : (r : number) => (xy : Vector2) => (wh : Vector2) : IO <null> =>
-					IO (() => (
-						λ.ctx.ellipse(
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							wh.x * λ.ctx.canvas.width, wh.y * λ.ctx.canvas.height,
-							r    * λ.ctx.canvas.width, 0, TAU
-						), null
-					)),
-
-				/**` Output.Norm.strokeEllipse :: ...5 Number -> IO () `*/
-				strokeEllipse : (r : number) => (x : number) => (y : number) => (kx : number) => (ky : number) : IO <null> =>
-					IO (() => (
-						λ.ctx.ellipse(
-							x  * λ.ctx.canvas.width, y  * λ.ctx.canvas.height,
-							kx * λ.ctx.canvas.width, ky * λ.ctx.canvas.height,
-							r  * λ.ctx.canvas.width, 0, TAU
-						), λ.ctx.stroke(), null
-					)),
-
-				/**` Output.Norm.strokeEllipseP :: Number -> Pair Number Number -> Pair Number Number -> IO () `*/
-				strokeEllipseP : (r : number) => (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-					IO (() => {
-						λ.ctx.ellipse(
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height,
-							wh .fst * λ.ctx.canvas.width, wh .snd * λ.ctx.canvas.height,
-							r       * λ.ctx.canvas.width, 0, TAU
-						)
-						λ.ctx.stroke()
-						return null
-					}),
-
-				/**` Output.Norm.strokeEllipseV :: Number -> Vector2 -> Vector2 -> IO () `*/
-				strokeEllipseV : (r : number) => (xy : Vector2) => (wh : Vector2) : IO <null> =>
-					IO (() => {
-						λ.ctx.ellipse(
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							wh.x * λ.ctx.canvas.width, wh.y * λ.ctx.canvas.height,
-							r    * λ.ctx.canvas.width, 0, TAU
-						)
-						λ.ctx.stroke()
-						return null
-					}),
-
-				/**` Output.Norm.fillEllipse :: ...5 Number -> IO () `*/
-				fillEllipse : (r : number) => (x : number) => (y : number) => (kx : number) => (ky : number) : IO <null> =>
-					IO (() => {
-						λ.ctx.ellipse(
-							x  * λ.ctx.canvas.width, y  * λ.ctx.canvas.height,
-							kx * λ.ctx.canvas.width, ky * λ.ctx.canvas.height,
-							r  * λ.ctx.canvas.width, 0, TAU
-						)
-						λ.ctx.fill()
-						return null
-					}),
-
-				/**` Output.Norm.fillEllipseP :: Number -> Pair Number Number -> Pair Number Number -> IO () `*/
-				fillEllipseP : (r : number) => (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-					IO (() => {
-						λ.ctx.ellipse(
-							xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height,
-							wh .fst * λ.ctx.canvas.width, wh .snd * λ.ctx.canvas.height,
-							r       * λ.ctx.canvas.width, 0, TAU
-						)
-						λ.ctx.fill()
-						return null
-					}),
-
-				/**` Output.Norm.fillEllipseV :: Number -> Vector2 -> Vector2 -> IO () `*/
-				fillEllipseV : (r : number) => (xy : Vector2) => (wh : Vector2) : IO <null> =>
-					IO (() => {
-						λ.ctx.ellipse(
-							xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height,
-							wh.x * λ.ctx.canvas.width, wh.y * λ.ctx.canvas.height,
-							r    * λ.ctx.canvas.width, 0, TAU
-						)
-						λ.ctx.fill()
-						return null
-					}),
-
-				/**` Output.Norm.strokeText :: String -> Number -> Number -> IO () `*/
-				strokeText : (text : string) => (x : number) => (y : number) : IO <null> =>
-					IO (() => (λ.ctx.strokeText(text, x * λ.ctx.canvas.width, y * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.strokeTextP :: String -> Pair Number Number -> IO () `*/
-				strokeTextP : (text : string) => (xy : Pair <number, number>) : IO <null> =>
-					IO (() => (λ.ctx.strokeText(text, xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.strokeTextV :: String -> Vector2 -> IO () `*/
-				strokeTextV : (text : string) => (xy : Vector2) : IO <null> =>
-					IO (() => (λ.ctx.strokeText(text, xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.fillText :: String -> Number -> Number -> IO () `*/
-				fillText : (text : string) => (x : number) => (y : number) : IO <null> =>
-					IO (() => (λ.ctx.fillText(text, x * λ.ctx.canvas.width, y * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.fillTextP :: String -> Pair Number Number -> IO () `*/
-				fillTextP : (text : string) => (xy : Pair <number, number>) : IO <null> =>
-					IO (() => (λ.ctx.fillText(text, xy .fst * λ.ctx.canvas.width, xy .snd * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.fillTextV :: String -> Vector2 -> IO () `*/
-				fillTextV : (text : string) => (xy : Vector2) : IO <null> =>
-					IO (() => (λ.ctx.fillText(text, xy.x * λ.ctx.canvas.width, xy.y * λ.ctx.canvas.height), null)),
-
-				/**` Output.Norm.area :: Number -> Number -> Number -> Number -> IO () `*/
-				area : (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-					IO (() => {
-						λ.ctx.rect(
-							x0 * λ.ctx.canvas.width, y0 * λ.ctx.canvas.height,
-							(x1 - x0) * λ.ctx.canvas.width, (y1 - y0) * λ.ctx.canvas.height
-						)
-						return null
-					}),
-
-				/**` Output.Norm.areaP :: Pair Number Number -> Pair Number Number -> IO () `*/
-				areaP : (xy0 : Pair <number, number>) => (xy1 : Pair <number, number>) : IO <null> =>
-					IO (() => {
-						λ.ctx.rect(
-							xy0 .fst * λ.ctx.canvas.width, xy0 .snd * λ.ctx.canvas.height,
-							(xy1 .fst - xy0 .fst) * λ.ctx.canvas.width, (xy1 .snd - xy0 .snd) * λ.ctx.canvas.height
-						)
-						return null
-					}),
-
-				/**` Output.Norm.areaV :: Vector2 -> Vector2 -> IO () `*/
-				areaV : (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-					IO (() => {
-						λ.ctx.rect(
-							xy0.x * λ.ctx.canvas.width, xy0.y * λ.ctx.canvas.height,
-							(xy1.x - xy0.x) * λ.ctx.canvas.width, (xy1.y - xy0.y) * λ.ctx.canvas.height
-						)
-						return null
-					}),
-
-				/**` Output.Norm.strokeArea :: Number -> Number -> Number -> Number -> IO () `*/
-				strokeArea : (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-					IO (() => {
-						λ.ctx.strokeRect(
-							x0 * λ.ctx.canvas.width, y0 * λ.ctx.canvas.height,
-							(x1 - x0) * λ.ctx.canvas.width, (y1 - y0) * λ.ctx.canvas.width
-						)
-						return null
-					}),
-
-				/**` Output.Norm.strokeAreaP :: Pair Number Number -> Pair Number Number -> IO () `*/
-				strokeAreaP : (xy0 : Pair <number, number>) => (xy1 : Pair <number, number>) : IO <null> =>
-					IO (() => {
-						λ.ctx.strokeRect(
-							xy0 .fst * λ.ctx.canvas.width, xy0 .snd * λ.ctx.canvas.height,
-							(xy1 .fst - xy0 .fst) * λ.ctx.canvas.width, (xy1 .snd - xy0 .snd) * λ.ctx.canvas.height
-						)
-						return null
-					}),
-
-				/**` Output.Norm.strokeAreaV :: Vector2 -> Vector2 -> IO () `*/
-				strokeAreaV : (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-					IO (() => {
-						λ.ctx.strokeRect(
-							xy0.x * λ.ctx.canvas.width, xy0.y * λ.ctx.canvas.height,
-							(xy1.x - xy0.x) * λ.ctx.canvas.width, (xy1.y - xy0.y) * λ.ctx.canvas.height
-						)
-						return null
-					}),
-
-				/**` Output.Norm.fillArea :: Number -> Number -> Number -> Number -> IO () `*/
-				fillArea : (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-					IO (() => {
-						λ.ctx.fillRect(
-							x0 * λ.ctx.canvas.width, y0 * λ.ctx.canvas.height,
-							(x1 - x0) * λ.ctx.canvas.width, (y1 - y0) * λ.ctx.canvas.width
-						)
-						return null
-					}),
-
-				/**` Output.Norm.fillAreaP :: Pair Number Number -> Pair Number Number -> IO () `*/
-				fillAreaP : (xy0 : Pair <number, number>) => (xy1 : Pair <number, number>) : IO <null> =>
-					IO (() => {
-						λ.ctx.fillRect(
-							xy0 .fst * λ.ctx.canvas.width, xy0 .snd * λ.ctx.canvas.height,
-							(xy1 .fst - xy0 .fst) * λ.ctx.canvas.width, (xy1 .snd - xy0 .snd) * λ.ctx.canvas.height
-						)
-						return null
-					}),
-
-				/**` Output.Norm.fillAreaV :: Vector2 -> Vector2 -> IO () `*/
-				fillAreaV : (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-					IO (() => {
-						λ.ctx.fillRect(
-							xy0.x * λ.ctx.canvas.width, xy0.y * λ.ctx.canvas.height,
-							(xy1.x - xy0.x) * λ.ctx.canvas.width, (xy1.y - xy0.y) * λ.ctx.canvas.height
-						)
-						return null
-					}),
-
-				/**` Output.Norm.line :: Number -> Number -> Number -> Number -> IO () `*/
-				line : (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-					IO (() => {
-						λ.ctx.moveTo(x0 * λ.ctx.canvas.width, y0 * λ.ctx.canvas.height)
-						λ.ctx.lineTo(x1 * λ.ctx.canvas.width, y1 * λ.ctx.canvas.height)
-						return null
-					}),
-
-				/**` Output.Norm.lineP :: Pair Number Number -> Pair Number Number -> IO () `*/
-				lineP : (xy0 : Pair <number, number>) => (xy1 : Pair <number, number>) : IO <null> =>
-					IO (() => {
-						λ.ctx.moveTo(xy0 .fst * λ.ctx.canvas.width, xy0 .snd * λ.ctx.canvas.height)
-						λ.ctx.lineTo(xy1 .fst * λ.ctx.canvas.width, xy1 .snd * λ.ctx.canvas.height)
-						return null
-					}),
-
-				/**` Output.Norm.lineV :: Vector2 -> Vector2 -> IO () `*/
-				lineV : (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-					IO (() => {
-						λ.ctx.moveTo(xy0.x * λ.ctx.canvas.width, xy0.y * λ.ctx.canvas.height)
-						λ.ctx.lineTo(xy1.x * λ.ctx.canvas.width, xy1.y * λ.ctx.canvas.height)
-						return null
-					}),
-
-				/**` Output.Norm.strokeLine :: Number -> Number -> Number -> Number -> IO () `*/
-				strokeLine : (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-					IO (() => {
-						λ.ctx.moveTo(x0 * λ.ctx.canvas.width, y0 * λ.ctx.canvas.height)
-						λ.ctx.lineTo(x1 * λ.ctx.canvas.width, y1 * λ.ctx.canvas.height)
-						λ.ctx.stroke()
-						return null
-					}),
-
-				/**` Output.Norm.strokeLineP :: Pair Number Number -> Pair Number Number -> IO () `*/
-				strokeLineP : (xy0 : Pair <number, number>) => (xy1 : Pair <number, number>) : IO <null> =>
-					IO (() => {
-						λ.ctx.moveTo(xy0 .fst * λ.ctx.canvas.width, xy0 .snd * λ.ctx.canvas.height)
-						λ.ctx.lineTo(xy1 .fst * λ.ctx.canvas.width, xy1 .snd * λ.ctx.canvas.height)
-						λ.ctx.stroke()
-						return null
-					}),
-
-				/**` Output.Norm.strokeLineV :: Vector2 -> Vector2 -> IO () `*/
-				strokeLineV : (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-					IO (() => {
-						λ.ctx.moveTo(xy0.x * λ.ctx.canvas.width, xy0.y * λ.ctx.canvas.height)
-						λ.ctx.lineTo(xy1.x * λ.ctx.canvas.width, xy1.y * λ.ctx.canvas.height)
-						λ.ctx.stroke()
-						return null
-					})
-			},
-
-		/**` Output.log :: a -> IO () `*/
-		log : <a>(message : a) : IO <null> => IO (() => (console.log(message), null)),
-
-		/**` Output.warn :: a -> IO () `*/
-		warn : <a>(message : a) : IO <null> => IO (() => (console.warn(message), null)),
-
-		/**` Output.flush :: IO () `*/
-		flush : IO (() => (console.clear(), null)),
-
-		/**` Output.debug :: Number -> a -> IO () `*/
-		debug : (count : number) => <a>(message : a) : IO <null> =>
-			IO (() => {
-				if (--λ.debugCounter < 0)
-				{
-					λ.debugCounter = count
-					console.debug (message)
-				}
-				return null
-			}),
-
-		/**` Output.queue :: IO a -> IO () `*/
-		queue : <a>(io : IO <a>) : IO <null> => IO (() => (requestAnimationFrame(io.INFO), null)),
-
-		/**` Output.tick :: IO () `*/
-		tick :
-			IO (() => {
-				for (const k in λ.keyboard) λ.keyboard[k as KeyboardKey] = relaxY (λ.keyboard[k as KeyboardKey])
-				for (const i in λ.mouseButtons) λ.mouseButtons[i] = relaxY (λ.mouseButtons[i]!)
-				λ.mouseScroll = Y.Rest
-				λ.mouseDeltaX = λ.mouseDeltaY = 0
-				λ.isResized   = false
-				return null
-			}),
-
-		/**` Output.activatePointerLock :: IO () `*/
-		activatePointerLock :
-			IO (() => (onmouseup = () => λ.isPointerLocked || λ.ctx.canvas.requestPointerLock(), null)),
-
-		/**` Output.deactivatePointerLock :: IO () `*/
-		deactivatePointerLock : IO (() => λ.ctx.canvas.onmousedown = null),
-
-		/**` Output.loadImage :: String -> IO () `*/
-		loadImage : (path : string) : IO <null> =>
-			IO (() => {
-				λ.image[path]          = new Image
-				λ.image[path]!.src     = path
-				λ.image[path]!.onerror = () => THROW (`'Output.loadImage' failed; could not load image: '${path}'`)
-				return null
-			}),
-
-		/**` Output.drawImage :: String -> Number -> Number -> IO () `*/
-		drawImage : (path : string) => (x : number) => (y : number) : IO <null> =>
-			IO (() => (λ.ctx.drawImage(λ.image[path]!, x, y), null)),
-
-		/**` Output.drawImageP :: String -> Pair Number Number -> IO () `*/
-		drawImageP : (path : string) => (xy : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.drawImage(λ.image[path]!, xy .fst, xy .snd), null)),
-
-		/**` Output.drawImageV :: String -> Vector2 -> Vector2 -> IO () `*/
-		drawImageV : (path : string) => (xy : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.drawImage(λ.image[path]!, xy.x, xy.y), null)),
-
-		/**` Output.drawCroppedImage :: String -> ...8 Number -> IO () `*/
-		drawCroppedImage :
-			(path : string) =>
-			(cx   : number) => (cy : number) => (cw : number) => (ch : number) =>
-			(x    : number) => (y  : number) => (w  : number) => (h  : number) : IO <null> =>
-			IO (() => (λ.ctx.drawImage(λ.image[path]!, cx, cy, cw, ch, x, y, w, h), null)),
-
-		/**` Output.drawCroppedImageP :: String -> ...4 Pair Number Number -> IO () `*/
-		drawCroppedImageP :
-			(path : string) =>
-			(cxy  : Pair <number, number>) => (cwh  : Pair <number, number>) =>
-			(xy   : Pair <number, number>) => (wh   : Pair <number, number>) : IO <null> =>
-			IO (() => {
-				λ.ctx.drawImage(λ.image[path]!, cxy .fst, cxy .snd, cwh .fst, cwh .snd, xy .fst, xy .snd, wh .fst, wh .snd)
-				return null
-			}),
-
-		/**` Output.drawCroppedImageV :: String -> ...4 Vector2 -> IO () `*/
-		drawCroppedImageV :
-			(path : string ) =>
-			(cxy  : Vector2) => (cwh : Vector2) =>
-			(xy   : Vector2) => (wh  : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.drawImage(λ.image[path]!, cxy.x, cxy.y, cwh.x, cwh.y, xy.x, xy.y, wh.x, wh.y), null)),
-
-		/**` Output.drawFullImage :: String -> ...4 Number -> IO () `*/
-		drawFullImage : (path : string) => (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-			IO (() => (λ.ctx.drawImage(λ.image[path]!, x, y, w, h), null)),
-
-		/**` Output.drawFullImageP :: String -> Pair Number Number -> Pair Number Number -> IO () `*/
-		drawFullImageP : (path : string) => (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.drawImage(λ.image[path]!, xy .fst, xy .snd, wh .fst, wh .snd), null)),
-
-		/**` Output.drawFullImageV :: String -> Vector2 -> Vector2 -> IO () `*/
-		drawFullImageV : (path : string)  => (xy : Vector2) => (wh : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.drawImage(λ.image[path]!, xy.x, xy.y, wh.x, wh.y), null)),
-
-		/**` Output.drawSquareImage :: String -> Number -> Number -> Number -> IO () `*/
-		drawSquareImage : (path : string) => (k : number) => (x : number) => (y : number) : IO <null> =>
-			IO (() => (λ.ctx.drawImage(λ.image[path]!, x, y, k, k), null)),
-
-		/**` Output.drawSquareImageP :: String -> Number -> Pair Number Number -> IO () `*/
-		drawSquareImageP : (path : string) => (k : number) => (xy : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.drawImage(λ.image[path]!, xy .fst, xy .snd, k, k), null)),
-
-		/**` Output.drawSquareImageV :: String -> Number -> Vector2 -> IO () `*/
-		drawSquareImageV : (path : string) => (k : number) => (xy : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.drawImage(λ.image[path]!, xy.x, xy.y, k, k), null)),
-
-		/**` Output.drawScaledImage :: String -> Number -> Number -> Number -> IO () `*/
-		drawScaledImage : (path : string) => (k : number) => (x : number) => (y : number) : IO <null> =>
-			IO (() => (λ.ctx.drawImage(λ.image[path]!, x, y, λ.image[path]!.width * k, λ.image[path]!.height * k), null)),
-
-		/**` Output.drawScaledImageP :: String -> Number -> Pair Number Number -> IO () `*/
-		drawScaledImageP : (path : string) => (k : number) => (xy : Pair <number, number>) : IO <null> =>
-			IO (() => {
-				λ.ctx.drawImage(λ.image[path]!, xy .fst, xy .snd, λ.image[path]!.width * k, λ.image[path]!.height * k)
-				return null
-			}),
-
-		/**` Output.drawScaledImageV :: String -> Number -> Vector2 -> IO () `*/
-		drawScaledImageV : (path : string) => (k : number) => (xy : Vector2) : IO <null> =>
-			IO (() => {
-				λ.ctx.drawImage(λ.image[path]!, xy.x, xy.y, λ.image[path]!.width * k, λ.image[path]!.height * k)
-				return null
-			}),
-
-		/**` Output.loadAudio :: String -> IO () `*/
-		loadAudio : (path : string) : IO <null> =>
-			IO (() => {
-				λ.audio[path]          = new Audio(path)
-				λ.audio[path]!.onerror = () => THROW (`'Output.loadAudio' failed; could not load audio: '${path}'`)
-				return null
-			}),
-
-		/**` Output.playAudio :: String -> IO () `*/
-		playAudio : (path : string) : IO <null> =>
-			IO (() => ((λ.audio[path] ?? THROW (`'Output.playAudio' failed; audio not preloaded: '${path}'`) ).play(), null)),
-
-		/**` Output.playSFX :: String -> IO () `*/
-		playSFX : (path : string) : IO <null> =>
-			IO (() => {
-				((λ.audio[path] ?? THROW (`'Output.playSFX' failed; audio not preloaded: '${path}'`)).cloneNode() as any).play()
-				return null
-			}),
-
-		/**` Output.loadFont :: String -> IO () `*/
-		loadFont : (path : string) : IO <null> =>
-			IO (() => {
-				document.styleSheets[0]!.insertRule(
-					`@font-face{font-family:"${
-						path .slice (path .lastIndexOf ("/") + 1, path .lastIndexOf ("."))
-					}";src:url("${path}")}`
-				)
-				return null
-			}),
-
-		/**` Output.clearRectangle :: Number -> Number -> Number -> Number -> IO () `*/
-		clearRectangle : (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-			IO (() => (λ.ctx.clearRect(x, y, w, h), null)),
-
-		/**` Output.clearRectangleP :: Pair Number Number -> Pair Number Number -> IO () `*/
-		clearRectangleP : (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.clearRect(xy .fst, xy .snd, wh .fst, xy .snd), null)),
-
-		/**` Output.clearRectangleV :: Vector2 -> Vector2 -> IO () `*/
-		clearRectangleV : (xy : Vector2) => (wh : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.clearRect(xy.x, xy.y, wh.x, wh.y), null)),
-
-		/**` Output.clearLayer :: IO () `*/
-		clearLayer : IO (() => (λ.ctx.clearRect(0, 0, λ.ctx.canvas.width, λ.ctx.canvas.height), null)),
-
-		/**` Output.clearCanvas :: IO () `*/
-		clearCanvas : IO (() => (λ.ctxs.forEach(ctx => ctx.clearRect(0, 0, λ.ctx.canvas.width, λ.ctx.canvas.height), null))),
-
-		/**` Output.fill :: IO () `*/
-		fill : IO (() => (λ.ctx.fill(), null)),
-
-		/**` Output.stroke :: IO () `*/
-		stroke : IO (() => (λ.ctx.stroke(), null)),
-
-		/**` Output.save :: IO () `*/
-		save : IO (() => (λ.ctx.save(), null)),
-
-		/**` Output.restore :: IO () `*/
-		restore : IO (() => (λ.ctx.restore(), null)),
-
-		/**` Output.clipEvenOdd :: IO () `*/
-		clipEvenOdd : IO (() => (λ.ctx.clip('evenodd'), null)),
-
-		/**` Output.clipNonZero :: IO () `*/
-		clipNonZero : IO (() => (λ.ctx.clip('nonzero'), null)),
-
-		/**` Output.rotate :: Number -> IO () `*/
-		rotate : (angle : number) : IO <null> => IO (() => (λ.ctx.rotate(angle), null)),
-
-		/**` Output.scale :: Number -> IO () `*/
-		scale : (k : number) : IO <null> => IO (() => (λ.ctx.scale(k, k), null)),
-
-		/**` Output.scaleAxisX :: Number -> IO () `*/
-		scaleAxisX : (kx : number) : IO <null> => IO (() => (λ.ctx.scale(kx, 1), null)),
-
-		/**` Output.scaleAxisY :: Number -> IO () `*/
-		scaleAxisY : (ky : number) : IO <null> => IO (() => (λ.ctx.scale(1, ky), null)),
-
-		/**` Output.scaleAxis :: Number -> Number -> IO () `*/
-		scaleAxis : (kx : number) => (ky : number) : IO <null> => IO (() => (λ.ctx.scale(kx, ky), null)),
-
-		/**` Output.scaleAxisP :: Pair Number Number -> IO () `*/
-		scaleAxisP : (kxy : Pair <number, number>) : IO <null> => IO (() => (λ.ctx.scale(kxy .fst, kxy .snd), null)),
-
-		/**` Output.scaleAxisV :: Vector2 -> IO () `*/
-		scaleAxisV : (kxy : Vector2) : IO <null> => IO (() => (λ.ctx.scale(kxy.x, kxy.y), null)),
-
-		/**` Output.translateX :: Number -> IO () `*/
-		translateX : (dx : number) : IO <null> => IO (() => (λ.ctx.translate(dx, 0), null)),
-
-		/**` Output.translateY :: Number -> IO () `*/
-		translateY : (dy : number) : IO <null> => IO (() => (λ.ctx.translate(0, dy), null)),
-
-		/**` Output.translate :: Number -> Number -> IO () `*/
-		translate : (dx : number) => (dy : number) : IO <null> => IO (() => (λ.ctx.translate(dx, dy), null)),
-
-		/**` Output.translateP :: Pair Number Number -> IO () `*/
-		translateP : (dxy : Pair <number, number>) : IO <null> => IO (() => (λ.ctx.translate(dxy .fst, dxy .snd), null)),
-
-		/**` Output.translateV :: Vector2 -> IO () `*/
-		translateV : (dxy : Vector2) : IO <null> => IO (() => (λ.ctx.translate(dxy.x, dxy.y), null)),
-
-		/**` Output.transformation :: Matrix3 -> IO () `*/
-		transformation : (m : Matrix3) : IO <null> => IO (() => (λ.ctx.transform(m.ix, m.iy, m.jx, m.jy, m.kx, m.ky), null)),
-
-		/**` Output.beginPath :: IO () `*/
-		beginPath : IO (() => (λ.ctx.beginPath(), null)),
-
-		/**` Output.closePath :: IO () `*/
-		closePath : IO (() => (λ.ctx.closePath(), null)),
-
-		/**` Output.moveTo :: Number -> Number -> IO () `*/
-		moveTo : (x : number) => (y : number) : IO <null> => IO (() => (λ.ctx.moveTo(x, y), null)),
-
-		/**` Output.moveToP :: Pair Number Number -> IO () `*/
-		moveToP : (xy : Pair <number, number>) : IO <null> => IO (() => (λ.ctx.moveTo(xy .fst, xy .snd), null)),
-
-		/**` Output.moveToV :: Vector2 -> IO () `*/
-		moveToV : (xy : Vector2) : IO <null> => IO (() => (λ.ctx.moveTo(xy.x, xy.y), null)),
-
-		/**` Output.lineTo :: Number -> Number -> IO () `*/
-		lineTo : (x : number) => (y : number) : IO <null> => IO (() => (λ.ctx.lineTo(x, y), null)),
-
-		/**` Output.lineToP :: Pair Number Number -> IO () `*/
-		lineToP : (xy : Pair <number, number>) : IO <null> => IO (() => (λ.ctx.lineTo(xy .fst, xy .snd), null)),
-
-		/**` Output.lineToV :: Vector2 -> IO () `*/
-		lineToV : (xy : Vector2) : IO <null> => IO (() => (λ.ctx.lineTo(xy.x, xy.y), null)),
-
-		/**` Output.bezierCurveTo :: ...6 Number -> IO () `*/
-		bezierCurveTo :
-			(cx0 : number) => (cy0 : number) =>
-			(cx1 : number) => (cy1 : number) =>
-			(x   : number) => (y   : number) : IO <null> =>
-			IO (() => (λ.ctx.bezierCurveTo(cx0, cy0, cx1, cy1, x, y), null)),
-
-		/**` Output.bezierCurveToP :: Pair Number Number -> Pair Number Number -> Pair Number Number -> IO () `*/
-		bezierCurveToP :
-			(cxy0 : Pair <number, number>) =>
-			(cxy1 : Pair <number, number>) =>
-			(xy   : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.bezierCurveTo(cxy0 .fst, cxy0 .snd, cxy1 .fst, cxy1 .snd, xy .fst, xy .snd), null)),
-
-		/**` Output.bezierCurveToV :: Vector2 -> Vector2 -> Vector2 -> IO () `*/
-		bezierCurveToV : (cxy0 : Vector2) => (cxy1 : Vector2) => (xy : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.bezierCurveTo(cxy0.x, cxy0.y, cxy1.x, cxy1.y, xy.x, xy.y), null)),
-
-		/**` Output.quadraticCurveTo :: Number -> Number -> Number -> Number -> IO () `*/
-		quadraticCurveTo : (cx : number) => (cy : number) => (x : number) => (y : number) : IO <null> =>
-			IO (() => (λ.ctx.quadraticCurveTo(cx, cy, x, y), null)),
-
-		/**` Output.quadraticCurveToP :: Pair Number Number -> Pair Number Number -> IO () `*/
-		quadraticCurveToP : (cxy : Pair <number, number>) => (xy : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.quadraticCurveTo(cxy .fst, cxy .snd, xy .fst, xy .snd), null)),
-
-		/**` Output.quadraticCurveToV :: Vector2 -> Vector2 -> IO () `*/
-		quadraticCurveToV : (cxy : Vector2) => (xy : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.quadraticCurveTo(cxy.x, cxy.y, xy.x, xy.y), null)),
-
-		/**` Output.arcTo :: ...5 Number -> IO () `*/
-		arcTo : (r : number) => (cx0 : number) => (cy0 : number) => (cx1 : number) => (cy1 : number) : IO <null> =>
-			IO (() => (λ.ctx.arcTo(cx0, cy0, cx1, cy1, r), null)),
-
-		/**` Output.arcToP :: Number -> Pair Number Number -> Pair Number Number -> IO () `*/
-		arcToP : (r : number) => (cxy0 : Pair <number, number>) => (cxy1 : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.arcTo(cxy0 .fst, cxy0 .snd, cxy1 .fst, cxy1 .snd, r), null)),
-
-		/**` Output.arcToV :: Number -> Vector2 -> Vector2 -> IO () `*/
-		arcToV : (r : number) => (cxy0 : Vector2) => (cxy1 : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.arcTo(cxy0.x, cxy0.y, cxy1.x, cxy1.y, r), null)),
-
-		/**` Output.rectangle :: Number -> Number -> Number -> Number -> IO () `*/
-		rectangle : (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-			IO (() => (λ.ctx.rect(x, y, w, h), null)),
-
-		/**` Output.rectangleP :: Pair Number Number -> Pair Number Number -> IO () `*/
-		rectangleP : (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.rect(xy .fst, xy .snd, wh .fst, wh .snd), null)),
-
-		/**` Output.rectangleV :: Vector2 -> Vector2 -> IO () `*/
-		rectangleV : (xy : Vector2) => (wh : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.rect(xy.x, xy.y, wh.x, wh.y), null)),
-
-		/**` Output.fillRectangle :: Number -> Number -> Number -> Number -> IO () `*/
-		fillRectangle : (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-			IO (() => (λ.ctx.fillRect(x, y, w, h), null)),
-
-		/**` Output.fillRectangleP :: Pair Number Number -> Pair Number Number -> IO () `*/
-		fillRectangleP : (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.fillRect(xy .fst, xy .snd, wh .fst, wh .snd), null)),
-
-		/**` Output.fillRectangleV :: Vector2 -> Vector2 -> IO () `*/
-		fillRectangleV : (xy : Vector2) => (wh : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.fillRect(xy.x, xy.y, wh.x, wh.y), null)),
-
-		/**` Output.strokeRectangle :: Number -> Number -> Number -> Number -> IO () `*/
-		strokeRectangle : (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-			IO (() => (λ.ctx.strokeRect(x, y, w, h), null)),
-
-		/**` Output.strokeRectangleP :: Pair Number Number -> Pair Number Number -> IO () `*/
-		strokeRectangleP : (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.strokeRect(xy .fst, xy .snd, wh .fst, wh .snd), null)),
-
-		/**` Output.strokeRectangleV :: Vector2 -> Vector2 -> IO () `*/
-		strokeRectangleV : (xy : Vector2) => (wh : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.strokeRect(xy.x, xy.y, wh.x, wh.y), null)),
-
-		/**` Output.arc :: ...5 Number -> IO () `*/
-		arc : (r : number) => (a : number) => (b : number) => (x : number) => (y : number) : IO <null> =>
-			IO (() => (λ.ctx.arc(x, y, r, a, b), null)),
-
-		/**` Output.arcP :: Number -> Number -> Number -> Pair Number Number -> IO () `*/
-		arcP : (r : number) => (a : number) => (b : number) => (xy : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.arc(xy .fst, xy .snd, r, a, b), null)),
-
-		/**` Output.arcV :: Number -> Number -> Number -> Vector2 -> IO () `*/
-		arcV : (r : number) => (a : number) => (b : number) => (xy : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.arc(xy.x, xy.y, r, a, b), null)),
-
-		/**` Output.circle :: Number -> Number -> Number -> IO () `*/
-		circle : (r : number) => (x : number) => (y : number) : IO <null> =>
-			IO (() => (λ.ctx.arc(x, y, r, 0, TAU), null)),
-
-		/**` Output.circleP :: Number -> Pair Number Number -> IO () `*/
-		circleP : (r : number) => (xy : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.arc(xy .fst, xy .snd, r, 0, TAU), null)),
-
-		/**` Output.circleV :: Number -> Vector2 -> IO () `*/
-		circleV : (r : number) => (xy : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.arc(xy.x, xy.y, r, 0, TAU), null)),
-
-		/**` Output.strokeCircle :: Number -> Number -> Number -> IO () `*/
-		strokeCircle : (r : number) => (x : number) => (y : number) : IO <null> =>
-			IO (() => (λ.ctx.arc(x, y, r, 0, TAU), λ.ctx.stroke(), null)),
-
-		/**` Output.strokeCircleP :: Number -> Pair Number Number -> IO () `*/
-		strokeCircleP : (r : number) => (xy : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.arc(xy .fst, xy .snd, r, 0, TAU), λ.ctx.stroke(), null)),
-
-		/**` Output.strokeCircleV :: Number -> Vector2 -> IO () `*/
-		strokeCircleV : (r : number) => (xy : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.arc(xy.x, xy.y, r, 0, TAU), λ.ctx.stroke(), null)),
-
-		/**` Output.fillCircle :: Number -> Number -> Number -> IO () `*/
-		fillCircle : (r : number) => (x : number) => (y : number) : IO <null> =>
-			IO (() => (λ.ctx.arc(x, y, r, 0, TAU), λ.ctx.fill(), null)),
-
-		/**` Output.fillCircleP :: Number -> Pair Number Number -> IO () `*/
-		fillCircleP : (r : number) => (xy : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.arc(xy .fst, xy .snd, r, 0, TAU), λ.ctx.fill(), null)),
-
-		/**` Output.fillCircleV :: Number -> Vector2 -> IO () `*/
-		fillCircleV : (r : number) => (xy : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.arc(xy.x, xy.y, r, 0, TAU), λ.ctx.fill(), null)),
-
-		/**` Output.elliptic :: ...7 Number -> IO () `*/
-		elliptic :
-			(r : number) => (a : number) => (b  : number) =>
-			(x : number) => (y : number) => (kx : number) => (ky : number) : IO <null> =>
-			IO (() => (λ.ctx.ellipse(x, y, kx, ky, r, a, b), null)),
-
-		/**` Output.ellipticP :: Number -> Number -> Number -> Pair Number Number -> Pair Number Number -> IO () `*/
-		ellipticP :
-			(r  : number) => (a : number) => (b  : number) =>
-			(xy : Pair <number, number>)  => (wh : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.ellipse(xy .fst, xy .snd, wh .fst, wh .snd, r, a, b), null)),
-
-		/**` Output.ellipticVector :: Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
-		ellipticV :
-			(r  : number)  => (a  : number ) => (b : number) =>
-			(xy : Vector2) => (wh : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.ellipse(xy.x, xy.y, wh.x, wh.y, r, a, b), null)),
-
-		/**` Output.ellipse :: ...5 Number -> IO () `*/
-		ellipse : (r : number) => (x : number) => (y : number) => (kx : number) => (ky : number) : IO <null> =>
-			IO (() => (λ.ctx.ellipse(x, y, kx, ky, r, 0, TAU), null)),
-
-		/**` Output.ellipseP :: Number -> Pair Number Number -> Pair Number Number -> IO () `*/
-		ellipseP : (r : number) => (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.ellipse(xy .fst, xy .snd, wh .fst, wh .snd, r, 0, TAU), null)),
-
-		/**` Output.ellipseV :: Number -> Vector2 -> Vector2 -> IO () `*/
-		ellipseV : (r : number) => (xy : Vector2) => (wh : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.ellipse(xy.x, xy.y, wh.x, wh.y, r, 0, TAU), null)),
-
-		/**` Output.strokeEllipse :: ...5 Number -> IO () `*/
-		strokeEllipse : (r : number) => (x : number) => (y : number) => (kx : number) => (ky : number) : IO <null> =>
-			IO (() => (λ.ctx.ellipse(x, y, kx, ky, r, 0, TAU), λ.ctx.stroke(), null)),
-
-		/**` Output.strokeEllipseP :: Number -> Pair Number Number -> Pair Number Number -> IO () `*/
-		strokeEllipseP : (r : number) => (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-			IO (() => {
-				λ.ctx.ellipse(xy .fst, xy .snd, wh .fst, wh .snd, r, 0, TAU)
-				λ.ctx.stroke()
-				return null
-			}),
-
-		/**` Output.strokeEllipseV :: Number -> Vector2 -> Vector2 -> IO () `*/
-		strokeEllipseV : (r : number) => (xy : Vector2) => (wh : Vector2) : IO <null> =>
-			IO (() => {
-				λ.ctx.ellipse(xy.x, xy.y, wh.x, wh.y, r, 0, TAU)
-				λ.ctx.stroke()
-				return null
-			}),
-
-		/**` Output.fillEllipse :: ...5 Number -> IO () `*/
-		fillEllipse : (r : number) => (x : number) => (y : number) => (kx : number) => (ky : number) : IO <null> =>
-			IO (() => (λ.ctx.ellipse(x, y, kx, ky, r, 0, TAU), λ.ctx.fill(), null)),
-
-		/**` Output.fillEllipseP :: Number -> Pair Number Number -> Pair Number Number -> IO () `*/
-		fillEllipseP : (r : number) => (xy : Pair <number, number>) => (wh : Pair <number, number>) : IO <null> =>
-			IO (() => {
-				λ.ctx.ellipse(xy .fst, xy .snd, wh .fst, wh .snd, r, 0, TAU)
-				λ.ctx.fill()
-				return null
-			}),
-
-		/**` Output.fillEllipseV :: Number -> Vector2 -> Vector2 -> IO () `*/
-		fillEllipseV : (r : number) => (xy : Vector2) => (wh : Vector2) : IO <null> =>
-			IO (() => {
-				λ.ctx.ellipse(xy.x, xy.y, wh.x, wh.y, r, 0, TAU)
-				λ.ctx.fill()
-				return null
-			}),
-
-		/**` Output.strokeText :: String -> Number -> Number -> IO () `*/
-		strokeText : (text : string) => (x : number) => (y : number) : IO <null> =>
-			IO (() => (λ.ctx.strokeText(text, x, y), null)),
-
-		/**` Output.strokeTextP :: String -> Pair Number Number -> IO () `*/
-		strokeTextP : (text : string) => (xy : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.strokeText(text, xy .fst, xy .snd), null)),
-
-		/**` Output.strokeTextV :: String -> Vector2 -> IO () `*/
-		strokeTextV : (text : string) => (xy : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.strokeText(text, xy.x, xy.y), null)),
-
-		/**` Output.fillText :: String -> Number -> Number -> IO () `*/
-		fillText : (text : string) => (x : number) => (y : number) : IO <null> =>
-			IO (() => (λ.ctx.fillText(text, x, y), null)),
-
-		/**` Output.fillTextP :: String -> Pair Number Number -> IO () `*/
-		fillTextP : (text : string) => (xy : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.fillText(text, xy .fst, xy .snd), null)),
-
-		/**` Output.fillTextV :: String -> Vector2 -> IO () `*/
-		fillTextV : (text : string) => (xy : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.fillText(text, xy.x, xy.y), null)),
-
-		/**` Output.area :: Number -> Number -> Number -> Number -> IO () `*/
-		area : (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-			IO (() => (λ.ctx.rect(x0, y0, x1 - x0, y1 - y0), null)),
-
-		/**` Output.areaP :: Pair Number Number -> Pair Number Number -> IO () `*/
-		areaP : (xy0 : Pair <number, number>) => (xy1 : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.rect(xy0 .fst, xy0 .snd, xy1 .fst - xy0 .fst, xy1 .snd - xy0 .snd), null)),
-
-		/**` Output.areaV :: Vector2 -> Vector2 -> IO () `*/
-		areaV : (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.rect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null)),
-
-		/**` Output.strokeArea :: Number -> Number -> Number -> Number -> IO () `*/
-		strokeArea : (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-			IO (() => (λ.ctx.strokeRect(x0, y0, x1 - x0, y1 - y0), null)),
-
-		/**` Output.strokeAreaP :: Pair Number Number -> Pair Number Number -> IO () `*/
-		strokeAreaP : (xy0 : Pair <number, number>) => (xy1 : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.strokeRect(xy0 .fst, xy0 .snd, xy1 .fst - xy0 .fst, xy1 .snd - xy0 .snd), null)),
-
-		/**` Output.strokeAreaV :: Vector2 -> Vector2 -> IO () `*/
-		strokeAreaV : (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.strokeRect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null)),
-
-		/**` Output.fillArea :: Number -> Number -> Number -> Number -> IO () `*/
-		fillArea : (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-			IO (() => (λ.ctx.fillRect(x0, y0, x1 - x0, y1 - y0), null)),
-
-		/**` Output.fillAreaP :: Pair Number Number -> Pair Number Number -> IO () `*/
-		fillAreaP : (xy0 : Pair <number, number>) => (xy1 : Pair <number, number>) : IO <null> =>
-			IO (() => (λ.ctx.fillRect(xy0 .fst, xy0 .snd, xy1 .fst - xy0 .fst, xy1 .snd - xy0 .snd), null)),
-
-		/**` Output.fillAreaV :: Vector2 -> Vector2 -> IO () `*/
-		fillAreaV : (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-			IO (() => (λ.ctx.fillRect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null)),
-
-		/**` Output.line :: Number -> Number -> Number -> Number -> IO () `*/
-		line : (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-			IO (() => {
-				λ.ctx.moveTo(x0, y0)
-				λ.ctx.lineTo(x1, y1)
-				return null
-			}),
-
-		/**` Output.lineP :: Pair Number Number -> Pair Number Number -> IO () `*/
-		lineP : (xy0 : Pair <number, number>) => (xy1 : Pair <number, number>) : IO <null> =>
-			IO (() => {
-				λ.ctx.moveTo(xy0 .fst, xy0 .snd)
-				λ.ctx.lineTo(xy1 .fst, xy1 .snd)
-				return null
-			}),
-
-		/**` Output.lineV :: Vector2 -> Vector2 -> IO () `*/
-		lineV : (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-			IO (() => {
-				λ.ctx.moveTo(xy0.x, xy0.y)
-				λ.ctx.lineTo(xy1.x, xy1.y)
-				return null
-			}),
-
-		/**` Output.strokeLine :: Number -> Number -> Number -> Number -> IO () `*/
-		strokeLine : (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-			IO (() => {
-				λ.ctx.moveTo(x0, y0)
-				λ.ctx.lineTo(x1, y1)
-				λ.ctx.stroke()
-				return null
-			}),
-
-		/**` Output.strokeLineP :: Pair Number Number -> Pair Number Number -> IO () `*/
-		strokeLineP : (xy0 : Pair <number, number>) => (xy1 : Pair <number, number>) : IO <null> =>
-			IO (() => {
-				λ.ctx.moveTo(xy0 .fst, xy0 .snd)
-				λ.ctx.lineTo(xy1 .fst, xy1 .snd)
-				λ.ctx.stroke()
-				return null
-			}),
-
-		/**` Output.strokeLineV :: Vector2 -> Vector2 -> IO () `*/
-		strokeLineV : (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-			IO (() => {
-				λ.ctx.moveTo(xy0.x, xy0.y)
-				λ.ctx.lineTo(xy1.x, xy1.y)
-				λ.ctx.stroke()
-				return null
-			})
-	}
+		})
+
+	/**` I.n_textV2 : String -> IO Vector2 `*/
+	export const n_textV2 = (text : string) : IO <Vector2> =>
+		IO (() => {
+			const m = Ψ.ctx.measureText(text)
+			return Vector2 (
+				(Math.abs (m.actualBoundingBoxLeft)   + Math.abs (m.actualBoundingBoxRight))   / Ψ.ctx.canvas.width,
+				(Math.abs (m.actualBoundingBoxAscent) + Math.abs (m.actualBoundingBoxDescent)) / Ψ.ctx.canvas.height
+			)
+		})
+
+	/**` I.n_lineThickness : IO Number `*/
+	export const n_lineThickness : IO <number> = IO (() => Ψ.ctx.lineWidth / Ψ.ctx.canvas.width)
+
+	/**` I.n_lineDashPattern : IO (List Number) `*/
+	export const n_lineDashPattern : IO <List <number>> =
+		IO (() => List (...Ψ.ctx.getLineDash() .map (x => x / Ψ.ctx.canvas.width)))
+
+	/**` I.n_lineDashOffset : IO Number `*/
+	export const n_lineDashOffset : IO <number> = IO (() => Ψ.ctx.lineDashOffset / Ψ.ctx.canvas.width)
+
+	/**` I.n_fontSize : IO Number `*/
+	export const n_fontSize : IO <number> = IO (() => parseFloat (Ψ.ctx.font) / Ψ.ctx.canvas.width)
+
+	/**` I.n_shadowX : IO Number `*/
+	export const n_shadowX : IO <number> = IO (() => Ψ.ctx.shadowOffsetX / Ψ.ctx.canvas.height)
+
+	/**` I.n_shadowY : IO Number `*/
+	export const n_shadowY : IO <number> = IO (() => Ψ.ctx.shadowOffsetY / Ψ.ctx.canvas.height)
+
+	/**` I.n_shadowXY : IO (Pair Number Number) `*/
+	export const n_shadowXY : IO <Pair <number, number>> =
+		IO (() => Pair (Ψ.ctx.shadowOffsetX / Ψ.ctx.canvas.width, Ψ.ctx.shadowOffsetY / Ψ.ctx.canvas.height))
+
+	/**` I.n_shadowV2 : IO Vector2 `*/
+	export const n_shadowV2 : IO <Vector2> =
+		IO (() => Vector2 (Ψ.ctx.shadowOffsetX / Ψ.ctx.canvas.width, Ψ.ctx.shadowOffsetY / Ψ.ctx.canvas.height))
+
+	/**` I.n_isInEvenOddPathXY : Number -> : Number -> IO Boolean `*/
+	export const n_isInEvenOddPathXY = (x : number) => (y : number) : IO <boolean> =>
+		IO (() => Ψ.ctx.isPointInPath(x / Ψ.ctx.canvas.width, y / Ψ.ctx.canvas.height, 'evenodd'))
+
+	/**` I.n_isInEvenOddPathV2 : Vector2 -> IO Boolean `*/
+	export const n_isInEvenOddPathV2 = (v : Vector2) : IO <boolean> =>
+		IO (() => Ψ.ctx.isPointInPath(v.x / Ψ.ctx.canvas.width, v.y / Ψ.ctx.canvas.height, 'evenodd'))
+
+	/**` I.n_isInNonZeroPathXY : Number -> : Number -> IO Boolean `*/
+	export const n_isInNonZeroPathXY = (x : number) => (y : number) : IO <boolean> =>
+		IO (() => Ψ.ctx.isPointInPath(x / Ψ.ctx.canvas.width, y / Ψ.ctx.canvas.height, 'nonzero'))
+
+	/**` I.n_isInNonZeroPathV2 : Vector2 -> IO Boolean `*/
+	export const n_isInNonZeroPathV2 = (v : Vector2) : IO <boolean> =>
+		IO (() => Ψ.ctx.isPointInPath(v.x / Ψ.ctx.canvas.width, v.y / Ψ.ctx.canvas.height, 'nonzero'))
+
+	/**` I.n_isInStrokeXY : Number -> : Number -> IO Boolean `*/
+	export const n_isInStrokeXY = (x : number) => (y : number) : IO <boolean> =>
+		IO (() => Ψ.ctx.isPointInStroke(x / Ψ.ctx.canvas.width, y / Ψ.ctx.canvas.height))
+
+	/**` I.n_isInStrokeV2 : Vector2 -> IO Boolean `*/
+	export const n_isInStrokeV2 = (v : Vector2) : IO <boolean> =>
+		IO (() => Ψ.ctx.isPointInStroke(v.x / Ψ.ctx.canvas.width, v.y / Ψ.ctx.canvas.height))
+
+	/**` I.n_matrix : IO Matrix3 `*/
+	export const n_matrix : IO <Matrix3> =
+		IO (() => {
+			const m = Ψ.ctx.getTransform()
+			return Matrix3 (m.a, m.c, m.e / Ψ.ctx.canvas.width, m.b, m.d, m.f / Ψ.ctx.canvas.height, 0, 0, 1)
+		})
+
+	/**` I.n_wasd : IO Vector2 `*/
+	export const n_wasd : IO <Vector2> =
+		IO (() => {
+			const x = bit (isDown (Ψ.keyboard.KeyD)) - bit (isDown (Ψ.keyboard.KeyA))
+			const y = bit (isDown (Ψ.keyboard.KeyS)) - bit (isDown (Ψ.keyboard.KeyW))
+			const l = x ** 2 + y ** 2
+			return l === 0
+				? V2.zero
+				: l === 1
+					? Vector2 (x, y)
+					: Vector2 (x * invSqrt2, y * invSqrt2)
+		})
+
+	/**` I.n_arrows : IO Vector2 `*/
+	export const n_arrows : IO <Vector2> =
+		IO (() => {
+			const x = bit (isDown (Ψ.keyboard.ArrowRight)) - bit (isDown (Ψ.keyboard.ArrowLeft))
+			const y = bit (isDown (Ψ.keyboard.ArrowDown))  - bit (isDown (Ψ.keyboard.ArrowUp))
+			const l = x ** 2 + y ** 2
+			return l === 0
+				? V2.zero
+				: l === 1
+					? Vector2 (x, y)
+					: Vector2 (x * invSqrt2, y * invSqrt2)
+		})
+
+	/**` I.n_imageW : String -> IO Number `*/
+	export const n_imageW = (path : string) : IO <number> =>
+		IO (() =>
+			Ψ.image[path]
+				? Ψ.image[path].width / Ψ.ctx.canvas.width
+				: error (`'I.n_imageW' received an unloaded (possibly non-existing) image at path: ${path}`)
+		)
+
+	/**` I.n_imageH : String -> IO Number `*/
+	export const n_imageH = (path : string) : IO <number> =>
+		IO (() =>
+			Ψ.image[path]
+				? Ψ.image[path].height / Ψ.ctx.canvas.height
+				: error (`'I.n_imageH' received an unloaded (possibly non-existing) image at path: ${path}`)
+		)
+
+	/**` I.n_imageWH : String -> IO (Pair Number Number) `*/
+	export const n_imageWH = (path : string) : IO <Pair <number, number>> =>
+		IO (() =>
+			Ψ.image[path]
+				? Pair (Ψ.image[path].width / Ψ.ctx.canvas.width, Ψ.image[path].height / Ψ.ctx.canvas.height)
+				: error (`'I.n_imageWH' received an unloaded (possibly non-existing) image at path: ${path}`)
+		)
+
+	/**` I.n_imageV2 : String -> IO Vector2 `*/
+	export const n_imageV2 = (path : string) : IO <Vector2> =>
+		IO (() =>
+			Ψ.image[path]
+				? Vector2 (Ψ.image[path].width / Ψ.ctx.canvas.width, Ψ.image[path].height / Ψ.ctx.canvas.height)
+				: error (`'I.n_imageV2' received an unloaded (possibly non-existing) image at path: ${path}`)
+		)
+
+	/**` I.time : IO Number `*/
+	export const time : IO <number> = IO (Date.now)
+
+	/**` I.isWindowResized : IO Boolean `*/
+	export const isWindowResized : IO <boolean> = IO (() => Ψ.isResized)
+
+	/**` I.isPointerLocked : IO Boolean `*/
+	export const isPointerLocked : IO <boolean> = IO (() => Ψ.isPointerLocked)
+
+	/**` I.seed : IO Number `*/
+	export const seed : IO <number> = IO (() => Ψ.seed)
+
+	/**` I.mouseScreenX : IO Number `*/
+	export const mouseScreenX : IO <number> = IO (() => Ψ.mouseScreenX)
+
+	/**` I.mouseScreenY : IO Number `*/
+	export const mouseScreenY : IO <number> = IO (() => Ψ.mouseScreenY)
+
+	/**` I.mouseScreenXY : IO (Pair Number Number) `*/
+	export const mouseScreenXY : IO <Pair <number, number>> = IO (() => Pair (Ψ.mouseScreenX, Ψ.mouseScreenY))
+
+	/**` I.mouseScreenV2 : IO Vector2 `*/
+	export const mouseScreenV2 : IO <Vector2> = IO (() => Vector2 (Ψ.mouseScreenX, Ψ.mouseScreenY))
+
+	/**` I.mouseWindowX : IO Number `*/
+	export const mouseWindowX : IO <number> = IO (() => Ψ.mouseWindowX)
+
+	/**` I.mouseWindowY : IO Number `*/
+	export const mouseWindowY : IO <number> = IO (() => Ψ.mouseWindowY)
+
+	/**` I.mouseWindowXY : IO (Pair Number Number) `*/
+	export const mouseWindowXY : IO <Pair <number, number>> = IO (() => Pair (Ψ.mouseWindowX, Ψ.mouseWindowY))
+
+	/**` I.mouseWindowV2 : IO Vector2 `*/
+	export const mouseWindowV2 : IO <Vector2> = IO (() => Vector2 (Ψ.mouseWindowX, Ψ.mouseWindowY))
+
+	/**` I.mouseCanvasX : IO Number `*/
+	export const mouseCanvasX : IO <number> = IO (() => Ψ.mouseCanvasX)
+
+	/**` I.mouseCanvasY : IO Number `*/
+	export const mouseCanvasY : IO <number> = IO (() => Ψ.mouseCanvasY)
+
+	/**` I.mouseCanvasXY : IO (Pair Number Number) `*/
+	export const mouseCanvasXY : IO <Pair <number, number>> = IO (() => Pair (Ψ.mouseCanvasX, Ψ.mouseCanvasY))
+
+	/**` I.mouseCanvasV2 : IO Vector2 `*/
+	export const mouseCanvasV2 : IO <Vector2> = IO (() => Vector2 (Ψ.mouseCanvasX, Ψ.mouseCanvasY))
+
+	/**` I.mouseDeltaX : IO Number `*/
+	export const mouseDeltaX : IO <number> = IO (() => Ψ.mouseDeltaX)
+
+	/**` I.mouseDeltaY : IO Number `*/
+	export const mouseDeltaY : IO <number> = IO (() => Ψ.mouseDeltaY)
+
+	/**` I.mouseDeltaXY : IO (Pair Number Number) `*/
+	export const mouseDeltaXY : IO <Pair <number, number>> = IO (() => Pair (Ψ.mouseDeltaX, Ψ.mouseDeltaY))
+
+	/**` I.mouseDeltaV2 : IO Vector2 `*/
+	export const mouseDeltaV2 : IO <Vector2> = IO (() => Vector2 (Ψ.mouseDeltaX, Ψ.mouseDeltaY))
+
+	/**` I.mouseScroll : IO Vertical `*/
+	export const mouseScroll : IO <Vertical> = IO (() => Ψ.mouseScroll)
+
+	/**` I.mouseButtonLeft : IO Vertical `*/
+	export const mouseButtonLeft : IO <Vertical> = IO (() => Ψ.mouseButtons[0])
+
+	/**` I.mouseButtonMid : IO Vertical `*/
+	export const mouseButtonMid : IO <Vertical> = IO (() => Ψ.mouseButtons[1])
+
+	/**` I.mouseButtonRight : IO Vertical `*/
+	export const mouseButtonRight : IO <Vertical> = IO (() => Ψ.mouseButtons[2])
+
+	/**` I.mouseButtonA : IO Vertical `*/
+	export const mouseButtonA : IO <Vertical> = IO (() => Ψ.mouseButtons[3])
+
+	/**` I.mouseButtonB : IO Vertical `*/
+	export const mouseButtonB : IO <Vertical> = IO (() => Ψ.mouseButtons[4])
+
+	/**` I.key : KeyboardKey -> IO Vertical `*/
+	export const key = (keyname : KeyboardKey) : IO <Vertical> => IO (() => Ψ.keyboard[keyname])
+
+	/**` I.screenW : IO Number `*/
+	export const screenW : IO <number> = IO (() => screen.width)
+
+	/**` I.screenH : IO Number `*/
+	export const screenH : IO <number> = IO (() => screen.height)
+
+	/**` I.screenWH : IO (Pair Number Number) `*/
+	export const screenWH : IO <Pair <number, number>> = IO (() => Pair (screen.width, screen.height))
+
+	/**` I.screenV2 : IO Vector2 `*/
+	export const screenV2 : IO <Vector2> = IO (() => Vector2 (screen.width, screen.height))
+
+	/**` I.windowW : IO Number `*/
+	export const windowW : IO <number> = IO (() => innerWidth)
+
+	/**` I.windowH : IO Number `*/
+	export const windowH : IO <number> = IO (() => innerHeight)
+
+	/**` I.windowWH : IO (Pair Number Number) `*/
+	export const windowWH : IO <Pair <number, number>> = IO (() => Pair (innerWidth, innerHeight))
+
+	/**` I.windowV2 : IO Vector2 `*/
+	export const windowV2 : IO <Vector2> = IO (() => Vector2 (innerWidth, innerHeight))
+
+	/**` I.canvasW : IO Number `*/
+	export const canvasW : IO <number> = IO (() => Ψ.ctx.canvas.width)
+
+	/**` I.canvasH : IO Number `*/
+	export const canvasH : IO <number> = IO (() => Ψ.ctx.canvas.height)
+
+	/**` I.canvasWH : IO (Pair Number Number) `*/
+	export const canvasWH : IO <Pair <number, number>> = IO (() => Pair (Ψ.ctx.canvas.width, Ψ.ctx.canvas.height))
+
+	/**` I.canvasV2 : IO Vector2 `*/
+	export const canvasV2 : IO <Vector2> = IO (() => Vector2 (Ψ.ctx.canvas.width, Ψ.ctx.canvas.height))
+
+	/**` I.layer : IO Number `*/
+	export const layer : IO <number> = IO (() => Ψ.ctxs .findIndex (ctx => ctx === Ψ.ctx))
+
+	/**` I.textW : String -> IO Number `*/
+	export const textW = (text : string) : IO <number> =>
+		IO (() => {
+			const m = Ψ.ctx.measureText(text)
+			return Math.abs (m.actualBoundingBoxLeft) + Math.abs (m.actualBoundingBoxRight)
+		})
+
+	/**` I.textH : String -> IO Number `*/
+	export const textH = (text : string) : IO <number> =>
+		IO (() => {
+			const m = Ψ.ctx.measureText(text)
+			return Math.abs (m.actualBoundingBoxAscent) + Math.abs (m.actualBoundingBoxDescent)
+		})
+
+	/**` I.textWH : String -> IO (Pair Number Number) `*/
+	export const textWH = (text : string) : IO <Pair <number, number>> =>
+		IO (() => {
+			const m = Ψ.ctx.measureText(text)
+			return Pair (
+				Math.abs (m.actualBoundingBoxLeft)   + Math.abs (m.actualBoundingBoxRight),
+				Math.abs (m.actualBoundingBoxAscent) + Math.abs (m.actualBoundingBoxDescent)
+			)
+		})
+
+	/**` I.textV2 : String -> IO Vector2 `*/
+	export const textV2 = (text : string) : IO <Vector2> =>
+		IO (() => {
+			const m = Ψ.ctx.measureText(text)
+			return Vector2 (
+				Math.abs (m.actualBoundingBoxLeft)   + Math.abs (m.actualBoundingBoxRight),
+				Math.abs (m.actualBoundingBoxAscent) + Math.abs (m.actualBoundingBoxDescent)
+			)
+		})
+
+	/**` I.lineThickness : IO Number `*/
+	export const lineThickness : IO <number> = IO (() => Ψ.ctx.lineWidth)
+
+	/**` I.lineDashPattern : IO (List Number) `*/
+	export const lineDashPattern : IO <List <number>> = IO (() => List (...Ψ.ctx.getLineDash()))
+
+	/**` I.lineDashOffset : IO Number `*/
+	export const lineDashOffset : IO <number> = IO (() => Ψ.ctx.lineDashOffset)
+
+	/**` I.miterLimit : IO Number `*/
+	export const miterLimit : IO <number> = IO (() => Ψ.ctx.miterLimit)
+
+	/**` I.font : IO String `*/
+	export const font : IO <string> = IO (() => Ψ.ctx.font)
+
+	/**` I.fontSize : IO Number `*/
+	export const fontSize : IO <number> = IO (() => parseFloat (Ψ.ctx.font))
+
+	/**` I.fontFamily : IO String `*/
+	export const fontFamily : IO <string> = IO (() => Ψ.ctx.font .slice (Ψ.ctx.font .indexOf (' ') + 1))
+
+	/**` I.shadowBlurAmount : IO Number `*/
+	export const shadowBlurAmount : IO <number> = IO (() => Ψ.ctx.shadowBlur)
+
+	/**` I.shadowColor : IO String `*/
+	export const shadowColor : IO <string> = IO (() => Ψ.ctx.shadowColor)
+
+	/**` I.shadowX : IO Number `*/
+	export const shadowX : IO <number> = IO (() => Ψ.ctx.shadowOffsetX)
+
+	/**` I.shadowY : IO Number `*/
+	export const shadowY : IO <number> = IO (() => Ψ.ctx.shadowOffsetY)
+
+	/**` I.shadowXY : IO (Pair Number Number) `*/
+	export const shadowXY : IO <Pair <number, number>> = IO (() => Pair (Ψ.ctx.shadowOffsetX, Ψ.ctx.shadowOffsetY))
+
+	/**` I.shadowV2 : IO Vector2 `*/
+	export const shadowV2 : IO <Vector2> = IO (() => Vector2 (Ψ.ctx.shadowOffsetX, Ψ.ctx.shadowOffsetY))
+
+	/**` I.isInEvenOddPathXY : Number -> : Number -> IO Boolean `*/
+	export const isInEvenOddPathXY = (x : number) => (y : number) : IO <boolean> =>
+		IO (() => Ψ.ctx.isPointInPath(x, y, 'evenodd'))
+
+	/**` I.isInEvenOddPathV2 : Vector2 -> IO Boolean `*/
+	export const isInEvenOddPathV2 = (v : Vector2) : IO <boolean> => IO (() => Ψ.ctx.isPointInPath(v.x, v.y, 'evenodd'))
+
+	/**` I.isInNonZeroPathXY : Number -> : Number -> IO Boolean `*/
+	export const isInNonZeroPathXY = (x : number) => (y : number) : IO <boolean> =>
+		IO (() => Ψ.ctx.isPointInPath(x, y, 'nonzero'))
+
+	/**` I.isInNonZeroPathV2 : Vector2 -> IO Boolean `*/
+	export const isInNonZeroPathV2 = (v : Vector2) : IO <boolean> => IO (() => Ψ.ctx.isPointInPath(v.x, v.y, 'nonzero'))
+
+	/**` I.isInStrokeXY : Number -> : Number -> IO Boolean `*/
+	export const isInStrokeXY = (x : number) => (y : number) : IO <boolean> => IO (() => Ψ.ctx.isPointInStroke(x, y))
+
+	/**` I.isInStrokeV2 : Vector2 -> IO Boolean `*/
+	export const isInStrokeV2 = (v : Vector2) : IO <boolean> => IO (() => Ψ.ctx.isPointInStroke(v.x, v.y))
+
+	/**` I.matrix : IO Matrix3 `*/
+	export const matrix : IO <Matrix3> =
+		IO (() => {
+			const m = Ψ.ctx.getTransform()
+			return Matrix3 (m.a, m.c, m.e, m.b, m.d, m.f, 0, 0, 1)
+		})
+
+	/**` I.alpha : IO Number `*/
+	export const alpha : IO <number> = IO (() => Ψ.ctx.globalAlpha)
+
+	/**` I.lineCap : IO LineCap `*/
+	export const lineCap : IO <LineCap> = IO (() => mappingLineCapToHTML5 .domain (Ψ.ctx.lineCap))
+
+	/**` I.lineJoin : IO LineJoin `*/
+	export const lineJoin : IO <LineJoin> = IO (() => mappingLineJoinToHTML5 .domain (Ψ.ctx.lineJoin))
+
+	/**` I.textAlign : IO TextAlign `*/
+	export const textAlign : IO <TextAlign> = IO (() => mappingTextAlignToHTML5 .domain (Ψ.ctx.textAlign))
+
+	/**` I.textBaseline : IO TextBaseline `*/
+	export const textBaseline : IO <TextBaseline> = IO (() => mappingTextBaselineToHTML5 .domain (Ψ.ctx.textBaseline))
+
+	/**` I.composition : IO Composition `*/
+	export const composition : IO <Composition> = IO (() => mappingCompositionToHTML5 .domain (Ψ.ctx.globalCompositeOperation))
+
+	/**` I.wasd : IO Vector2 `*/
+	export const wasd : IO <Vector2> =
+		IO (() =>
+			Vector2 (
+				bit (isDown (Ψ.keyboard.KeyD)) - bit (isDown (Ψ.keyboard.KeyA)),
+				bit (isDown (Ψ.keyboard.KeyS)) - bit (isDown (Ψ.keyboard.KeyW))
+			)
+		)
+
+	/**` I.arrows : IO Vector2 `*/
+	export const arrows : IO <Vector2> =
+		IO (() =>
+			Vector2 (
+				bit (isDown (Ψ.keyboard.ArrowRight)) - bit (isDown (Ψ.keyboard.ArrowLeft)),
+				bit (isDown (Ψ.keyboard.ArrowDown))  - bit (isDown (Ψ.keyboard.ArrowUp))
+			)
+		)
+
+	/**` I.imageW : String -> IO Number `*/
+	export const imageW = (path : string) : IO <number> =>
+		IO (() =>
+			Ψ.image[path]
+				? Ψ.image[path].width
+				: error (`'I.imageW' received an unloaded (possibly non-existing) image at path: ${path}`)
+		)
+
+	/**` I.imageH : String -> IO Number `*/
+	export const imageH = (path : string) : IO <number> =>
+		IO (() =>
+			Ψ.image[path]
+				? Ψ.image[path].height
+				: error (`'I.imageH' received an unloaded (possibly non-existing) image at path: ${path}`)
+		)
+
+	/**` I.imageWH : String -> IO (Pair Number Number) `*/
+	export const imageWH = (path : string) : IO <Pair <number, number>> =>
+		IO (() =>
+			Ψ.image[path]
+				? Pair (Ψ.image[path].width, Ψ.image[path].height)
+				: error (`'I.imageWH' received an unloaded (possibly non-existing) image at path: ${path}`)
+		)
+
+	/**` I.imageV2 : String -> IO Vector2 `*/
+	export const imageV2 = (path : string) : IO <Vector2> =>
+		IO (() =>
+			Ψ.image[path]
+				? Vector2 (Ψ.image[path].width, Ψ.image[path].height)
+				: error (`'I.imageV2' received an unloaded (possibly non-existing) image at path: ${path}`)
+		)
+
+	/**` I.audioDuration : String -> IO Number `*/
+	export const audioDuration = (path : string) : IO <number> =>
+		IO (() =>
+			Ψ.audio[path]
+				? Ψ.audio[path].duration
+				: error (`'I.audioDuration' received an unloaded (possibly non-existing) audio at path: ${path}`)
+		)
+
+	/**` I.audioTime : String -> IO Number `*/
+	export const audioTime = (path : string) : IO <number> =>
+		IO (() =>
+			Ψ.audio[path]
+				? Ψ.audio[path].currentTime
+				: error (`'I.audioTime' received an unloaded (possibly non-existing) audio at path: ${path}`)
+		)
+}
+
+namespace O
+{
+	/**` O.n_setCanvasW : Number -> IO () `*/
+	export const n_setCanvasW = (w : number) : IO <null> => IO (() => (Ψ.ctx.canvas.width = w * innerWidth, null))
+
+	/**` O.n_setCanvasH : Number -> IO () `*/
+	export const n_setCanvasH = (h : number) : IO <null> => IO (() => (Ψ.ctx.canvas.height = h * innerHeight, null))
+
+	/**` O.n_setCanvasWH : Number -> Number -> IO () `*/
+	export const n_setCanvasWH = (w : number) => (h : number) : IO <null> =>
+		IO (() => (Ψ.ctx.canvas.width = w * innerWidth, Ψ.ctx.canvas.height = h * innerHeight, null))
+
+	/**` O.n_setCanvasV2 : Vector2 -> IO () `*/
+	export const n_setCanvasV2 = (wh : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.canvas.width = wh.x * innerWidth, Ψ.ctx.canvas.height = wh.y * innerHeight, null))
+
+	/**` O.n_setLineThickness : Number -> IO () `*/
+	export const n_setLineThickness = (thickness : number) : IO <null> =>
+		IO (() => (Ψ.ctx.lineWidth = thickness * Ψ.ctx.canvas.width, null))
+
+	/**` O.n_setLineDashPattern : List Number -> IO () `*/
+	export const n_setLineDashPattern = (pattern : List <number>) : IO <null> =>
+		IO (() => (Ψ.ctx.setLineDash(listToArray (pattern).map(x => x * Ψ.ctx.canvas.width)), null))
+
+	/**` O.n_setLineDashOffset : Number -> IO () `*/
+	export const n_setLineDashOffset = (offset : number) : IO <null> =>
+		IO (() => (Ψ.ctx.lineDashOffset = offset * Ψ.ctx.canvas.width, null))
+
+	/**` O.n_setFontSize : Number -> IO () `*/
+	export const n_setFontSize = (size : number) : IO <null> =>
+		IO (() => (Ψ.ctx.font = `${size * Ψ.ctx.canvas.width}px${Ψ.ctx.font.slice(Ψ.ctx.font.indexOf(' '))}`, null))
+
+	/**` O.n_setShadowRGBA : (Number, Number, Number, Number) -> IO () `*/
+	export const n_setShadowRGBA = (r : number, g : number, b : number, a : number) : IO <null> =>
+		IO (() => (Ψ.ctx.shadowColor = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null))
+
+	/**` O.n_setShadowX : Number -> IO () `*/
+	export const n_setShadowX = (x : number) : IO <null> => IO (() => (Ψ.ctx.shadowOffsetX = x * Ψ.ctx.canvas.width, null))
+
+	/**` O.n_setShadowY : Number -> IO () `*/
+	export const n_setShadowY = (y : number) : IO <null> => IO (() => (Ψ.ctx.shadowOffsetY = y * Ψ.ctx.canvas.height, null))
+
+	/**` O.n_setShadowXY : Number -> Number -> IO `*/
+	export const n_setShadowXY = (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.shadowOffsetX = x * Ψ.ctx.canvas.width, Ψ.ctx.shadowOffsetY = y * Ψ.ctx.canvas.height, null))
+
+	/**` O.n_setShadowV2 : IO Vector2 `*/
+	export const n_setShadowV2 = (xy : Vector2) : IO <null> =>
+		IO (() => (
+			Vector2 (
+				Ψ.ctx.shadowOffsetX = xy.x * Ψ.ctx.canvas.width,
+				Ψ.ctx.shadowOffsetY = xy.y * Ψ.ctx.canvas.height
+			), null)
+		)
+
+	/**` O.n_setMatrix : Matrix3 -> IO () `*/
+	export const n_setMatrix = (m3 : Matrix3) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.setTransform(
+				m3.ix, m3.iy, m3.jx, m3.jy,
+				m3.kx * Ψ.ctx.canvas.width, m3.ky * Ψ.ctx.canvas.height
+			), null)
+		)
+
+	/**` O.n_setFillRGBA : (Number, Number, Number, Number) -> IO () `*/
+	export const n_setFillRGBA = (r : number, g : number, b : number, a : number) : IO <null> =>
+		IO (() => (Ψ.ctx.fillStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null))
+
+	/**` O.n_setFillV4 : Vector4 -> IO () `*/
+	export const n_setFillV4 = (v : Vector4) : IO <null> =>
+		IO (() => (Ψ.ctx.fillStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null))
+
+	/**` O.n_setStrokeRGBA : (Number, Number, Number, Number) -> IO () `*/
+	export const n_setStrokeRGBA = (r : number, g : number, b : number, a : number) : IO <null> =>
+		IO (() => (Ψ.ctx.strokeStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null))
+
+	/**` O.n_setStrokeV4 : Vector4 -> IO () `*/
+	export const n_setStrokeV4 = (v : Vector4) : IO <null> =>
+		IO (() => (Ψ.ctx.strokeStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null))
+
+	/**` O.n_drawImage : String -> ...8 Number -> IO () `*/
+	export const n_drawImage =
+		(path : string) =>
+		(cx   : number) => (cy : number) => (cw : number) => (ch : number) =>
+		(x    : number) => (y  : number) => (w  : number) => (h  : number) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.n_drawImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(
+				Ψ.image[path],
+				cx * Ψ.image[path].width, cy * Ψ.image[path].height, cw * Ψ.image[path].width, ch * Ψ.image[path].height,
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
+			)
+			return null
+		})
+
+	/**` O.n_drawImageV2 : String -> ...4 Vector2 -> IO () `*/
+	export const n_drawImageV2 =
+		(path : string ) =>
+		(cxy  : Vector2) => (cwh : Vector2) =>
+		(xy   : Vector2) => (wh  : Vector2) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.n_drawImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(
+				Ψ.image[path],
+				cxy.x * Ψ.image[path].width, cxy.y * Ψ.image[path].height,
+				cwh.x * Ψ.image[path].width, cwh.y * Ψ.image[path].height,
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
+			)
+			return null
+		})
+
+	/**` O.n_drawUncroppedImage : String -> ...4 Number -> IO () `*/
+	export const n_drawUncroppedImage =
+		(path : string) =>
+		(x    : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.n_drawUncroppedImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(
+				Ψ.image[path],
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
+			)
+			return null
+		})
+
+	/**` O.n_drawUncroppedImageV2 : String -> Vector2 -> Vector2 -> IO () `*/
+	export const n_drawUncroppedImageV2 = (path : string) => (xy : Vector2) => (wh : Vector2) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.n_drawUncroppedImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(
+				Ψ.image[path],
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height, wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
+			)
+			return null
+		})
+
+	/**` O.n_drawFullImage : String -> Number -> Number -> IO () `*/
+	export const n_drawFullImage = (path : string) => (x : number) => (y : number) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.n_drawFullImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(Ψ.image[path], x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height)
+			return null
+		})
+
+	/**` O.n_drawFullImageV2 : String -> Vector2 -> IO () `*/
+	export const n_drawFullImageV2 = (path : string) => (xy : Vector2) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.n_drawFullImage' received an unloaded image at path: '${path}'`)
+			Ψ.ctx.drawImage(Ψ.image[path], xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height)
+			return null
+		})
+
+	/**` O.n_drawFullScaledImage : String -> Number -> Number -> Number -> IO () `*/
+	export const n_drawFullScaledImage = (path : string) => (k : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.n_drawFullScaledImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(
+				Ψ.image[path],
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+				Ψ.image[path].width * k * Ψ.ctx.canvas.width, Ψ.image[path].height * k * Ψ.ctx.canvas.height
+			)
+			return null
+		})
+
+	/**` O.n_drawFullScaledImageV2 : String -> Number -> Vector2 -> IO () `*/
+	export const n_drawFullScaledImageV2 = (path : string) => (k : number) => (xy : Vector2) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.n_drawFullScaledImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(
+				Ψ.image[path],
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				Ψ.image[path].width * k * Ψ.ctx.canvas.width, Ψ.image[path].height * k * Ψ.ctx.canvas.height
+			)
+			return null
+		})
+
+	/**` O.n_drawSquareImage : String -> Number -> Number -> Number -> IO () `*/
+	export const n_drawSquareImage = (path : string) => (k : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.n_drawSquareImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(
+				Ψ.image[path],
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+				k * Ψ.ctx.canvas.width, k * Ψ.ctx.canvas.height
+			)
+			return null
+		})
+
+	/**` O.n_drawSquareImageV2 : String -> Number -> Vector2 -> IO () `*/
+	export const n_drawSquareImageV2 = (path : string) => (k : number) => (xy : Vector2) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.n_drawSquareImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(
+				Ψ.image[path],
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				k * Ψ.ctx.canvas.width, k * Ψ.ctx.canvas.height
+			)
+			return null
+		})
+
+	/**` O.n_clearRect : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_clearRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.clearRect(
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+				w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
+			), null
+		))
+
+	/**` O.n_clearRectV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_clearRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.clearRect(
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
+			), null
+		))
+
+	/**` O.n_clearArea : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_clearArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.clearRect(
+				x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height,
+				(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
+			), null
+		))
+
+	/**` O.n_clearAreaV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_clearAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.clearRect(
+				xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height,
+				(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
+			), null
+		))
+
+	/**` O.n_rotate : Number -> IO () `*/
+	export const n_rotate = (angle : number) : IO <null> => IO (() => (Ψ.ctx.rotate(angle * tau), null))
+
+	/**` O.n_translateX : Number -> IO () `*/
+	export const n_translateX = (dx : number) : IO <null> =>
+		IO (() => (Ψ.ctx.translate(dx * Ψ.ctx.canvas.width, 0), null))
+
+	/**` O.n_translateY : Number -> IO () `*/
+	export const n_translateY = (dy : number) : IO <null> =>
+		IO (() => (Ψ.ctx.translate(0, dy * Ψ.ctx.canvas.height), null))
+
+	/**` O.n_translateXY : Number -> Number -> IO () `*/
+	export const n_translateXY = (dx : number) => (dy : number) : IO <null> =>
+		IO (() => (Ψ.ctx.translate(dx * Ψ.ctx.canvas.width, dy * Ψ.ctx.canvas.height), null))
+
+	/**` O.n_translateV2 : Vector2 -> IO () `*/
+	export const n_translateV2 = (v : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.translate(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height), null))
+
+	/**` O.n_transform2 : Matrix2 -> IO () `*/
+	export const n_transform2 = (m2 : Matrix2) : IO <null> =>
+		IO (() => (Ψ.ctx.transform(m2.ix, m2.iy, m2.jx, m2.jy, 0, 0), null))
+
+	/**` O.n_transform3 : Matrix3 -> IO () `*/
+	export const n_transform3 = (m3 : Matrix3) : IO <null> =>
+		IO (() => (Ψ.ctx.transform(m3.ix, m3.iy, m3.jx, m3.jy, m3.kx * Ψ.ctx.canvas.width, m3.ky * Ψ.ctx.canvas.height), null))
+
+	/**` O.n_moveTo : Number -> Number -> IO () `*/
+	export const n_moveTo = (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.moveTo(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height), null))
+
+	/**` O.n_moveToV2 : Vector2 -> IO () `*/
+	export const n_moveToV2 = (v : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.moveTo(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height), null))
+
+	/**` O.n_bezierCurveTo : ...6 Number -> IO () `*/
+	export const n_bezierCurveTo =
+		(cx0 : number) => (cy0 : number) =>
+		(cx1 : number) => (cy1 : number) =>
+		(x   : number) => (y   : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.bezierCurveTo(
+				cx0 * Ψ.ctx.canvas.width, cy0 * Ψ.ctx.canvas.height,
+				cx1 * Ψ.ctx.canvas.width, cy1 * Ψ.ctx.canvas.height,
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height
+			), null
+		))
+
+	/**` O.n_bezierCurveToV2 : Vector2 -> Vector2 -> Vector2 -> IO () `*/
+	export const n_bezierCurveToV2 = (cxy0 : Vector2) => (cxy1 : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.bezierCurveTo(
+				cxy0.x * Ψ.ctx.canvas.width, cxy0.y * Ψ.ctx.canvas.height,
+				cxy1.x * Ψ.ctx.canvas.width, cxy1.y * Ψ.ctx.canvas.height,
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height
+			), null
+		))
+
+	/**` O.n_quadraticCurveTo : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_quadraticCurveTo = (cx : number) => (cy : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.quadraticCurveTo(
+				cx * Ψ.ctx.canvas.width, cy * Ψ.ctx.canvas.height, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height
+			), null
+		))
+
+	/**` O.n_quadraticCurveToV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_quadraticCurveToV2 = (cxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.quadraticCurveTo(
+				cxy.x * Ψ.ctx.canvas.width, cxy.y * Ψ.ctx.canvas.height, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height
+			), null
+		))
+
+	/**` O.n_arcTo : ...5 Number -> IO () `*/
+	export const n_arcTo = (r : number) => (cx0 : number) => (cy0 : number) => (cx1 : number) => (cy1 : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arcTo(
+				cx0 * Ψ.ctx.canvas.width, cy0 * Ψ.ctx.canvas.height,
+				cx1 * Ψ.ctx.canvas.width, cy1 * Ψ.ctx.canvas.height,
+				r * Ψ.ctx.canvas.width
+			), null
+		))
+
+	/**` O.n_arcToV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+	export const n_arcToV2 = (r : number) => (cxy0 : Vector2) => (cxy1 : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arcTo(
+				cxy0.x * Ψ.ctx.canvas.width, cxy0.y * Ψ.ctx.canvas.height,
+				cxy1.x * Ψ.ctx.canvas.width, cxy1.y * Ψ.ctx.canvas.height,
+				r * Ψ.ctx.canvas.width
+			), null
+		))
+
+	/**` O.n_rect : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_rect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.rect(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height),
+			null
+		))
+
+	/**` O.n_rectV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_rectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.rect(
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
+			), null
+		))
+
+	/**` O.n_fillRect : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_fillRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.fillRect(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height),
+			null
+		))
+
+	/**` O.n_fillRectV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_fillRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.fillRect(
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
+			), null
+		))
+
+	/**` O.n_strokeRect : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_strokeRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.strokeRect(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height),
+			null
+		))
+
+	/**` O.n_strokeRectV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_strokeRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.strokeRect(
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
+			), null
+		))
+
+	/**` O.n_fillStrokeRect : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_fillStrokeRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.rect(
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+				w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
+			), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_fillStrokeRectV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_fillStrokeRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.rect(
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
+			), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_area : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_area = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.rect(
+				x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height,
+				(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
+			), null
+		))
+
+	/**` O.n_areaV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_areaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.rect(
+				xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.width,
+				(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.width
+			), null
+		))
+
+	/**` O.n_fillArea : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_fillArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.fillRect(
+				x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height,
+				(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
+			), null
+		))
+
+	/**` O.n_fillAreaV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_fillAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.fillRect(
+				xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height,
+				(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
+			), null
+		))
+
+	/**` O.n_strokeArea : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_strokeArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.strokeRect(
+				x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height,
+				(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
+			), null))
+
+	/**` O.n_strokeAreaV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_strokeAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.strokeRect(
+				xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height,
+				(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
+			), null
+		))
+
+	/**` O.n_fillStrokeArea : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_fillStrokeArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.rect(
+				x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height,
+				(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
+			), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_fillStrokeAreaV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_fillStrokeAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.rect(
+				xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height,
+				(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
+			), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_arc : ...5 Number -> IO () `*/
+	export const n_arc = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, a1 * tau),
+			null
+		))
+
+	/**` O.n_arcV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+	export const n_arcV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, a1 * tau),
+			null
+		))
+
+	/**` O.n_strokeArc : ...5 Number -> IO () `*/
+	export const n_strokeArc = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, a1 * tau),
+			Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_strokeArcV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+	export const n_strokeArcV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, a1 * tau),
+			Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_arcSection : ...5 Number -> IO () `*/
+	export const n_arcSection = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, (a0 + a1) * tau),
+			null
+		))
+
+	/**` O.n_arcSectionV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+	export const n_arcSectionV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, (a0 + a1) * tau),
+			null
+		))
+
+	/**` O.n_strokeArcSection : ...5 Number -> IO () `*/
+	export const n_strokeArcSection =
+		(r  : number) =>
+		(a0 : number) => (a1 : number) =>
+		(x  : number) => (y  : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, (a0 + a1) * tau),
+			Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_strokeArcSectionV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+	export const n_strokeArcSectionV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, (a0 + a1) * tau),
+			Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_circle : Number -> Number -> Number -> IO () `*/
+	export const n_circle = (r : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau), null))
+
+	/**` O.n_circleV2 : Number -> Vector2 -> IO () `*/
+	export const n_circleV2 = (r : number) => (v : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+			null
+		))
+
+	/**` O.n_fillCircle : Number -> Number -> Number -> IO () `*/
+	export const n_fillCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+			Ψ.ctx.fill(), null
+		))
+
+	/**` O.n_fillCircleV2 : Number -> Vector2 -> IO () `*/
+	export const n_fillCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+			Ψ.ctx.fill(), null
+		))
+
+	/**` O.n_strokeCircle : Number -> Number -> Number -> IO () `*/
+	export const n_strokeCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+			Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_strokeCircleV2 : Number -> Vector2 -> IO () `*/
+	export const n_strokeCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+			Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_fillStrokeCircle : Number -> Number -> Number -> IO () `*/
+	export const n_fillStrokeCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+			Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_fillStrokeCircleV2 : Number -> Vector2 -> IO () `*/
+	export const n_fillStrokeCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+			Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_elliptic : ...7 Number -> IO () `*/
+	export const n_elliptic =
+		(a  : number) => (a0 : number) => (a1 : number) =>
+		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
+				a * tau, a0 * tau, a1 * tau
+			), null
+		))
+
+	/**` O.n_ellipticV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+	export const n_ellipticV2 =
+		(a   : number ) => (a0 : number ) => (a1 : number) =>
+		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.width,
+				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.width, a * tau, a0 * tau, a1 * tau), null))
+
+	/**` O.n_strokeElliptic : ...7 Number -> IO () `*/
+	export const n_strokeElliptic =
+		(a  : number) => (a0 : number) => (a1 : number) =>
+		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.width,
+				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.width, a * tau, a0 * tau, a1 * tau), Ψ.ctx.stroke(), null))
+
+	/**` O.n_strokeEllipticV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+	export const n_strokeEllipticV2 =
+		(a   : number ) => (a0 : number ) => (a1 : number) =>
+		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.width,
+				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.width, a * tau, a0 * tau, a1 * tau), Ψ.ctx.stroke(), null))
+
+	/**` O.n_ellipticSection : ...7 Number -> IO () `*/
+	export const n_ellipticSection =
+		(a  : number) => (a0 : number) => (a1 : number) =>
+		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.width,
+				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.width, a * tau, a0 * tau, a1 * tau), null))
+
+	/**` O.n_ellipticSectionV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+	export const n_ellipticSectionV2 =
+		(a   : number ) => (a0 : number ) => (a1 : number) =>
+		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.width,
+				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.width,
+				a * tau, a0 * tau, (a0 + a1) * tau
+			), null
+		))
+
+	/**` O.n_strokeEllipticSection : ...7 Number -> IO () `*/
+	export const n_strokeEllipticSection =
+		(a  : number) => (a0 : number) => (a1 : number) =>
+		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.width,
+				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.width,
+				a * tau, a0 * tau, (a0 + a1) * tau
+			), Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_strokeEllipticSectionV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+	export const n_strokeEllipticSectionV2 =
+		(a   : number ) => (a0 : number ) => (a1 : number) =>
+		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
+				a * tau, a0 * tau, (a0 + a1) * tau
+			),
+			Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_ellipse : ...5 Number -> IO () `*/
+	export const n_ellipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
+				a * tau, 0, tau
+			),
+			null
+		))
+
+	/**` O.n_ellipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+	export const n_ellipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
+				a * tau, 0, tau
+			),
+			null
+		))
+
+	/**` O.n_fillEllipse : ...5 Number -> IO () `*/
+	export const n_fillEllipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
+				a * tau, 0, tau
+			),
+			Ψ.ctx.fill(), null
+		))
+
+	/**` O.n_fillEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+	export const n_fillEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
+				a * tau, 0, tau
+			),
+			Ψ.ctx.fill(), null
+		))
+
+	/**` O.n_strokeEllipse : ...5 Number -> IO () `*/
+	export const n_strokeEllipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
+				a * tau, 0, tau
+			), Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_strokeEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+	export const n_strokeEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
+				a * tau, 0, tau
+			), Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_fillStrokeEllipse : ...5 Number -> IO () `*/
+	export const n_fillStrokeEllipse =
+		(a  : number) =>
+		(kx : number) => (ky : number) =>
+		(x  : number) => (y  : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
+				a * tau, 0, tau
+			), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_fillStrokeEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+	export const n_fillStrokeEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
+				a * tau, 0, tau
+			), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_fillText : a -> Number -> Number -> IO () `*/
+	export const n_fillText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.fillText(text as any, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height), null))
+
+	/**` O.n_fillTextV2 : a -> Vector2 -> IO () `*/
+	export const n_fillTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.fillText(text as any, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height), null))
+
+	/**` O.n_strokeText : a -> Number -> Number -> IO () `*/
+	export const n_strokeText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.strokeText(text as any, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height), null))
+
+	/**` O.n_strokeTextV2 : a -> Vector2 -> IO () `*/
+	export const n_strokeTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.strokeText(text as any, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height), null))
+
+	/**` O.n_fillStrokeText : a -> Number -> Number -> IO () `*/
+	export const n_fillStrokeText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.fillText(text as any, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height),
+			Ψ.ctx.strokeText(text as any, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height),
+			null
+		))
+
+	/**` O.n_fillStrokeText : a -> Vector2 -> IO () `*/
+	export const n_fillStrokeTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.fillText(text as any, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height),
+			Ψ.ctx.strokeText(text as any, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height),
+			null
+		))
+
+	/**` O.n_line : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_line = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.moveTo(x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height),
+			Ψ.ctx.lineTo(x1 * Ψ.ctx.canvas.width, y1 * Ψ.ctx.canvas.height),
+			null
+		))
+
+	/**` O.n_lineV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_lineV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.moveTo(xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height),
+			Ψ.ctx.lineTo(xy1.x * Ψ.ctx.canvas.width, xy1.y * Ψ.ctx.canvas.height),
+			null
+		))
+
+	/**` O.n_strokeLine : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_strokeLine = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.moveTo(x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height),
+			Ψ.ctx.lineTo(x1 * Ψ.ctx.canvas.width, y1 * Ψ.ctx.canvas.height),
+			Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_strokeLineV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_strokeLineV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.moveTo(xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height),
+			Ψ.ctx.lineTo(xy1.x * Ψ.ctx.canvas.width, xy1.y * Ψ.ctx.canvas.height),
+			Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_vector : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_vector = (x : number) => (y : number) => (dx : number) => (dy : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.moveTo(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.width),
+			Ψ.ctx.lineTo((x + dx) * Ψ.ctx.canvas.width, (y + dy) * Ψ.ctx.canvas.width),
+			null
+		))
+
+	/**` O.n_vectorV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_vectorV2 = (xy : Vector2) => (dxy : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.moveTo(xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.width),
+			Ψ.ctx.lineTo((xy.x + dxy.x) * Ψ.ctx.canvas.width, (xy.y + dxy.y) * Ψ.ctx.canvas.width),
+			null
+		))
+
+	/**` O.n_strokeVector : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_strokeVector = (x : number) => (y : number) => (dx : number) => (dy : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.moveTo(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.width),
+			Ψ.ctx.lineTo((x + dx) * Ψ.ctx.canvas.width, (y + dy) * Ψ.ctx.canvas.width),
+			Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_strokeVectorV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_strokeVectorV2 = (xy : Vector2) => (dxy : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.moveTo(xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.width),
+			Ψ.ctx.lineTo((xy.x + dxy.x) * Ψ.ctx.canvas.width, (xy.y + dxy.y) * Ψ.ctx.canvas.width),
+			Ψ.ctx.stroke(), null
+		))
+
+	/**` O.requestPointerLock : IO () `*/
+	export const requestPointerLock : IO <null> =
+		IO (() => (onmouseup = () => Ψ.isPointerLocked || Ψ.ctx.canvas.requestPointerLock(), null))
+
+	/**` O.deactivatePointerLock : IO () `*/
+	export const deactivatePointerLock : IO <null> = IO (() => onmouseup = null)
+
+	/**` O.setCanvasW : Number -> IO () `*/
+	export const setCanvasW = (w : number) : IO <null> => IO (() => (Ψ.ctx.canvas.width = w, null))
+
+	/**` O.setCanvasH : Number -> IO () `*/
+	export const setCanvasH = (h : number) : IO <null> => IO (() => (Ψ.ctx.canvas.height = h, null))
+
+	/**` O.setCanvasWH : Number -> Number -> IO () `*/
+	export const setCanvasWH = (w : number) => (h : number) : IO <null> =>
+		IO (() => (Ψ.ctx.canvas.width = w, Ψ.ctx.canvas.height = h, null))
+
+	/**` O.setCanvasV2 : Vector2 -> IO () `*/
+	export const setCanvasV2 = (wh : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.canvas.width = wh.x, Ψ.ctx.canvas.height = wh.y, null))
+
+	/**` O.setLayer : Number -> IO () `*/
+	export const setLayer = (index : number) : IO <null> =>
+		IO (() =>
+			index < 0 || index > Ψ.ctxs.length || !Number.isInteger (index)
+				? error (`'O.setLayer' received index of '${index}'; must be a integer in interval [0, ${Ψ.ctxs.length})`)
+				: (Ψ.ctx = Ψ.ctxs[index]!, null)
+		)
+
+	/**` O.setLineThickness : Number -> IO () `*/
+	export const setLineThickness = (thickness : number) : IO <null> => IO (() => (Ψ.ctx.lineWidth = thickness, null))
+
+	/**` O.setLineDashPattern : List Number -> IO () `*/
+	export const setLineDashPattern = (pattern : List <number>) : IO <null> =>
+		IO (() => (Ψ.ctx.setLineDash(listToArray (pattern)), null))
+
+	/**` O.setLineDashOffset : Number -> IO () `*/
+	export const setLineDashOffset = (offset : number) : IO <null> => IO (() => (Ψ.ctx.lineDashOffset = offset, null))
+
+	/**` O.setMiterLimit : Number -> IO () `*/
+	export const setMiterLimit = (limit : number) : IO <null> => IO (() => (Ψ.ctx.miterLimit = limit, null))
+
+	/**` O.setFont : String -> IO `*/
+	export const setFont = (font : string) : IO <null> => IO (() => (Ψ.ctx.font = font, null))
+
+	/**` O.setFontSize : Number -> IO () `*/
+	export const setFontSize = (size : number) : IO <null> =>
+		IO (() => (Ψ.ctx.font = `${size}px${Ψ.ctx.font.slice(Ψ.ctx.font.indexOf(' '))}`, null))
+
+	/**` O.setFontFamily : String -> IO () `*/
+	export const setFontFamily = (family : string) : IO <null> =>
+		IO (() => (Ψ.ctx.font = `${parseFloat(Ψ.ctx.font)}px "${family}"`, null))
+
+	/**` O.setShadowBlurAmount : Number -> IO () `*/
+	export const setShadowBlurAmount = (amount : number) : IO <null> => IO (() => (Ψ.ctx.shadowBlur = amount, null))
+
+	/**` O.setShadowColor : String -> IO () `*/
+	export const setShadowColor = (color : string) : IO <null> => IO (() => (Ψ.ctx.shadowColor = color, null))
+
+	/**` O.setShadowRGBA : (Number, Number, Number, Number) -> IO () `*/
+	export const setShadowRGBA = (r : number, g : number, b : number, a : number) : IO <null> =>
+		IO (() => (Ψ.ctx.shadowColor = `rgba(${r},${g},${b},${a})`, null))
+
+	/**` O.setShadowV4 : Vector4 -> IO () `*/
+	export const setShadowV4 = (v : Vector4) : IO <null> =>
+		IO (() => (Ψ.ctx.shadowColor = `rgba(${v.x},${v.y},${v.z},${v.w})`, null))
+
+	/**` O.setShadowX : Number -> IO () `*/
+	export const setShadowX = (x : number) : IO <null> => IO (() => (Ψ.ctx.shadowOffsetX = x, null))
+
+	/**` O.setShadowY : Number -> IO () `*/
+	export const setShadowY = (y : number) : IO <null> => IO (() => (Ψ.ctx.shadowOffsetY = y, null))
+
+	/**` O.setShadowXY : Number -> Number -> IO `*/
+	export const setShadowXY = (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.shadowOffsetX = x, Ψ.ctx.shadowOffsetY = y, null))
+
+	/**` O.setShadowV2 : IO Vector2 `*/
+	export const setShadowV2 = (xy : Vector2) : IO <null> =>
+		IO (() => (Vector2 (Ψ.ctx.shadowOffsetX = xy.x, Ψ.ctx.shadowOffsetY = xy.y), null))
+
+	/**` O.setMatrix : Matrix3 -> IO () `*/
+	export const setMatrix = (m3 : Matrix3) : IO <null> =>
+		IO (() => (Ψ.ctx.setTransform(m3.ix, m3.iy, m3.jx, m3.jy, m3.kx, m3.ky), null))
+
+	/**` O.resetMatrix : IO () `*/
+	export const resetMatrix : IO <null> = IO (() => (Ψ.ctx.resetTransform, null))
+
+	/**` O.setAlpha : Number -> IO () `*/
+	export const setAlpha = (alpha : number) : IO <null> => IO (() => (Ψ.ctx.globalAlpha = alpha, null))
+
+	/**` O.setFillColor : String -> IO () `*/
+	export const setFillColor = (color : string) : IO <null> => IO (() => (Ψ.ctx.fillStyle = color, null))
+
+	/**` O.setFillRGBA : (Number, Number, Number, Number) -> IO () `*/
+	export const setFillRGBA = (r : number, g : number, b : number, a : number) : IO <null> =>
+		IO (() => (Ψ.ctx.fillStyle = `rgba(${r},${g},${b},${a})`, null))
+
+	/**` O.setFillV4 : Vector4 -> IO () `*/
+	export const setFillV4 = (v : Vector4) : IO <null> =>
+		IO (() => (Ψ.ctx.fillStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`, null))
+
+	/**` O.setStrokeColor : String -> IO () `*/
+	export const setStrokeColor = (color : string) : IO <null> => IO (() => (Ψ.ctx.strokeStyle = color, null))
+
+	/**` O.setStrokeRGBA : (Number, Number, Number, Number) -> IO () `*/
+	export const setStrokeRGBA = (r : number, g : number, b : number, a : number) : IO <null> =>
+		IO (() => (Ψ.ctx.strokeStyle = `rgba(${r},${g},${b},${a})`, null))
+
+	/**` O.setStrokeV4 : Vector4 -> IO () `*/
+	export const setStrokeV4 = (v : Vector4) : IO <null> =>
+		IO (() => (Ψ.ctx.strokeStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`, null))
+
+	/**` O.setLineCap : LineCap -> IO () `*/
+	export const setLineCap = (linecap : LineCap) : IO <null> =>
+		IO (() => (Ψ.ctx.lineCap = mappingLineCapToHTML5 .codomain (linecap), null))
+
+	/**` O.setLineJoin : LineJoin -> IO () `*/
+	export const setLineJoin = (linejoin : LineJoin) : IO <null> =>
+		IO (() => (Ψ.ctx.lineJoin = mappingLineJoinToHTML5 .codomain (linejoin), null))
+
+	/**` O.setTextAlign : TextAlign -> IO () `*/
+	export const setTextAlign = (alignment : TextAlign) : IO <null> =>
+		IO (() => (Ψ.ctx.textAlign = mappingTextAlignToHTML5 .codomain (alignment), null))
+
+	/**` O.setTextBaseline : TextBaseline -> IO () `*/
+	export const setTextBaseline = (baseline : TextBaseline) : IO <null> =>
+		IO (() => (Ψ.ctx.textBaseline = mappingTextBaselineToHTML5 .codomain (baseline), null))
+
+	/**` O.setComposition : Composition -> IO () `*/
+	export const setComposition = (composition : Composition) : IO <null> =>
+		IO (() => (Ψ.ctx.globalCompositeOperation = mappingCompositionToHTML5 .codomain (composition), null))
+
+	/**` O.setToCenterText : IO () `*/
+	export const setCenterText : IO <null> =
+		IO (() => (Ψ.ctx.textAlign = 'center', Ψ.ctx.textBaseline = 'middle', null))
+
+	/**` O.setToDefaultText : IO () `*/
+	export const defaultText : IO <null> =
+		IO (() => (Ψ.ctx.textAlign = 'start', Ψ.ctx.textBaseline = 'alphabetic', null))
+
+	/**` O.resetState : IO () `*/
+	export const resetState : IO <null> =
+		IO (() => {
+			for (const k in Ψ.keyboard)     Ψ.keyboard[k as KeyboardKey] = relaxVertical (Ψ.keyboard[k as KeyboardKey])
+			for (const i in Ψ.mouseButtons) Ψ.mouseButtons[i]            = relaxVertical (Ψ.mouseButtons[i]!)
+			Ψ.mouseDeltaX = Ψ.mouseDeltaY = 0
+			Ψ.mouseScroll = Vertical.Rest
+			Ψ.isResized   = false
+			return null
+		})
+
+	/**` O.setAudioTime : String -> Number -> IO () `*/
+	export const setAudioTime = (path : string) => (time : number) : IO <null> =>
+		IO (() => {
+			if (!Ψ.audio[path])
+				error (`'O.setAudioTime' received an unloaded (possibly non-existing) audio at path: '${path}'`)
+			if (time < 0 || time > Ψ.audio[path].duration)
+				error (`'O.setAudioTime' received '${time}' as an input; \
+must be in interval [0, ${Ψ.audio[path].duration}] for audio file: '${path}'`)
+			Ψ.audio[path].currentTime = time
+			return null
+		})
+
+	/**` O.resetAudio : String -> IO () `*/
+	export const resetAudio = (path : string) : IO <null> =>
+		IO (() => {
+			if (!Ψ.audio[path])
+				error (`'O.resetAudio' received an unloaded (possibly non-existing) audio at path: '${path}'`)
+			Ψ.audio[path].pause()
+			Ψ.audio[path].currentTime = 0
+			return null
+		})
+
+	/**` O.flush : IO () `*/
+	export const flush : IO <null> = IO (() => (console.clear(), null))
+
+	/**` O.log : a -> IO () `*/
+	export const log = <a>(message : a) : IO <null> => IO (() => (console.log(message), null))
+
+	/**` O.warning : a -> IO () `*/
+	export const warning = <a>(message : a) : IO <null> => IO (() => (console.warn(message), null))
+
+	/**` O.debug : Number -> a -> IO () `*/
+	export const debug = (count : number) => <a>(message : a) : IO <null> =>
+		IO (() => {
+			if (--Ψ.debugCounter < 0)
+				Ψ.debugCounter = count,
+				console.debug(message)
+			return null
+		})
+
+	/**` O.count : String -> IO () `*/
+	export const count = <a>(identifier : string) : IO <null> => IO (() => (console.count(identifier), null))
+
+	/**` O.resetCount : String -> IO () `*/
+	export const resetCount = <a>(identifier : string) : IO <null> => IO (() => (console.countReset(identifier), null))
+
+	/**` O.queue : IO a -> IO () `*/
+	export const queue = <a>(effect : IO <a>) : IO <null> => IO (() => (requestAnimationFrame(effect.effect), null))
+
+	/**` O.loadImage : String -> IO () `*/
+	export const loadImage = (path : string) : IO <null> =>
+		IO (() => {
+			Ψ.image[path]          = new Image
+			Ψ.image[path]!.src     = path
+			Ψ.image[path]!.onerror = () => error (`'O.loadImage' could not load image at path: '${path}'`)
+			return null
+		})
+
+	/**` O.loadAudio : String -> IO () `*/
+	export const loadAudio = (path : string) : IO <null> =>
+		IO (() => {
+			Ψ.audio[path]          = new Audio(path)
+			Ψ.audio[path]!.onerror = () => error (`'O.loadAudio' could not load audio at path: '${path}'`)
+			return null
+		})
+
+	/**` O.loadFont : String -> IO () `*/
+	export const loadFont = (path : string) : IO <null> =>
+		IO (() => {
+			new FontFace(path.slice(path.lastIndexOf('/') + 1, path.lastIndexOf('.')), `url(${path})`)
+				.load()
+				.then((font : any) => (document as any).fonts.add(font))
+				.catch(() => error (`'loadFont' could not load font at path: '${path}'`))
+			return null
+		})
+
+	/**` O.drawImage : String -> ...8 Number -> IO () `*/
+	export const drawImage =
+		(path : string) =>
+		(cx   : number) => (cy : number) => (cw : number) => (ch : number) =>
+		(x    : number) => (y  : number) => (w  : number) => (h  : number) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.drawImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(Ψ.image[path], cx, cy, cw, ch, x, y, w, h)
+			return null
+		})
+
+	/**` O.drawImageV2 : String -> ...4 Vector2 -> IO () `*/
+	export const drawImageV2 =
+		(path : string ) =>
+		(cxy  : Vector2) => (cwh : Vector2) =>
+		(xy   : Vector2) => (wh  : Vector2) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.drawImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(Ψ.image[path], cxy.x, cxy.y, cwh.x, cwh.y, xy.x, xy.y, wh.x, wh.y)
+			return null
+		})
+
+	/**` O.drawUncroppedImage : String -> ...4 Number -> IO () `*/
+	export const drawUncroppedImage =
+		(path : string) =>
+		(x    : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.drawUncroppedImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(Ψ.image[path], x, y, w, h)
+			return null
+		})
+
+	/**` O.drawUncroppedImageV2 : String -> Vector2 -> Vector2 -> IO () `*/
+	export const drawUncroppedImageV2 = (path : string) => (xy : Vector2) => (wh : Vector2) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.drawUncroppedImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(Ψ.image[path], xy.x, xy.y, wh.x, wh.y)
+			return null
+		})
+
+	/**` O.drawFullImage : String -> Number -> Number -> IO () `*/
+	export const drawFullImage = (path : string) => (x : number) => (y : number) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.drawFullImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(Ψ.image[path], x, y)
+			return null
+		})
+
+	/**` O.drawFullImageV2 : String -> Vector2 -> IO () `*/
+	export const drawFullImageV2 = (path : string) => (xy : Vector2) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.drawFullImage' received an unloaded image at path: '${path}'`)
+			Ψ.ctx.drawImage(Ψ.image[path], xy.x, xy.y)
+			return null
+		})
+
+	/**` O.drawFullScaledImage : String -> Number -> Number -> Number -> IO () `*/
+	export const drawFullScaledImage = (path : string) => (k : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.drawFullScaledImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(Ψ.image[path], x, y, Ψ.image[path].width * k, Ψ.image[path].height * k)
+			return null
+		})
+
+	/**` O.drawFullScaledImageV2 : String -> Number -> Vector2 -> IO () `*/
+	export const drawFullScaledImageV2 = (path : string) => (k : number) => (xy : Vector2) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.drawFullScaledImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(Ψ.image[path], xy.x, xy.y, Ψ.image[path].width * k, Ψ.image[path].height * k)
+			return null
+		})
+
+	/**` O.drawSquareImage : String -> Number -> Number -> Number -> IO () `*/
+	export const drawSquareImage = (path : string) => (k : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.drawSquareImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(Ψ.image[path], x, y, k, k)
+			return null
+		})
+
+	/**` O.drawSquareImageV2 : String -> Number -> Vector2 -> IO () `*/
+	export const drawSquareImageV2 = (path : string) => (k : number) => (xy : Vector2) : IO <null> =>
+		IO (() => {
+			if (!Ψ.image[path])
+				error (`'O.drawSquareImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
+			Ψ.ctx.drawImage(Ψ.image[path], xy.x, xy.y, k, k)
+			return null
+		})
+
+	/**` O.playAudio : String -> IO () `*/
+	export const playAudio = (path : string) : IO <null> =>
+		IO (() => {
+			if (!Ψ.audio[path])
+				error (`'O.playAudio' received an unloaded (possibly non-existing) audio at path: '${path}'`)
+			Ψ.audio[path].play()
+			return null
+		})
+
+	/**` O.pauseAudio : String -> IO () `*/
+	export const pauseAudio = (path : string) : IO <null> =>
+		IO (() => {
+			if (!Ψ.audio[path])
+				error (`'O.pauseAudio' received an unloaded (possibly non-existing) audio at path: '${path}'`)
+			Ψ.audio[path].pause()
+			return null
+		})
+
+	/**` O.playSFX : String -> IO () `*/
+	export const playSFX = (path : string) : IO <null> =>
+		IO (() => {
+			if (Ψ.audio[path])
+				(Ψ.audio[path].cloneNode() as any).play()
+			else
+				error (`'O.playSFX' received an unloaded (possibly non-existing) audio at path: '${path}'`)
+			return null
+		})
+
+	/**` O.clearLayer : IO () `*/
+	export const clearLayer : IO <null> =
+		IO (() => (Ψ.ctx.clearRect(0, 0, Ψ.ctx.canvas.width, Ψ.ctx.canvas.height), null))
+
+	/**` O.clearCanvas : IO () `*/
+	export const clearCanvas : IO <null> =
+		IO (() => (Ψ.ctxs.forEach(ctx => ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)), null))
+
+	/**` O.clearRect : Number -> Number -> Number -> Number -> IO () `*/
+	export const clearRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+		IO (() => (Ψ.ctx.clearRect(x, y, w, h), null))
+
+	/**` O.clearRectV2 : Vector2 -> Vector2 -> IO () `*/
+	export const clearRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.clearRect(xy.x, xy.y, wh.x, wh.y), null))
+
+	/**` O.clearArea : Number -> Number -> Number -> Number -> IO () `*/
+	export const clearArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (Ψ.ctx.clearRect(x0, y0, x1 - x0, y1 - y0), null))
+
+	/**` O.clearAreaV2 : Vector2 -> Vector2 -> IO () `*/
+	export const clearAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.clearRect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null))
+
+	/**` O.fill : IO () `*/
+	export const fill : IO <null> = IO (() => (Ψ.ctx.fill(), null))
+
+	/**` O.stroke : IO () `*/
+	export const stroke : IO <null> = IO (() => (Ψ.ctx.stroke(), null))
+
+	/**` O.save : IO () `*/
+	export const save : IO <null> = IO (() => (Ψ.ctx.save(), null))
+
+	/**` O.restore : IO () `*/
+	export const restore : IO <null> = IO (() => (Ψ.ctx.restore(), null))
+
+	/**` O.clipEvenOdd : IO () `*/
+	export const clipEvenOdd : IO <null> = IO (() => (Ψ.ctx.clip('evenodd'), null))
+
+	/**` O.clipNonZero : IO () `*/
+	export const clipNonZero : IO <null> = IO (() => (Ψ.ctx.clip('nonzero'), null))
+
+	/**` O.rotate : Number -> IO () `*/
+	export const rotate = (angle : number) : IO <null> => IO (() => (Ψ.ctx.rotate(angle), null))
+
+	/**` O.scaleX : Number -> IO () `*/
+	export const scaleX = (kx : number) : IO <null> => IO (() => (Ψ.ctx.scale(kx, 1), null))
+
+	/**` O.scaleY : Number -> IO () `*/
+	export const scaleY = (ky : number) : IO <null> => IO (() => (Ψ.ctx.scale(1, ky), null))
+
+	/**` O.scaleXY : Number -> Number -> IO () `*/
+	export const scaleXY = (kx : number) => (ky : number) : IO <null> => IO (() => (Ψ.ctx.scale(kx, ky), null))
+
+	/**` O.scaleV2 : Vector2 -> IO () `*/
+	export const scaleV2 = (v : Vector2) : IO <null> => IO (() => (Ψ.ctx.scale(v.x, v.y), null))
+
+	/**` O.translateX : Number -> IO () `*/
+	export const translateX = (dx : number) : IO <null> => IO (() => (Ψ.ctx.translate(dx, 0), null))
+
+	/**` O.translateY : Number -> IO () `*/
+	export const translateY = (dy : number) : IO <null> => IO (() => (Ψ.ctx.translate(0, dy), null))
+
+	/**` O.translateXY : Number -> Number -> IO () `*/
+	export const translateXY = (dx : number) => (dy : number) : IO <null> => IO (() => (Ψ.ctx.translate(dx, dy), null))
+
+	/**` O.translateV2 : Vector2 -> IO () `*/
+	export const translateV2 = (v : Vector2) : IO <null> => IO (() => (Ψ.ctx.translate(v.x, v.y), null))
+
+	/**` O.transform2 : Matrix2 -> IO () `*/
+	export const transform2 = (m2 : Matrix2) : IO <null> =>
+		IO (() => (Ψ.ctx.transform(m2.ix, m2.iy, m2.jx, m2.jy, 0, 0), null))
+
+	/**` O.transform3 : Matrix3 -> IO () `*/
+	export const transform3 = (m3 : Matrix3) : IO <null> =>
+		IO (() => (Ψ.ctx.transform(m3.ix, m3.iy, m3.jx, m3.jy, m3.kx, m3.ky), null))
+
+	/**` O.beginPath : IO () `*/
+	export const beginPath : IO <null> = IO (() => (Ψ.ctx.beginPath(), null))
+
+	/**` O.closePath : IO () `*/
+	export const closePath : IO <null> = IO (() => (Ψ.ctx.closePath(), null))
+
+	/**` O.moveTo : Number -> Number -> IO () `*/
+	export const moveTo = (x : number) => (y : number) : IO <null> => IO (() => (Ψ.ctx.moveTo(x, y), null))
+
+	/**` O.moveToV2 : Vector2 -> IO () `*/
+	export const moveToV2 = (v : Vector2) : IO <null> => IO (() => (Ψ.ctx.moveTo(v.x, v.y), null))
+
+	/**` O.bezierCurveTo : ...6 Number -> IO () `*/
+	export const bezierCurveTo =
+		(cx0 : number) => (cy0 : number) =>
+		(cx1 : number) => (cy1 : number) =>
+		(x   : number) => (y   : number) : IO <null> =>
+		IO (() => (Ψ.ctx.bezierCurveTo(cx0, cy0, cx1, cy1, x, y), null))
+
+	/**` O.bezierCurveToV2 : Vector2 -> Vector2 -> Vector2 -> IO () `*/
+	export const bezierCurveToV2 = (cxy0 : Vector2) => (cxy1 : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.bezierCurveTo(cxy0.x, cxy0.y, cxy1.x, cxy1.y, xy.x, xy.y), null))
+
+	/**` O.quadraticCurveTo : Number -> Number -> Number -> Number -> IO () `*/
+	export const quadraticCurveTo = (cx : number) => (cy : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.quadraticCurveTo(cx, cy, x, y), null))
+
+	/**` O.quadraticCurveToV2 : Vector2 -> Vector2 -> IO () `*/
+	export const quadraticCurveToV2 = (cxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.quadraticCurveTo(cxy.x, cxy.y, xy.x, xy.y), null))
+
+	/**` O.arcTo : ...5 Number -> IO () `*/
+	export const arcTo = (r : number) => (cx0 : number) => (cy0 : number) => (cx1 : number) => (cy1 : number) : IO <null> =>
+		IO (() => (Ψ.ctx.arcTo(cx0, cy0, cx1, cy1, r), null))
+
+	/**` O.arcToV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+	export const arcToV2 = (r : number) => (cxy0 : Vector2) => (cxy1 : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.arcTo(cxy0.x, cxy0.y, cxy1.x, cxy1.y, r), null))
+
+	/**` O.rect : Number -> Number -> Number -> Number -> IO () `*/
+	export const rect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+		IO (() => (Ψ.ctx.rect(x, y, w, h), null))
+
+	/**` O.rectV2 : Vector2 -> Vector2 -> IO () `*/
+	export const rectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.rect(xy.x, xy.y, wh.x, wh.y), null))
+
+	/**` O.fillRect : Number -> Number -> Number -> Number -> IO () `*/
+	export const fillRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+		IO (() => (Ψ.ctx.fillRect(x, y, w, h), null))
+
+	/**` O.fillRectV2 : Vector2 -> Vector2 -> IO () `*/
+	export const fillRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.fillRect(xy.x, xy.y, wh.x, wh.y), null))
+
+	/**` O.strokeRect : Number -> Number -> Number -> Number -> IO () `*/
+	export const strokeRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+		IO (() => (Ψ.ctx.strokeRect(x, y, w, h), null))
+
+	/**` O.strokeRectV2 : Vector2 -> Vector2 -> IO () `*/
+	export const strokeRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.strokeRect(xy.x, xy.y, wh.x, wh.y), null))
+
+	/**` O.fillStrokeRect : Number -> Number -> Number -> Number -> IO () `*/
+	export const fillStrokeRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+		IO (() => (Ψ.ctx.rect(x, y, w, h), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+	/**` O.fillStrokeRectV2 : Vector2 -> Vector2 -> IO () `*/
+	export const fillStrokeRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.rect(xy.x, xy.y, wh.x, wh.y), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+	/**` O.area : Number -> Number -> Number -> Number -> IO () `*/
+	export const area = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (Ψ.ctx.rect(x0, y0, x1 - x0, y1 - y0), null))
+
+	/**` O.areaV2 : Vector2 -> Vector2 -> IO () `*/
+	export const areaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.rect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null))
+
+	/**` O.fillArea : Number -> Number -> Number -> Number -> IO () `*/
+	export const fillArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (Ψ.ctx.fillRect(x0, y0, x1 - x0, y1 - y0), null))
+
+	/**` O.fillAreaV2 : Vector2 -> Vector2 -> IO () `*/
+	export const fillAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.fillRect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null))
+
+	/**` O.strokeArea : Number -> Number -> Number -> Number -> IO () `*/
+	export const strokeArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (Ψ.ctx.strokeRect(x0, y0, x1 - x0, y1 - y0), null))
+
+	/**` O.strokeAreaV2 : Vector2 -> Vector2 -> IO () `*/
+	export const strokeAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.strokeRect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null))
+
+	/**` O.fillStrokeArea : Number -> Number -> Number -> Number -> IO () `*/
+	export const fillStrokeArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (Ψ.ctx.rect(x0, y0, x1 - x0, y1 - y0), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+	/**` O.fillStrokeAreaV2 : Vector2 -> Vector2 -> IO () `*/
+	export const fillStrokeAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.rect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+	/**` O.arc : ...5 Number -> IO () `*/
+	export const arc = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(x, y, r, a0, a1), null))
+
+	/**` O.arcV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+	export const arcV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(v.x, v.y, r, a0, a1), null))
+
+	/**` O.strokeArc : ...5 Number -> IO () `*/
+	export const strokeArc = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(x, y, r, a0, a1), Ψ.ctx.stroke(), null))
+
+	/**` O.strokeArcV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+	export const strokeArcV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(v.x, v.y, r, a0, a1), Ψ.ctx.stroke(), null))
+
+	/**` O.arcSection : ...5 Number -> IO () `*/
+	export const arcSection = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(x, y, r, a0, a0 + a1), null))
+
+	/**` O.arcSectionV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+	export const arcSectionV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(v.x, v.y, r, a0, a0 + a1), null))
+
+	/**` O.strokeArcSection : ...5 Number -> IO () `*/
+	export const strokeArcSection = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(x, y, r, a0, a0 + a1), Ψ.ctx.stroke(), null))
+
+	/**` O.strokeArcSectionV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+	export const strokeArcSectionV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(v.x, v.y, r, a0, a0 + a1), Ψ.ctx.stroke(), null))
+
+	/**` O.circle : Number -> Number -> Number -> IO () `*/
+	export const circle = (r : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(x, y, r, 0, tau), null))
+
+	/**` O.circleV2 : Number -> Vector2 -> IO () `*/
+	export const circleV2 = (r : number) => (v : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), null))
+
+	/**` O.fillCircle : Number -> Number -> Number -> IO () `*/
+	export const fillCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(x, y, r, 0, tau), Ψ.ctx.fill(), null))
+
+	/**` O.fillCircleV2 : Number -> Vector2 -> IO () `*/
+	export const fillCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), Ψ.ctx.fill(), null))
+
+	/**` O.strokeCircle : Number -> Number -> Number -> IO () `*/
+	export const strokeCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(x, y, r, 0, tau), Ψ.ctx.stroke(), null))
+
+	/**` O.strokeCircleV2 : Number -> Vector2 -> IO () `*/
+	export const strokeCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), Ψ.ctx.stroke(), null))
+
+	/**` O.fillStrokeCircle : Number -> Number -> Number -> IO () `*/
+	export const fillStrokeCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(x, y, r, 0, tau), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+	/**` O.fillStrokeCircleV2 : Number -> Vector2 -> IO () `*/
+	export const fillStrokeCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+	/**` O.elliptic : ...7 Number -> IO () `*/
+	export const elliptic =
+		(a  : number) => (a0 : number) => (a1 : number) =>
+		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, a0, a1), null))
+
+	/**` O.ellipticV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+	export const ellipticV2 =
+		(a   : number ) => (a0 : number ) => (a1 : number) =>
+		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, a0, a1), null))
+
+	/**` O.strokeElliptic : ...7 Number -> IO () `*/
+	export const strokeElliptic =
+		(a  : number) => (a0 : number) => (a1 : number) =>
+		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, a0, a1), Ψ.ctx.stroke(), null))
+
+	/**` O.strokeEllipticV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+	export const strokeEllipticV2 =
+		(a   : number ) => (a0 : number ) => (a1 : number) =>
+		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, a0, a1), Ψ.ctx.stroke(), null))
+
+	/**` O.ellipticSection : ...7 Number -> IO () `*/
+	export const ellipticSection =
+		(a  : number) => (a0 : number) => (a1 : number) =>
+		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, a0, a0 + a1), null))
+
+	/**` O.ellipticSectionV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+	export const ellipticSectionV2 =
+		(a   : number ) => (a0 : number ) => (a1 : number) =>
+		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, a0, a0 + a1), null))
+
+	/**` O.strokeEllipticSection : ...7 Number -> IO () `*/
+	export const strokeEllipticSection =
+		(a  : number) => (a0 : number) => (a1 : number) =>
+		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, a0, a0 + a1), Ψ.ctx.stroke(), null))
+
+	/**` O.strokeEllipticSectionV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+	export const strokeEllipticSectionV2 =
+		(a   : number ) => (a0 : number ) => (a1 : number) =>
+		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, a0, a0 + a1), Ψ.ctx.stroke(), null))
+
+	/**` O.ellipse : ...5 Number -> IO () `*/
+	export const ellipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, 0, tau), null))
+
+	/**` O.ellipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+	export const ellipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), null))
+
+	/**` O.fillEllipse : ...5 Number -> IO () `*/
+	export const fillEllipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, 0, tau), Ψ.ctx.fill(), null))
+
+	/**` O.fillEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+	export const fillEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), Ψ.ctx.fill(), null))
+
+	/**` O.strokeEllipse : ...5 Number -> IO () `*/
+	export const strokeEllipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, 0, tau), Ψ.ctx.stroke(), null))
+
+	/**` O.strokeEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+	export const strokeEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), Ψ.ctx.stroke(), null))
+
+	/**` O.fillStrokeEllipse : ...5 Number -> IO () `*/
+	export const fillStrokeEllipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, 0, tau), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+	/**` O.fillStrokeEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+	export const fillStrokeEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+	/**` O.fillText : a -> Number -> Number -> IO () `*/
+	export const fillText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.fillText(text as any, x, y), null))
+
+	/**` O.fillTextV2 : a -> Vector2 -> IO () `*/
+	export const fillTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.fillText(text as any, xy.x, xy.y), null))
+
+	/**` O.strokeText : a -> Number -> Number -> IO () `*/
+	export const strokeText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.strokeText(text as any, x, y), null))
+
+	/**` O.strokeTextV2 : a -> Vector2 -> IO () `*/
+	export const strokeTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.strokeText(text as any, xy.x, xy.y), null))
+
+	/**` O.fillStrokeText : a -> Number -> Number -> IO () `*/
+	export const fillStrokeText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.fillText(text as any, x, y), Ψ.ctx.strokeText(text as any, x, y), null))
+
+	/**` O.fillStrokeText : a -> Vector2 -> IO () `*/
+	export const fillStrokeTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.fillText(text as any, xy.x, xy.y), Ψ.ctx.strokeText(text as any, xy.x, xy.y), null))
+
+	/**` O.line : Number -> Number -> Number -> Number -> IO () `*/
+	export const line = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (Ψ.ctx.moveTo(x0, y0), Ψ.ctx.lineTo(x1, y1), null))
+
+	/**` O.lineV2 : Vector2 -> Vector2 -> IO () `*/
+	export const lineV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.moveTo(xy0.x, xy0.y), Ψ.ctx.lineTo(xy1.x, xy1.y), null))
+
+	/**` O.strokeLine : Number -> Number -> Number -> Number -> IO () `*/
+	export const strokeLine = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (Ψ.ctx.moveTo(x0, y0), Ψ.ctx.lineTo(x1, y1), Ψ.ctx.stroke(), null))
+
+	/**` O.strokeLineV2 : Vector2 -> Vector2 -> IO () `*/
+	export const strokeLineV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.moveTo(xy0.x, xy0.y), Ψ.ctx.lineTo(xy1.x, xy1.y), Ψ.ctx.stroke(), null))
+
+	/**` O.vector : Number -> Number -> Number -> Number -> IO () `*/
+	export const vector = (x : number) => (y : number) => (dx : number) => (dy : number) : IO <null> =>
+		IO (() => (Ψ.ctx.moveTo(x, y), Ψ.ctx.lineTo(x + dx, y + dy), null))
+
+	/**` O.vectorV2 : Vector2 -> Vector2 -> IO () `*/
+	export const vectorV2 = (xy : Vector2) => (dxy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.moveTo(xy.x, xy.y), Ψ.ctx.lineTo(xy.x + dxy.x, xy.y + dxy.y), null))
+
+	/**` O.strokeVector : Number -> Number -> Number -> Number -> IO () `*/
+	export const strokeVector = (x : number) => (y : number) => (dx : number) => (dy : number) : IO <null> =>
+		IO (() => (Ψ.ctx.moveTo(x, y), Ψ.ctx.lineTo(x + dx, y + dy), Ψ.ctx.stroke(), null))
+
+	/**` O.strokeVectorV2 : Vector2 -> Vector2 -> IO () `*/
+	export const strokeVectorV2 = (xy : Vector2) => (dxy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.moveTo(xy.x, xy.y), Ψ.ctx.lineTo(xy.x + dxy.x, xy.y + dxy.y), Ψ.ctx.stroke(), null))
+}
 
 onload = () =>
 {
-	λ.ctxs = Array.from (document.querySelectorAll('canvas')) .map (x => x.getContext('2d')!)
-	λ.ctx = λ.ctxs[0]!
+	Ψ.ctxs = Array.from(document.querySelectorAll('canvas')).map(x => x.getContext('2d')!)
+	Ψ.ctx  = Ψ.ctxs[0]!
 
+	onresize    = () => (clearTimeout(Ψ.resizeID), Ψ.resizeID = setTimeout(() => Ψ.isResized = true, 250))
+	onmousedown = ev => Ψ.mouseButtons[ev.button]          = Vertical.Downward
+	onmouseup   = ev => Ψ.mouseButtons[ev.button]          = Vertical.Upward
+	onkeyup     = ev => Ψ.keyboard[ev.code as KeyboardKey] = Vertical.Upward
+	onkeydown   = ev =>
+		Ψ.keyboard[ev.code as KeyboardKey] =
+			ev.repeat
+				? Ψ.keyboard[ev.code as KeyboardKey]
+				: Vertical.Downward
+	onwheel     = ev =>
+		Ψ.mouseScroll =
+			ev.deltaY < 0 ? Vertical.Up   :
+			ev.deltaY > 0 ? Vertical.Down : Vertical.Rest
 	onmousemove = ev =>
 	{
-		λ.mouseWindowX = ev.x,
-		λ.mouseWindowY = ev.y,
-		λ.mouseCanvasX = ev.clientX - λ.ctx.canvas.offsetLeft,
-		λ.mouseCanvasY = ev.clientY - λ.ctx.canvas.offsetTop,
-		λ.mouseScreenX = ev.screenX,
-		λ.mouseScreenY = ev.screenY,
-		λ.mouseDeltaX  = ev.movementX,
-		λ.mouseDeltaY  = ev.movementY
+		Ψ.mouseWindowX = ev.x,
+		Ψ.mouseWindowY = ev.y,
+		Ψ.mouseCanvasX = ev.clientX - Ψ.ctx.canvas.offsetLeft,
+		Ψ.mouseCanvasY = ev.clientY - Ψ.ctx.canvas.offsetTop,
+		Ψ.mouseScreenX = ev.screenX,
+		Ψ.mouseScreenY = ev.screenY,
+		Ψ.mouseDeltaX  = ev.movementX,
+		Ψ.mouseDeltaY  = ev.movementY
 	}
 
-	onmousedown = ev => λ.mouseButtons[ev.button] = Y.DD
-	onmouseup   = ev => λ.mouseButtons[ev.button] = Y.UU
-	onkeyup     = ev => λ.keyboard[ev.code as KeyboardKey] = Y.UU
-	onkeydown   = ev =>
-		λ.keyboard[ev.code as KeyboardKey] =
-			ev.repeat
-				? λ.keyboard[ev.code as KeyboardKey]
-				: Y.DD
-
-	onwheel = ev =>
-		λ.mouseScroll =
-			ev.deltaY < 0 ? Y.U   :
-			ev.deltaY > 0 ? Y.D : Y.Rest
-
-	onresize = () => (clearTimeout(λ.resizeID), λ.resizeID = setTimeout(() => λ.isResized = true, 250))
-
-	document.onpointerlockchange = () =>
-		λ.isPointerLocked = document.pointerLockElement === λ.ctx.canvas
+	document.onpointerlockchange = () => Ψ.isPointerLocked = document.pointerLockElement === Ψ.ctx.canvas
 }

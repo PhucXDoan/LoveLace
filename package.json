@@ -1,24 +1,24 @@
 {
 	"name": "lovelace",
-	"author": {
-		"email": "kittygorey@gmail.com",
-		"name": "kittygorey",
-		"url": "https://github.com/kittygorey"
-	},
+	"version": "1.0.0",
 	"description": "A functionally-programmed overhead of the JavaScript HTML5 Canvas API, written in TypeScript, designed for education.",
-	"license": "GNU GPLv3",
+	"main": "index.js",
 	"repository": "https://github.com/kittygorey/LoveLace",
+	"author": "catgore",
+	"license": "GNU GPLv3",
 	"scripts": {
-		"lint": "npx esw --ext .ts --color --clear -w",
-		"compile": "npx tsc -w"
-	},
-	"devDependencies": {
-		"@typescript-eslint/eslint-plugin": "^4.15.2",
-		"@typescript-eslint/parser": "^4.15.2",
-		"eslint": "^7.21.0",
-		"eslint-watch": "^7.0.0"
+		"lint": "npx eslint ./ts/*.ts & exit 0",
+		"typechecking": "tsc",
+		"compile": "npx swc ./ts -d ./js/ -w --log-watch-compilation"
 	},
 	"dependencies": {
-		"typescript": "^4.2.3"
+		"@swc/cli": "^0.1.39",
+		"@swc/core": "^1.2.54",
+		"@types/css-font-loading-module": "0.0.4",
+		"@typescript-eslint/eslint-plugin": "^4.22.1",
+		"@typescript-eslint/parser": "^4.22.1",
+		"chokidar": "^3.5.1",
+		"eslint": "^7.25.0",
+		"typescript": "^4.2.4"
 	}
 }

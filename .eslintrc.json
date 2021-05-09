@@ -13,7 +13,7 @@
 		"@typescript-eslint/no-unused-vars"         : ["warn", { "argsIgnorePattern": "_" }],
 		"@typescript-eslint/array-type"             : ["error", { "default": "generic", "readonly": "generic" }],
 		"@typescript-eslint/no-redeclare"           : "off",
-		"@typescript-eslint/no-shadow"              : ["error", { "allow": ["_"] }],
+		"@typescript-eslint/no-shadow"              : ["error", { "allow" : ["_"] }],
 		"@typescript-eslint/semi"                   : ["error", "never"],
 		"@typescript-eslint/member-delimiter-style" : ["error", { "singleline": { "delimiter": "comma" }, "multiline": { "delimiter": "none" } }],
 		"accessor-pairs"                            : "off",

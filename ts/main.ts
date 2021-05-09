@@ -1,168 +1,174 @@
-/* Boilerplate
-	- Canvas has a fixed aspect ratio
-	- Canvas smoothly scales to the maximum size
-	- Project is controlled by a fixed refresh rate
-	- Basic global and local state is defined
-*/
-
 /********************************************************************************************************************************/
-// Settings //
+// Constants and Settings  //
 
-const REFRESH_RATE     = 15     // -- Milliseconds until another render is performed
-const ASPECT_RATIO     = 16 / 9 // -- Quotient of the canvas' width and height
-const RESIZE_SPEED     = 0.25   // -- LERPing proportion when resizing
-const RESIZE_THRESHOLD = 1      // -- Maximum scalar difference before a resizing event occurs
+namespace std
+{
+	/**` std.refreshRate : Number `*/
+	export const refreshRate : number = 15
+
+	/**` std.aspectRatio : Number `*/
+	export const aspectRatio : number = 16 / 9
+
+	/**` std.resizeThreshold : Number `*/
+	export const resizeThreshold : number = 5
+
+	/**` std.resizeSpeed : Number `*/
+	export const resizeSpeed : number = 0.15
+}
 
 /********************************************************************************************************************************/
 // Definition of Algebraic Data Types //
 
 type Global =
 	{
-		CONS : 'Global'
-
-		/**` (.time) :: Global -> Number `*/
-		time : number
-
-		/**` (.refreshTime) :: Global -> Number `*/
+		variation   : 'Global'
+		time        : number
+		deltaTime   : number
 		refreshTime : number
-
-		/**` (.isRefresh) :: Global -> Boolean `*/
-		isRefresh : boolean
-
-		/**` (.scalar) :: Global -> Number `*/
-		scalar : number
-
-		/**` (.isResizing) :: Global -> Boolean `*/
-		isResizing : boolean
+		canvasWidth : number
+		isRefresh   : boolean
+		isResizing  : boolean
 	}
 
 type Local =
 	{
-		CONS : 'State1'
+		variation : 'Local'
 	}
 
 /********************************************************************************************************************************/
 // Implementation of Algebraic Data Type Constructors //
 
-/**` Global :: { ... } -> Global `*/
-const Global = (record : Rec <Global>) : Global => ({ CONS : 'Global', ...record })
+/**` Global : { ... } -> Global `*/
+const Global =
+	(record : {
+		time        : number
+		deltaTime   : number
+		refreshTime : number
+		canvasWidth : number
+		isRefresh   : boolean
+		isResizing  : boolean
+	}) : Global => ({ variation : 'Global', ...record })
 
-/**` State1 :: Local `*/
-const State1 : Local =
-	{
-		CONS : 'State1'
-	}
+/**` Local : { ... } -> Local `*/
+const Local =
+	(record : {
+
+	}) : Local => ({ variation : 'Local', ...record })
 
 /********************************************************************************************************************************/
 // Implementation of Micro-Functions //
 
-// -- Updates the global state
-/**` iterateGlobal :: Global -> IO Global `*/
-const iterateGlobal = (global : Global) : IO <Global> =>
-	Do.IO
-		/**` $.present :: Number `*/
-		.bindto ('present', _ => Input.time)
-
-		/**` $.refreshTime :: Number `*/
-		.fmapto ('refreshTime', $ => (global.refreshTime > REFRESH_RATE ? 0 : global.refreshTime) + $.present - global.time)
-
-		/**` $.maxScalar :: Number `*/
-		.bindto ('maxScalar', _ => maximumCanvasScalar)
-
-		/**` $.isResized :: Boolean `*/
-		.bindto ('isResized', _ => Input.isWindowResized)
-
-		/**` $.isResizing :: Boolean `*/
-		.fmapto ('isResizing', $ => ($.isResized || global.isResizing) && diff (global.scalar) ($.maxScalar) > RESIZE_THRESHOLD)
-
-		.fmap
-		( $ =>
-			Global
-			({
-				time        : $.present,
-				refreshTime : $.refreshTime,
-				isRefresh   : $.refreshTime > REFRESH_RATE,
-				scalar      : $.isResizing ? lerp (RESIZE_SPEED) (global.scalar) ($.maxScalar) : global.scalar,
-				isResizing  : $.isResizing
-			})
-		)
-
-// -- Calculates the maximum scalar for the canvas
-/**` maximumCanvasScalar :: IO Number `*/
-const maximumCanvasScalar : IO <number> =
-	Do.IO
-		/**` $.windowDimensions :: Pair Number Number `*/
-		.bindto ('windowDimensions', _ => Input.windowP)
-
-		.fmap ($ => min ($.windowDimensions .fst) ($.windowDimensions .snd * ASPECT_RATIO))
-
-// -- Scales the canvas uniformly
-/**` scaleCanvas :: Number -> IO () `*/
-const scaleCanvas = (scalar : number) : IO <null> =>
-	Reput.canvasWH (scalar) (scalar / ASPECT_RATIO)
-
 /********************************************************************************************************************************/
-// Main //
+// Main and Loop //
 
-/**` main :: IO () `*/
+/**` main : IO () `*/
 const main : IO <null> =
 	Do.IO
-		/**` $.present :: Number `*/
-		.bindto ('present', _ => Input.time)
+		/**` $.present : Number `*/
+		.bindto ('present') <number>
+			(_ => I.time)
 
-		/**` $.maxScalar :: Number `*/
-		.bindto ('maxScalar', _ => maximumCanvasScalar)
+		/**` $.idealCanvasWidth : Number `*/
+		.bindto ('idealCanvasWidth') <number>
+			(_ =>
+				I.windowWH
+					.fmap (fsnd (mul (std.aspectRatio)))
+					.fmap (uncurry (min))
+			)
 
-		// -- Maximizes the canvas
-		.also ($ => scaleCanvas ($.maxScalar))
+		.also ($ => O.setCanvasWH ($.idealCanvasWidth) ($.idealCanvasWidth / std.aspectRatio))
 
-		// -- Starts the project with initial states
 		.bind ($ =>
 			loop
-			(
+				(
+					Global
+					({
+						time        : $.present,
+						deltaTime   : 0,
+						refreshTime : 0,
+						canvasWidth : $.idealCanvasWidth,
+						isRefresh   : false,
+						isResizing  : false
+					})
+				)(
+					Local
+					({
+					})
+				)
+		)
+
+/**` loop : Global -> Local -> IO () `*/
+const loop = (global : Global) => (local : Local) : IO <null> =>
+	Do.IO
+		/**` $.present : Number `*/
+		.bindto ('present') <number>
+			(_ => I.time)
+
+		/**` $.isWindowResized : boolean `*/
+		.bindto ('isWindowResized') <boolean>
+			(_ => I.isWindowResized)
+
+		/**` $.maxCanvasWidth : Number `*/
+		.bindto ('maxCanvasWidth') <number>
+			(_ =>
+				I.windowWH
+					.fmap (fsnd (mul (std.aspectRatio)))
+					.fmap (uncurry (min))
+			)
+
+		/**` $.nextDeltaTime : Number `*/
+		.fmapto ('nextDeltaTime') <number>
+			($ => $.present - global.time)
+
+		/**` $.nextRefreshTime : Number `*/
+		.fmapto ('nextRefreshTime') <number>
+			($ => (global.isRefresh ? 0 : global.refreshTime) + $.nextDeltaTime)
+
+		/**` $.nextIsRefresh : Boolean `*/
+		.fmapto ('nextIsRefresh') <boolean>
+			($ => $.nextRefreshTime > std.refreshRate)
+
+		/**` $.nextIsResizing : Boolean `*/
+		.fmapto ('nextIsResizing') <boolean>
+			($ => ($.isWindowResized || global.isResizing) && diff ($.maxCanvasWidth) (global.canvasWidth) > std.resizeThreshold)
+
+		/**` $.nextGlobal : Global `*/
+		.fmapto ('nextGlobal') <Global>
+			($ =>
 				Global
 				({
 					time        : $.present,
-					refreshTime : 0,
-					isRefresh   : false,
-					scalar      : $.maxScalar,
-					isResizing  : false
+					deltaTime   : $.nextDeltaTime,
+					refreshTime : $.nextRefreshTime,
+					canvasWidth :
+						$.nextIsResizing && $.nextIsRefresh
+							? lerp (std.resizeSpeed) (global.canvasWidth) ($.maxCanvasWidth)
+							: global.canvasWidth,
+					isRefresh   : $.nextIsRefresh,
+					isResizing  : $.nextIsResizing
 				})
-			)(
-				State1
 			)
-		)
 
-/**` loop :: Global -> Local -> IO () `*/
-const loop = (global : Global) => (local : Local) : IO <null> =>
-	Do.IO
-		/**` $.nextGlobal :: Global `*/
-		.bindto ('nextGlobal', _ => iterateGlobal (global))
+		/**` $.nextLocal : Local `*/
+		.bindto ('nextLocal') <Local>
+			($ => update ($.nextGlobal) (local))
 
-		/**` $.nextLocal :: Global `*/
-		.bindto ('nextLocal', $ => update ($.nextGlobal) (local))
-
-		// -- Resizes the canvas
 		.also ($ =>
-			$.nextGlobal.isRefresh && $.nextGlobal.isResizing
-				? scaleCanvas ($.nextGlobal.scalar)
+			$.nextIsResizing && $.nextIsRefresh
+				? O.setCanvasWH ($.nextGlobal.canvasWidth) ($.nextGlobal.canvasWidth / std.aspectRatio)
 				: idle
 		)
+		.also ($ => render ($.nextGlobal) ($.nextLocal))
+		.side (O.resetState)
+		.bind ($ => O.queue (loop ($.nextGlobal) ($.nextLocal)))
 
-		// -- Renders to the canvas
-		.also ($ =>
-			$.nextGlobal.isRefresh
-				? render ($.nextGlobal) ($.nextLocal)
-				: idle
-		)
+/********************************************************************************************************************************/
+// Update and Render //
 
-		.side (Output.tick)
-		.bind ($ => Output.queue (loop ($.nextGlobal) ($.nextLocal)))
+/**` update : Global -> Local -> IO Local `*/
+const update = (global : Global) => (local : Local) : IO <Local> =>
+	send (local)
 
-/**` render :: Global -> Local -> IO () `*/
+/**` render : Global -> Local -> IO () `*/
 const render = (global : Global) => (local : Local) : IO <null> =>
 	idle
-
-/**` update :: Global -> Local -> IO Local `*/
-const update = (global : Global) => (local : Local) : IO <Local> =>
-	unit.IO (local)
