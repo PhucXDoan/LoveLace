@@ -46,10 +46,10 @@ interface String
 	eq : (str : string) => boolean
 }
 
-interface Array <a>
+interface Array <T>
 {
 	/**` [a].pipe : ([a] -> b) -> b `*/
-	pipe : <b>(morphism : (array : Array <a>) => b) => b
+	pipe : <b>(morphism : (array : Array <T>) => b) => b
 }
 
 type IO <a> =
@@ -855,9 +855,9 @@ const warn = (message : string) => <a>(value : a) : a => (console.warn(message),
 
 Boolean.prototype.pipe =
 Number .prototype.pipe =
-String .prototype.pipe = (Array.prototype.pipe = function (f) { return f (this as any) })
+String .prototype.pipe = (Array.prototype.pipe = function (f) { return f (this as any) }) as any
 Boolean.prototype.eq   =
-Number .prototype.eq   = (String.prototype.eq   = function (x) { return this === x      }) as any
+Number .prototype.eq   = (String.prototype.eq  = function (x) { return this === x      }) as any
 
 /**` IO : (() -> a) -> IO a `*/
 const IO = <a>(effect : () => a) : IO <a> =>
@@ -5345,4 +5345,6 @@ onload = () =>
 	}
 
 	document.onpointerlockchange = () => Ψ.isPointerLocked = document.pointerLockElement === Ψ.ctx.canvas
+
+	if (main) main.effect ()
 }
