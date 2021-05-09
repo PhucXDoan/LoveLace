@@ -10,7 +10,7 @@
 	"rules":
 	{
 		"@typescript-eslint/no-explicit-any"        : "off",
-		"@typescript-eslint/no-unused-vars"         : ["warn", { "argsIgnorePattern": "_" }],
+		"@typescript-eslint/no-unused-vars"         : ["warn", { "varsIgnorePattern" : "_|^main$", "argsIgnorePattern": "_" }],
 		"@typescript-eslint/array-type"             : ["error", { "default": "generic", "readonly": "generic" }],
 		"@typescript-eslint/no-redeclare"           : "off",
 		"@typescript-eslint/no-shadow"              : ["error", { "allow" : ["_"] }],
