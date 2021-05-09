@@ -850,6 +850,9 @@ const error = (message : string) : any => { throw message }
 /**` warn : String -> a -> a `*/
 const warn = (message : string) => <a>(value : a) : a => (console.warn(message), value)
 
+/**` never : a `*/
+const never : any = undefined
+
 /********************************************************************************************************************************/
 // Implementation of Algebraic Data Type Constructors //
 
@@ -3725,18 +3728,20 @@ namespace I
 namespace O
 {
 	/**` O.n_setCanvasW : Number -> IO () `*/
-	export const n_setCanvasW = (w : number) : IO <null> => IO (() => (Ψ.ctx.canvas.width = w * innerWidth, null))
+	export const n_setCanvasW = (w : number) : IO <null> =>
+		IO (() => (Ψ.ctxs.forEach(ctx => ctx.canvas.width = w * innerWidth), null))
 
 	/**` O.n_setCanvasH : Number -> IO () `*/
-	export const n_setCanvasH = (h : number) : IO <null> => IO (() => (Ψ.ctx.canvas.height = h * innerHeight, null))
+	export const n_setCanvasH = (h : number) : IO <null> =>
+		IO (() => (Ψ.ctxs.forEach(ctx => ctx.canvas.height = h * innerHeight), null))
 
 	/**` O.n_setCanvasWH : Number -> Number -> IO () `*/
 	export const n_setCanvasWH = (w : number) => (h : number) : IO <null> =>
-		IO (() => (Ψ.ctx.canvas.width = w * innerWidth, Ψ.ctx.canvas.height = h * innerHeight, null))
+		IO (() => (Ψ.ctxs.forEach(ctx => (ctx.canvas.width = w * innerWidth, ctx.canvas.height = h * innerHeight)), null))
 
 	/**` O.n_setCanvasV2 : Vector2 -> IO () `*/
 	export const n_setCanvasV2 = (wh : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.canvas.width = wh.x * innerWidth, Ψ.ctx.canvas.height = wh.y * innerHeight, null))
+		IO (() => (Ψ.ctxs.forEach(ctx => (ctx.canvas.width = wh.x * innerWidth, ctx.canvas.height = wh.y * innerHeight)), null))
 
 	/**` O.n_setLineThickness : Number -> IO () `*/
 	export const n_setLineThickness = (thickness : number) : IO <null> =>
@@ -4587,18 +4592,18 @@ namespace O
 	export const deactivatePointerLock : IO <null> = IO (() => onmouseup = null)
 
 	/**` O.setCanvasW : Number -> IO () `*/
-	export const setCanvasW = (w : number) : IO <null> => IO (() => (Ψ.ctx.canvas.width = w, null))
+	export const setCanvasW = (w : number) : IO <null> => IO (() => (Ψ.ctxs.forEach(ctx => ctx.canvas.width = w), null))
 
 	/**` O.setCanvasH : Number -> IO () `*/
-	export const setCanvasH = (h : number) : IO <null> => IO (() => (Ψ.ctx.canvas.height = h, null))
+	export const setCanvasH = (h : number) : IO <null> => IO (() => (Ψ.ctxs.forEach(ctx => ctx.canvas.height = h), null))
 
 	/**` O.setCanvasWH : Number -> Number -> IO () `*/
 	export const setCanvasWH = (w : number) => (h : number) : IO <null> =>
-		IO (() => (Ψ.ctx.canvas.width = w, Ψ.ctx.canvas.height = h, null))
+		IO (() => (Ψ.ctxs.forEach(ctx => (ctx.canvas.width = w, ctx.canvas.height = h)), null))
 
 	/**` O.setCanvasV2 : Vector2 -> IO () `*/
 	export const setCanvasV2 = (wh : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.canvas.width = wh.x, Ψ.ctx.canvas.height = wh.y, null))
+		IO (() => (Ψ.ctxs.forEach(ctx => (ctx.canvas.width = wh.x, ctx.canvas.height = wh.y)), null))
 
 	/**` O.setLayer : Number -> IO () `*/
 	export const setLayer = (index : number) : IO <null> =>
