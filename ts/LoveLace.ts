@@ -5345,6 +5345,7 @@ onload = () =>
 	}
 
 	document.onpointerlockchange = () => Ψ.isPointerLocked = document.pointerLockElement === Ψ.ctx.canvas
+	Ψ.ctx.canvas.setAttribute("style", "background:white")
 
 	if (main) main.effect ()
 }
