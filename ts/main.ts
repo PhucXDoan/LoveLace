@@ -1,19 +1,19 @@
 /********************************************************************************************************************************/
 // Constants and Settings  //
 
-namespace std
+namespace STD
 {
-	/**` std.refreshRate : Number `*/
+	/**` STD.refreshRate : Number `*/
 	export const refreshRate : number = 15
 
-	/**` std.aspectRatio : Number `*/
+	/**` STD.aspectRatio : Number `*/
 	export const aspectRatio : number = 16 / 9
 
-	/**` std.resizeThreshold : Number `*/
+	/**` STD.resizeThreshold : Number `*/
 	export const resizeThreshold : number = 5
 
-	/**` std.resizeSpeed : Number `*/
-	export const resizeSpeed : number = 0.15
+	/**` STD.resizeSpeed : Number `*/
+	export const resizeSpeed : number = 0.25
 }
 
 /********************************************************************************************************************************/
@@ -66,19 +66,20 @@ const main : IO <null> =
 	Do.IO
 		/**` $.present : Number `*/
 		.bindto ('present') <number>
-			(_ => I.time)
+		(_ => I.time)
 
 		/**` $.idealCanvasWidth : Number `*/
 		.bindto ('idealCanvasWidth') <number>
-			(_ =>
-				I.windowWH
-					.fmap (fsnd (mul (std.aspectRatio)))
-					.fmap (uncurry (min))
-			)
+		(_ =>
+			I.windowWH
+				.fmap (fsnd (mul (STD.aspectRatio)))
+				.fmap (uncurry (min))
+		)
 
-		.also ($ => O.setCanvasWH ($.idealCanvasWidth) ($.idealCanvasWidth / std.aspectRatio))
+		.also ($ => O.setCanvasWH ($.idealCanvasWidth) ($.idealCanvasWidth / STD.aspectRatio))
 
-		.bind ($ =>
+		.bind
+		($ =>
 			loop
 				(
 					Global
@@ -102,60 +103,60 @@ const loop = (global : Global) => (local : Local) : IO <null> =>
 	Do.IO
 		/**` $.present : Number `*/
 		.bindto ('present') <number>
-			(_ => I.time)
-
-		/**` $.isWindowResized : boolean `*/
-		.bindto ('isWindowResized') <boolean>
-			(_ => I.isWindowResized)
+		(_ => I.time)
 
 		/**` $.maxCanvasWidth : Number `*/
 		.bindto ('maxCanvasWidth') <number>
-			(_ =>
-				I.windowWH
-					.fmap (fsnd (mul (std.aspectRatio)))
-					.fmap (uncurry (min))
-			)
+		(_ =>
+			I.windowWH
+				.fmap (fsnd (mul (STD.aspectRatio)))
+				.fmap (uncurry (min))
+		)
+
+		/**` $.nextIsResizing : Boolean `*/
+		.bindto ('nextIsResizing') <boolean>
+		($ =>
+			I.isWindowResized
+				.fmap (b => (b || global.isResizing) && napprox (STD.resizeThreshold) ($.maxCanvasWidth) (global.canvasWidth))
+		)
 
 		/**` $.nextDeltaTime : Number `*/
 		.fmapto ('nextDeltaTime') <number>
-			($ => $.present - global.time)
+		($ => $.present - global.time)
 
 		/**` $.nextRefreshTime : Number `*/
 		.fmapto ('nextRefreshTime') <number>
-			($ => (global.isRefresh ? 0 : global.refreshTime) + $.nextDeltaTime)
+		($ => (global.isRefresh ? 0 : global.refreshTime) + $.nextDeltaTime)
 
 		/**` $.nextIsRefresh : Boolean `*/
 		.fmapto ('nextIsRefresh') <boolean>
-			($ => $.nextRefreshTime > std.refreshRate)
-
-		/**` $.nextIsResizing : Boolean `*/
-		.fmapto ('nextIsResizing') <boolean>
-			($ => ($.isWindowResized || global.isResizing) && diff ($.maxCanvasWidth) (global.canvasWidth) > std.resizeThreshold)
+		($ => $.nextRefreshTime > STD.refreshRate)
 
 		/**` $.nextGlobal : Global `*/
 		.fmapto ('nextGlobal') <Global>
-			($ =>
-				Global
-				({
-					time        : $.present,
-					deltaTime   : $.nextDeltaTime,
-					refreshTime : $.nextRefreshTime,
-					canvasWidth :
-						$.nextIsResizing && $.nextIsRefresh
-							? lerp (std.resizeSpeed) (global.canvasWidth) ($.maxCanvasWidth)
-							: global.canvasWidth,
-					isRefresh   : $.nextIsRefresh,
-					isResizing  : $.nextIsResizing
-				})
-			)
+		($ =>
+			Global
+			({
+				time        : $.present,
+				deltaTime   : $.nextDeltaTime,
+				refreshTime : $.nextRefreshTime,
+				canvasWidth :
+					$.nextIsResizing && $.nextIsRefresh
+						? lerp (STD.resizeSpeed) (global.canvasWidth) ($.maxCanvasWidth)
+						: global.canvasWidth,
+				isRefresh   : $.nextIsRefresh,
+				isResizing  : $.nextIsResizing
+			})
+		)
 
 		/**` $.nextLocal : Local `*/
 		.bindto ('nextLocal') <Local>
-			($ => update ($.nextGlobal) (local))
+		($ => update ($.nextGlobal) (local))
 
-		.also ($ =>
+		.also
+		($ =>
 			$.nextIsResizing && $.nextIsRefresh
-				? O.setCanvasWH ($.nextGlobal.canvasWidth) ($.nextGlobal.canvasWidth / std.aspectRatio)
+				? O.setCanvasWH ($.nextGlobal.canvasWidth) ($.nextGlobal.canvasWidth / STD.aspectRatio)
 				: idle
 		)
 		.also ($ => render ($.nextGlobal) ($.nextLocal))
