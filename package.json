@@ -13,12 +13,12 @@
 	},
 	"dependencies": {
 		"@swc/cli": "^0.1.39",
-		"@swc/core": "^1.2.54",
+		"@swc/core": "^1.2.57",
 		"@types/css-font-loading-module": "0.0.4",
-		"@typescript-eslint/eslint-plugin": "^4.22.1",
-		"@typescript-eslint/parser": "^4.22.1",
+		"@typescript-eslint/eslint-plugin": "^4.23.0",
+		"@typescript-eslint/parser": "^4.23.0",
 		"chokidar": "^3.5.1",
-		"eslint": "^7.25.0",
+		"eslint": "^7.26.0",
 		"typescript": "^4.2.4"
 	}
 }
