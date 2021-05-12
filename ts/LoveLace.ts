@@ -16,6 +16,9 @@ const STAP = "(S.T.A.P.) Stopped To Avoid Phailures"
 type Pipe <a> = a & { pipe : <b>(morphism : (value : a) => b) => b       }
 type Eq   <a> = a & { eq   :    (value    :                a) => boolean }
 
+/**` eq : Eq a => a -> a -> Boolean `*/
+const eq = <a>(leftside : Eq <a>) : (rightside : Eq <a>) => boolean => leftside .eq
+
 /********************************************************************************************************************************/
 // Algebraic Data Types //
 
@@ -841,6 +844,15 @@ const isInRect = (rx : number) => (ry : number) => (rw : number) => (rh : number
 	rx < x && x < rx + rw &&
 	ry < y && y < ry + rh
 
+/**` isInRectV2 : Vector2 -> Vector2 -> Vector2 -> Boolean `*/
+const isInRectV2 = (rxy : Vector2) => (rwh : Vector2) => (xy : Vector2) : boolean =>
+	rxy.x < xy.x && xy.x < rxy.x + rwh.x &&
+	rxy.y < xy.y && xy.y < rxy.y + rwh.y
+
+/**` match : [a] -> Number -> a `*/
+const match = <a>(...values : Array <a>) => (index : number) : a =>
+	values[index] ?? error (`'match' takes non-negative integers in interval [0, ${values.length}); instead received '${index}'`)
+
 /**` show : a -> String `*/
 const show = <a>(value : a) : string => `${value}`
 
@@ -859,8 +871,10 @@ const never : any = undefined
 Boolean.prototype.pipe =
 Number .prototype.pipe =
 String .prototype.pipe = (Array.prototype.pipe = function (f) { return f (this as any) }) as any
-Boolean.prototype.eq   =
-Number .prototype.eq   = (String.prototype.eq  = function (x) { return this === x      }) as any
+
+Boolean.prototype.eq = function (x) { return !!this === x          }
+Number .prototype.eq = function (x) { return +this === x           }
+String .prototype.eq = function (x) { return this.toString() === x }
 
 /**` IO : (() -> a) -> IO a `*/
 const IO = <a>(effect : () => a) : IO <a> =>
@@ -1205,7 +1219,14 @@ const idle : IO <null> =
 
 /**` executing : (...IO a) -> IO () `*/
 const executing = <a>(...ios : Array <IO <a>>) : IO <null> =>
-	IO (() => (ios .forEach (io => io.effect ()), null))
+	IO (() => (ios.forEach(io => io.effect ()), null))
+
+/**` dofor : Number -> (Number -> IO a) -> IO () `*/
+const dofor = (amount : number) => <a>(effect : (index : number) => IO <a>) : IO <null> =>
+	naturals
+		.pipe (take (amount))
+		.fmap (effect)
+		.pipe (executeIOs)
 
 /********************************************************************************************************************************/
 // Constants and Micro-Functions for Process //
@@ -2338,6 +2359,12 @@ const ensure = <a>(predicate : (value : a) => boolean) => (value : a) : Maybe <a
 	predicate (value)
 		? Just (value)
 		: Nothing
+
+/**` maybeIO : Maybe (IO a) -> IO () `*/
+const maybeIO = <a>(maybe : Maybe <IO <a>>) : IO <null> =>
+	maybe.variation === 'Nothing'
+		? idle
+		: maybe.value .cast (null)
 
 /********************************************************************************************************************************/
 // Constants and Micro-Functions for Pair //
@@ -3759,8 +3786,8 @@ namespace O
 	export const n_setFontSize = (size : number) : IO <null> =>
 		IO (() => (Ψ.ctx.font = `${size * Ψ.ctx.canvas.width}px${Ψ.ctx.font.slice(Ψ.ctx.font.indexOf(' '))}`, null))
 
-	/**` O.n_setShadowRGBA : (Number, Number, Number, Number) -> IO () `*/
-	export const n_setShadowRGBA = (r : number, g : number, b : number, a : number) : IO <null> =>
+	/**` O.n_setShadowRGBA : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_setShadowRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
 		IO (() => (Ψ.ctx.shadowColor = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null))
 
 	/**` O.n_setShadowX : Number -> IO () `*/
@@ -3791,16 +3818,16 @@ namespace O
 			), null)
 		)
 
-	/**` O.n_setFillRGBA : (Number, Number, Number, Number) -> IO () `*/
-	export const n_setFillRGBA = (r : number, g : number, b : number, a : number) : IO <null> =>
+	/**` O.n_setFillRGBA : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_setFillRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
 		IO (() => (Ψ.ctx.fillStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null))
 
 	/**` O.n_setFillV4 : Vector4 -> IO () `*/
 	export const n_setFillV4 = (v : Vector4) : IO <null> =>
 		IO (() => (Ψ.ctx.fillStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null))
 
-	/**` O.n_setStrokeRGBA : (Number, Number, Number, Number) -> IO () `*/
-	export const n_setStrokeRGBA = (r : number, g : number, b : number, a : number) : IO <null> =>
+	/**` O.n_setStrokeRGBA : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_setStrokeRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
 		IO (() => (Ψ.ctx.strokeStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null))
 
 	/**` O.n_setStrokeV4 : Vector4 -> IO () `*/
@@ -4133,6 +4160,24 @@ namespace O
 			), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
 		))
 
+	/**` O.n_strokeFillRect : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_strokeFillRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.rect(
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+				w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
+			), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
+		))
+
+	/**` O.n_strokeFillRectV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_strokeFillRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.rect(
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
+			), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
+		))
+
 	/**` O.n_area : Number -> Number -> Number -> Number -> IO () `*/
 	export const n_area = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
 		IO (() => (
@@ -4202,6 +4247,24 @@ namespace O
 				xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height,
 				(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
 			), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_strokeFillArea : Number -> Number -> Number -> Number -> IO () `*/
+	export const n_strokeFillArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.rect(
+				x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height,
+				(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
+			), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
+		))
+
+	/**` O.n_strokeFillAreaV2 : Vector2 -> Vector2 -> IO () `*/
+	export const n_strokeFillAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.rect(
+				xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height,
+				(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
+			), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
 		))
 
 	/**` O.n_arc : ...5 Number -> IO () `*/
@@ -4314,6 +4377,20 @@ namespace O
 		IO (() => (
 			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
 			Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+		))
+
+	/**` O.n_strokeFillCircle : Number -> Number -> Number -> IO () `*/
+	export const n_strokeFillCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+			Ψ.ctx.stroke(), Ψ.ctx.fill(), null
+		))
+
+	/**` O.n_strokeFillCircleV2 : Number -> Vector2 -> IO () `*/
+	export const n_strokeFillCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+			Ψ.ctx.stroke(), Ψ.ctx.fill(), null
 		))
 
 	/**` O.n_elliptic : ...7 Number -> IO () `*/
@@ -4488,6 +4565,29 @@ namespace O
 			), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
 		))
 
+	/**` O.n_strokeFillEllipse : ...5 Number -> IO () `*/
+	export const n_strokeFillEllipse =
+		(a  : number) =>
+		(kx : number) => (ky : number) =>
+		(x  : number) => (y  : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
+				a * tau, 0, tau
+			), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
+		))
+
+	/**` O.n_strokeFillEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+	export const n_strokeFillEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.ellipse(
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
+				a * tau, 0, tau
+			), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
+		))
+
 	/**` O.n_fillText : a -> Number -> Number -> IO () `*/
 	export const n_fillText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
 		IO (() => (Ψ.ctx.fillText(text as any, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height), null))
@@ -4517,6 +4617,22 @@ namespace O
 		IO (() => (
 			Ψ.ctx.fillText(text as any, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height),
 			Ψ.ctx.strokeText(text as any, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height),
+			null
+		))
+
+	/**` O.n_strokeFillText : a -> Number -> Number -> IO () `*/
+	export const n_strokeFillText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.strokeText(text as any, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height),
+			Ψ.ctx.fillText(text as any, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height),
+			null
+		))
+
+	/**` O.n_strokeFillTextV2 : a -> Vector2 -> IO () `*/
+	export const n_strokeFillTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
+		IO (() => (
+			Ψ.ctx.strokeText(text as any, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height),
+			Ψ.ctx.fillText(text as any, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height),
 			null
 		))
 
@@ -4608,7 +4724,7 @@ namespace O
 	/**` O.setLayer : Number -> IO () `*/
 	export const setLayer = (index : number) : IO <null> =>
 		IO (() =>
-			index < 0 || index > Ψ.ctxs.length || !Number.isInteger (index)
+			index < 0 || index >= Ψ.ctxs.length || !Number.isInteger (index)
 				? error (`'O.setLayer' received index of '${index}'; must be a integer in interval [0, ${Ψ.ctxs.length})`)
 				: (Ψ.ctx = Ψ.ctxs[index]!, null)
 		)
@@ -4643,8 +4759,8 @@ namespace O
 	/**` O.setShadowColor : String -> IO () `*/
 	export const setShadowColor = (color : string) : IO <null> => IO (() => (Ψ.ctx.shadowColor = color, null))
 
-	/**` O.setShadowRGBA : (Number, Number, Number, Number) -> IO () `*/
-	export const setShadowRGBA = (r : number, g : number, b : number, a : number) : IO <null> =>
+	/**` O.setShadowRGBA : Number -> Number -> Number -> Number -> IO () `*/
+	export const setShadowRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
 		IO (() => (Ψ.ctx.shadowColor = `rgba(${r},${g},${b},${a})`, null))
 
 	/**` O.setShadowV4 : Vector4 -> IO () `*/
@@ -4678,8 +4794,8 @@ namespace O
 	/**` O.setFillColor : String -> IO () `*/
 	export const setFillColor = (color : string) : IO <null> => IO (() => (Ψ.ctx.fillStyle = color, null))
 
-	/**` O.setFillRGBA : (Number, Number, Number, Number) -> IO () `*/
-	export const setFillRGBA = (r : number, g : number, b : number, a : number) : IO <null> =>
+	/**` O.setFillRGBA : Number -> Number -> Number -> Number -> IO () `*/
+	export const setFillRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
 		IO (() => (Ψ.ctx.fillStyle = `rgba(${r},${g},${b},${a})`, null))
 
 	/**` O.setFillV4 : Vector4 -> IO () `*/
@@ -4689,8 +4805,8 @@ namespace O
 	/**` O.setStrokeColor : String -> IO () `*/
 	export const setStrokeColor = (color : string) : IO <null> => IO (() => (Ψ.ctx.strokeStyle = color, null))
 
-	/**` O.setStrokeRGBA : (Number, Number, Number, Number) -> IO () `*/
-	export const setStrokeRGBA = (r : number, g : number, b : number, a : number) : IO <null> =>
+	/**` O.setStrokeRGBA : Number -> Number -> Number -> Number -> IO () `*/
+	export const setStrokeRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
 		IO (() => (Ψ.ctx.strokeStyle = `rgba(${r},${g},${b},${a})`, null))
 
 	/**` O.setStrokeV4 : Vector4 -> IO () `*/
@@ -4718,11 +4834,11 @@ namespace O
 		IO (() => (Ψ.ctx.globalCompositeOperation = mappingCompositionToHTML5 .codomain (composition), null))
 
 	/**` O.setToCenterText : IO () `*/
-	export const setCenterText : IO <null> =
+	export const setToCenterText : IO <null> =
 		IO (() => (Ψ.ctx.textAlign = 'center', Ψ.ctx.textBaseline = 'middle', null))
 
 	/**` O.setToDefaultText : IO () `*/
-	export const defaultText : IO <null> =
+	export const setToDefaultText : IO <null> =
 		IO (() => (Ψ.ctx.textAlign = 'start', Ψ.ctx.textBaseline = 'alphabetic', null))
 
 	/**` O.resetState : IO () `*/
@@ -5086,6 +5202,14 @@ must be in interval [0, ${Ψ.audio[path].duration}] for audio file: '${path}'`)
 	export const fillStrokeRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
 		IO (() => (Ψ.ctx.rect(xy.x, xy.y, wh.x, wh.y), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
 
+	/**` O.strokeFillRect : Number -> Number -> Number -> Number -> IO () `*/
+	export const strokeFillRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+		IO (() => (Ψ.ctx.rect(x, y, w, h), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
+
+	/**` O.strokeFillRectV2 : Vector2 -> Vector2 -> IO () `*/
+	export const strokeFillRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.rect(xy.x, xy.y, wh.x, wh.y), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
+
 	/**` O.area : Number -> Number -> Number -> Number -> IO () `*/
 	export const area = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
 		IO (() => (Ψ.ctx.rect(x0, y0, x1 - x0, y1 - y0), null))
@@ -5117,6 +5241,14 @@ must be in interval [0, ${Ψ.audio[path].duration}] for audio file: '${path}'`)
 	/**` O.fillStrokeAreaV2 : Vector2 -> Vector2 -> IO () `*/
 	export const fillStrokeAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
 		IO (() => (Ψ.ctx.rect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+	/**` O.strokeFillArea : Number -> Number -> Number -> Number -> IO () `*/
+	export const strokeFillArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+		IO (() => (Ψ.ctx.rect(x0, y0, x1 - x0, y1 - y0), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
+
+	/**` O.strokeFillAreaV2 : Vector2 -> Vector2 -> IO () `*/
+	export const strokeFillAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.rect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
 
 	/**` O.arc : ...5 Number -> IO () `*/
 	export const arc = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
@@ -5181,6 +5313,14 @@ must be in interval [0, ${Ψ.audio[path].duration}] for audio file: '${path}'`)
 	/**` O.fillStrokeCircleV2 : Number -> Vector2 -> IO () `*/
 	export const fillStrokeCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
 		IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+	/**` O.strokeFillCircle : Number -> Number -> Number -> IO () `*/
+	export const strokeFillCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(x, y, r, 0, tau), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
+
+	/**` O.strokeFillCircleV2 : Number -> Vector2 -> IO () `*/
+	export const strokeFillCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
 
 	/**` O.elliptic : ...7 Number -> IO () `*/
 	export const elliptic =
@@ -5262,6 +5402,14 @@ must be in interval [0, ${Ψ.audio[path].duration}] for audio file: '${path}'`)
 	export const fillStrokeEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
 		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
 
+	/**` O.strokeFillEllipse : ...5 Number -> IO () `*/
+	export const strokeFillEllipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, 0, tau), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
+
+	/**` O.strokeFillEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+	export const strokeFillEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
+
 	/**` O.fillText : a -> Number -> Number -> IO () `*/
 	export const fillText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
 		IO (() => (Ψ.ctx.fillText(text as any, x, y), null))
@@ -5285,6 +5433,14 @@ must be in interval [0, ${Ψ.audio[path].duration}] for audio file: '${path}'`)
 	/**` O.fillStrokeText : a -> Vector2 -> IO () `*/
 	export const fillStrokeTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
 		IO (() => (Ψ.ctx.fillText(text as any, xy.x, xy.y), Ψ.ctx.strokeText(text as any, xy.x, xy.y), null))
+
+	/**` O.strokeFillText : a -> Number -> Number -> IO () `*/
+	export const strokeFillText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
+		IO (() => (Ψ.ctx.strokeText(text as any, x, y), Ψ.ctx.fillText(text as any, x, y), null))
+
+	/**` O.strokeFillText : a -> Vector2 -> IO () `*/
+	export const strokeFillTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
+		IO (() => (Ψ.ctx.strokeText(text as any, xy.x, xy.y), Ψ.ctx.fillText(text as any, xy.x, xy.y), null))
 
 	/**` O.line : Number -> Number -> Number -> Number -> IO () `*/
 	export const line = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
@@ -5341,16 +5497,16 @@ onload = () =>
 	{
 		Ψ.mouseWindowX = ev.x,
 		Ψ.mouseWindowY = ev.y,
-		Ψ.mouseCanvasX = ev.clientX - Ψ.ctx.canvas.offsetLeft,
-		Ψ.mouseCanvasY = ev.clientY - Ψ.ctx.canvas.offsetTop,
+		Ψ.mouseCanvasX = ev.clientX - Ψ.ctxs[0].canvas.offsetLeft,
+		Ψ.mouseCanvasY = ev.clientY - Ψ.ctxs[0].canvas.offsetTop,
 		Ψ.mouseScreenX = ev.screenX,
 		Ψ.mouseScreenY = ev.screenY,
 		Ψ.mouseDeltaX  = ev.movementX,
 		Ψ.mouseDeltaY  = ev.movementY
 	}
 
-	document.onpointerlockchange = () => Ψ.isPointerLocked = document.pointerLockElement === Ψ.ctx.canvas
-	Ψ.ctx.canvas.setAttribute("style", "background:white")
+	document.onpointerlockchange = () => Ψ.isPointerLocked = document.pointerLockElement === Ψ.ctxs[0].canvas
+	Ψ.ctxs[0].canvas.setAttribute("style", "background:white")
 
-	if (main) main.effect ()
+	if (typeof main !== 'undefined') main.effect ()
 }
