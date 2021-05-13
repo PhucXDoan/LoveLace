@@ -10,6 +10,10 @@
 const MAXI = 1024
 const STAP = "(S.T.A.P.) Stopped To Avoid Phailures"
 
+/**` never : a `*/
+declare const never : any
+Object.defineProperty(this, "never", { get() { throw `'never' was reached` } })
+
 /********************************************************************************************************************************/
 // Typeclasses //
 
@@ -861,9 +865,6 @@ const error = (message : string) : any => { throw message }
 
 /**` warn : String -> a -> a `*/
 const warn = (message : string) => <a>(value : a) : a => (console.warn(message), value)
-
-/**` never : a `*/
-const never : any = undefined
 
 /********************************************************************************************************************************/
 // Implementation of Algebraic Data Type Constructors //
@@ -2011,6 +2012,12 @@ const reverse = <a>(xs : List <a>) : List <a> =>
 const map = <a, b>(morphism : (element : a) => b) => (xs : List <a>) : List <b> =>
 	xs .fmap (morphism)
 
+/**` imap : (Number -> a -> b) -> List a -> List b `*/
+const imap = <a, b>(imorphism : (index : number) => (element : a) => b) => (xs : List <a>) : List <b> =>
+	xs.variation === 'Nil'
+		? Nil
+		: Cons (() => imorphism (0) (xs.head)) (() => imap (i => imorphism (i + 1)) (xs.tail))
+
 /**` intersperse : a -> List a -> List a `*/
 const intersperse = <a>(delimiter : a) => (xs : List <a>) : List <a> =>
 	xs.variation === 'Nil' || xs.tail.variation === 'Nil'
@@ -2365,6 +2372,10 @@ const maybeIO = <a>(maybe : Maybe <IO <a>>) : IO <null> =>
 	maybe.variation === 'Nothing'
 		? idle
 		: maybe.value .cast (null)
+
+/**` eqMaybe : (Eq a) => Maybe a -> a -> Boolean `*/
+const eqMaybe = <a>(maybe : Maybe <Eq <a>>) => (value : Eq <a>) : boolean =>
+	maybe.variation === 'Just' && maybe.value .eq (value)
 
 /********************************************************************************************************************************/
 // Constants and Micro-Functions for Pair //
@@ -3016,7 +3027,7 @@ const mappingCompositionToHTML5 : Mapping <Composition, string> =
 const sequenceIOs = <a>(ios : List <IO <a>>) : IO <List <a>> =>
 	IO (() => ios .fmap (io => io.effect ()))
 
-/**` executeIOs : List (IO a) -> IO a `*/
+/**` executeIOs : List (IO a) -> IO () `*/
 const executeIOs = <a>(ios : List <IO <a>>) : IO <null> =>
 	IO (() => {
 		for (let i = 0, xs = ios; xs.variation === 'Cons'; ++i)
@@ -4636,6 +4647,68 @@ namespace O
 			null
 		))
 
+	/**` O.n_fillMultilineText : String -> Number -> Number -> Number -> IO () `*/
+	export const n_fillMultilineText = (text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => {
+			const nextX = Ψ.ctx.canvas.width  * x
+			const nextY = Ψ.ctx.canvas.height * y
+			const nextS = Ψ.ctx.canvas.height * spacing
+			text.split('\n').forEach((line, i) => Ψ.ctx.fillText(line, nextX, nextY + nextS * i))
+			return null
+		})
+
+	/**` O.n_fillMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
+	export const n_fillMultilineTextV2 = (text : string) => (spacing : number) => (v : Vector2) : IO <null> =>
+		O.n_fillMultilineText (text) (spacing) (v.x) (v.y)
+
+	/**` O.n_strokeMultilineText : String -> Number -> Number -> Number -> IO () `*/
+	export const n_strokeMultilineText = (text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => {
+			const nextX = Ψ.ctx.canvas.width  * x
+			const nextY = Ψ.ctx.canvas.height * y
+			const nextS = Ψ.ctx.canvas.height * spacing
+			text.split('\n').forEach((line, i) => Ψ.ctx.strokeText(line, nextX, nextY + nextS * i))
+			return null
+		})
+
+	/**` O.n_strokeMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
+	export const n_strokeMultilineTextV2 = (text : string) => (spacing : number) => (v : Vector2) : IO <null> =>
+		O.n_strokeMultilineText (text) (spacing) (v.x) (v.y)
+
+	/**` O.n_strokeFillMultilineText : String -> Number -> Number -> Number -> IO () `*/
+	export const n_strokeFillMultilineText = (text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => {
+			const nextX = Ψ.ctx.canvas.width  * x
+			const nextY = Ψ.ctx.canvas.height * y
+			const nextS = Ψ.ctx.canvas.height * spacing
+			text.split('\n').forEach((line, i) => {
+				Ψ.ctx.strokeText(line, nextX, nextY + nextS * i)
+				Ψ.ctx.fillText(line, nextX, nextY + nextS * i)
+			})
+			return null
+		})
+
+	/**` O.n_strokeFillMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
+	export const n_strokeFillMultilineTextV2 = (text : string) => (spacing : number) => (v : Vector2) : IO <null> =>
+		O.n_strokeFillMultilineText (text) (spacing) (v.x) (v.y)
+
+	/**` O.n_fillStrokeMultilineText : String -> Number -> Number -> Number -> IO () `*/
+	export const n_fillStrokeMultilineText = (text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
+		IO (() => {
+			const nextX = Ψ.ctx.canvas.width  * x
+			const nextY = Ψ.ctx.canvas.height * y
+			const nextS = Ψ.ctx.canvas.height * spacing
+			text.split('\n').forEach((line, i) => {
+				Ψ.ctx.fillText(line, nextX, nextY + nextS * i)
+				Ψ.ctx.strokeText(line, nextX, nextY + nextS * i)
+			})
+			return null
+		})
+
+	/**` O.n_fillStrokeMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
+	export const n_fillStrokeMultilineTextV2 = (text : string) => (spacing : number) => (v : Vector2) : IO <null> =>
+		O.n_fillStrokeMultilineText (text) (spacing) (v.x) (v.y)
+
 	/**` O.n_line : Number -> Number -> Number -> Number -> IO () `*/
 	export const n_line = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
 		IO (() => (
@@ -4786,7 +4859,7 @@ namespace O
 		IO (() => (Ψ.ctx.setTransform(m3.ix, m3.iy, m3.jx, m3.jy, m3.kx, m3.ky), null))
 
 	/**` O.resetMatrix : IO () `*/
-	export const resetMatrix : IO <null> = IO (() => (Ψ.ctx.resetTransform, null))
+	export const resetMatrix : IO <null> = IO (() => (Ψ.ctx.resetTransform(), null))
 
 	/**` O.setAlpha : Number -> IO () `*/
 	export const setAlpha = (alpha : number) : IO <null> => IO (() => (Ψ.ctx.globalAlpha = alpha, null))
