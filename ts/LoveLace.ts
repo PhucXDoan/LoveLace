@@ -11,8 +11,27 @@ const MAXI = 1024
 const STAP = "(S.T.A.P.) Stopped To Avoid Phailures"
 
 /**` never : a `*/
-declare const never : any
-Object.defineProperty(this, "never", { get() { throw `'never' was reached` } })
+declare const never : never
+Object.defineProperty(this, "never", { get() { throw `Unexhuastive pattern matching | 'never' was reached` } })
+
+/**` keyboardKeysArray : [String] `*/
+const keyboardKeysArray =
+	[
+		'AltLeft'        , 'AltRight'  , 'ArrowDown'   , 'ArrowLeft'     , 'ArrowRight'   , 'ArrowUp'     , 'Backquote'      ,
+		'Backslash'      , 'Backspace' , 'BracketLeft' , 'BracketRight'  , 'CapsLock'     , 'Comma'       , 'ControlLeft'    ,
+		'ControlRight'   , 'Delete'    , 'NumpadAdd'   , 'NumpadDecimal' , 'NumpadDivide' , 'NumpadEnter' , 'NumpadMultiply' ,
+		'NumpadSubtract' , 'PageUp'    , 'Pagedown'    , 'Period'        , 'Quote'        , 'Semicolon'   , 'ShiftLeft'      ,
+		'ShiftRight'     , 'Slash'     , 'End'         , 'Enter'         , 'Equal'        , 'Home'        , 'Insert'         ,
+		'Minus'          , 'Space'     , 'Tab'         , 'Digit0'        , 'Digit1'       , 'Digit2'      , 'Digit3'         ,
+		'Digit4'         , 'Digit5'    , 'Digit6'      , 'Digit7'        , 'Digit8'       , 'Digit9'      , 'Numpad0'        ,
+		'Numpad1'        , 'Numpad2'   , 'Numpad3'     , 'Numpad4'       , 'Numpad5'      , 'Numpad6'     , 'Numpad7'        ,
+		'Numpad8'        , 'Numpad9'   , 'KeyA'        , 'KeyB'          , 'KeyC'         , 'KeyD'        , 'KeyE'           ,
+		'KeyF'           , 'KeyG'      , 'KeyH'        , 'KeyI'          , 'KeyJ'         , 'KeyK'        , 'KeyL'           ,
+		'KeyM'           , 'KeyN'      , 'KeyO'        , 'KeyP'          , 'KeyQ'         , 'KeyR'        , 'KeyS'           ,
+		'KeyT'           , 'KeyU'      , 'KeyV'        , 'KeyW'          , 'KeyX'         , 'KeyY'        , 'KeyZ'
+	] as const
+
+type KeyboardKey = typeof keyboardKeysArray[number]
 
 /********************************************************************************************************************************/
 // Typeclasses //
@@ -21,43 +40,10 @@ type Pipe <a> = a & { pipe : <b>(morphism : (value : a) => b) => b       }
 type Eq   <a> = a & { eq   :    (value    :                a) => boolean }
 
 /**` eq : Eq a => a -> a -> Boolean `*/
-const eq = <a>(leftside : Eq <a>) : (rightside : Eq <a>) => boolean => leftside .eq
+const eq = <a>(leftside : Eq <a>) => (rightside : Eq <a>) : boolean => leftside .eq (rightside)
 
 /********************************************************************************************************************************/
 // Algebraic Data Types //
-
-interface Boolean
-{
-	/**` Boolean.pipe : (Boolean -> a) -> a `*/
-	pipe : <a>(morphism : (bool : boolean) => a) => a
-
-	/**` Boolean.eq : Boolean -> Boolean `*/
-	eq : (bool : boolean) => boolean
-}
-
-interface Number
-{
-	/**` Number.pipe : (Number -> a) -> a `*/
-	pipe : <a>(morphism : (num : number) => a) => a
-
-	/**` Number.eq : Number -> Boolean `*/
-	eq : (num : number) => boolean
-}
-
-interface String
-{
-	/**` String.pipe : (String -> a) -> a `*/
-	pipe : <a>(morphism : (str : string) => a) => a
-
-	/**` String.eq : String -> Boolean `*/
-	eq : (str : string) => boolean
-}
-
-interface Array <T>
-{
-	/**` [a].pipe : ([a] -> b) -> b `*/
-	pipe : <b>(morphism : (array : Array <T>) => b) => b
-}
 
 type IO <a> =
 	{
@@ -412,20 +398,6 @@ type Matrix4 =
 
 		/**` Matrix4.eq : Matrix4 -> boolean `*/
 		eq : (m : Matrix4) => boolean
-	}
-
-type Mapping <a, b> =
-	{
-		variation : 'Mapping'
-
-		/**` (Mapping a b).codomain : (Eq a, Eq b) => a -> b `*/
-		codomain : (domain : Eq <a>) => Eq <b>
-
-		/**` (Mapping a b).domain : (Eq a, Eq b) => b -> a `*/
-		domain : (codomain : Eq <b>) => Eq <a>
-
-		/**` (Mapping a b).pipe : (Mapping a b -> c) -> c `*/
-		pipe : <c>(morphism : (mapping : Mapping <a, b>) => c) => c
 	}
 
 /********************************************************************************************************************************/
@@ -784,7 +756,7 @@ const less = (x : number) => (y : number) : boolean => y < x
 const lessEqual = (x : number) => (y : number) : boolean => y <= x
 
 /**` greater : Number -> Number -> Boolean `*/
-const greater = (x : number) => (y : number) : boolean => y >= x
+const greater = (x : number) => (y : number) : boolean => y > x
 
 /**` greaterEqual : Number -> Number -> Boolean `*/
 const greaterEqual = (x : number) => (y : number) : boolean => y >= x
@@ -840,22 +812,38 @@ const until = <a>(predicate : (value : a) => boolean) => (endomorphism : (value 
 	return initial
 }
 
+/**` bound : Number -> Number -> Number -> Number `*/
+const bound = (lower : number) => (upper : number) => (x : number) : number =>
+	Math.min (Math.max (lower, x), upper)
+
 /**` isIn : Number -> Number -> Number -> Boolean `*/
 const isIn = (lower : number) => (upper : number) => (n : number) : boolean => lower < n && n < upper
 
-/**` isInRect : Number -> Number -> Number -> Number -> Number -> Number -> Boolean `*/
+/**` isInRect : ...6 Number -> Boolean `*/
 const isInRect = (rx : number) => (ry : number) => (rw : number) => (rh : number) => (x : number) => (y : number) : boolean =>
 	rx < x && x < rx + rw &&
 	ry < y && y < ry + rh
 
-/**` isInRectV2 : Vector2 -> Vector2 -> Vector2 -> Boolean `*/
-const isInRectV2 = (rxy : Vector2) => (rwh : Vector2) => (xy : Vector2) : boolean =>
-	rxy.x < xy.x && xy.x < rxy.x + rwh.x &&
-	rxy.y < xy.y && xy.y < rxy.y + rwh.y
+/**` isInCircle : ...5 Number -> Boolean `*/
+const isInCircle = (r : number) => (cx : number) => (cy : number) => (x : number) => (y : number) : boolean =>
+	(x - cx) ** 2 + (y - cy) ** 2 < r ** 2
 
 /**` match : [a] -> Number -> a `*/
 const match = <a>(...values : Array <a>) => (index : number) : a =>
 	values[index] ?? error (`'match' takes non-negative integers in interval [0, ${values.length}); instead received '${index}'`)
+
+/**` quadraticCurve : Number -> Number `*/
+const quadraticCurve = (x : number) : number =>
+	x < 0.5
+		? 2 * x ** 2
+		: 1 - 2 * (1 - x) ** 2
+
+
+/**` quarticCurve : Number -> Number `*/
+const quarticCurve = (x : number) : number =>
+	x < 0.5
+		? 8 * x ** 4
+		: 1 - 8 * (1 - x) ** 4
 
 /**` show : a -> String `*/
 const show = <a>(value : a) : string => `${value}`
@@ -869,12 +857,39 @@ const warn = (message : string) => <a>(value : a) : a => (console.warn(message),
 /********************************************************************************************************************************/
 // Implementation of Algebraic Data Type Constructors //
 
-Boolean.prototype.pipe =
-Number .prototype.pipe =
-String .prototype.pipe = (Array.prototype.pipe = function (f) { return f (this as any) }) as any
+interface Boolean
+{
+	/**` Boolean.pipe : (Boolean -> a) -> a `*/
+	pipe : <a>(morphism : (bool : boolean) => a) => a
 
-Boolean.prototype.eq = function (x) { return !!this === x          }
-Number .prototype.eq = function (x) { return +this === x           }
+	/**` Boolean.eq : Boolean -> Boolean `*/
+	eq : (bool : boolean) => boolean
+}
+
+interface Number
+{
+	/**` Number.pipe : (Number -> a) -> a `*/
+	pipe : <a>(morphism : (num : number) => a) => a
+
+	/**` Number.eq : Number -> Boolean `*/
+	eq : (num : number) => boolean
+}
+
+interface String
+{
+	/**` String.pipe : (String -> a) -> a `*/
+	pipe : <a>(morphism : (str : string) => a) => a
+
+	/**` String.eq : String -> Boolean `*/
+	eq : (str : string) => boolean
+}
+
+Boolean.prototype.pipe = function (f) { return f (!!this)          }
+Number .prototype.pipe = function (f) { return f (+this)           }
+String .prototype.pipe = function (f) { return f (this.toString()) }
+
+Boolean.prototype.eq = function (x) { return !!this          === x }
+Number .prototype.eq = function (x) { return +this           === x }
 String .prototype.eq = function (x) { return this.toString() === x }
 
 /**` IO : (() -> a) -> IO a `*/
@@ -1168,21 +1183,6 @@ const Matrix4 = (
 			m.iw === iw && m.jw === jw && m.kw === kw && m.lw === lw
 	})
 
-/**` Mapping : (Eq a) => (...Pair a b) -> Mapping a b `*/
-const Mapping = <a, b>(...pairs : Array <[Eq <a>, Eq <b>]>) : Mapping <a, b> =>
-	({
-		variation : 'Mapping',
-		codomain  : x => (
-			pairs .find (p => p[0] .eq (x as Eq <a>))
-				?? error (`'(Mapping).codomain' was non-exhaustive; no corresponding codomain for value '${x}'`)
-		)[1],
-		domain    : x => (
-			pairs .find (p => p[1] .eq (x as Eq <b>))
-				?? error (`'(Mapping).domain' was non-exhaustive; no corresponding domain for value '${x}'`)
-		)[0],
-		pipe (f) { return f (this) }
-	})
-
 /********************************************************************************************************************************/
 // Constants and Micro-Functions for IO //
 
@@ -1221,13 +1221,6 @@ const idle : IO <null> =
 /**` executing : (...IO a) -> IO () `*/
 const executing = <a>(...ios : Array <IO <a>>) : IO <null> =>
 	IO (() => (ios.forEach(io => io.effect ()), null))
-
-/**` dofor : Number -> (Number -> IO a) -> IO () `*/
-const dofor = (amount : number) => <a>(effect : (index : number) => IO <a>) : IO <null> =>
-	naturals
-		.pipe (take (amount))
-		.fmap (effect)
-		.pipe (executeIOs)
 
 /********************************************************************************************************************************/
 // Constants and Micro-Functions for Process //
@@ -1319,7 +1312,7 @@ const unchars = (xs : List <string>) : string =>
 
 /**` chars : String -> List String `*/
 const chars = (str : string) : List <string> =>
-	List (...str)
+	(List as any).apply(null, str.split(''))
 
 /**` prepend : a -> List a -> List a `*/
 const prepend = <a>(first : a) => (rest : List <a>) : List <a> =>
@@ -2332,6 +2325,12 @@ const unzipWith = <a, b, c>(unzipper : (element : c) => Pair <a, b>) => (xs : Li
 		.fmap (unzipper)
 		.pipe (pairs => Pair (pairs .fmap (fst), pairs .fmap (snd)))
 
+/**` lowercases : List String `*/
+const lowercases : List <string> = chars ('abcdefghijklmnopqrstuvwxyz')
+
+/**` uppercases : List String `*/
+const uppercases : List <string> = chars ('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+
 /********************************************************************************************************************************/
 // Constants and Micro-Functions for Maybe //
 
@@ -2376,6 +2375,10 @@ const maybeIO = <a>(maybe : Maybe <IO <a>>) : IO <null> =>
 /**` eqMaybe : (Eq a) => Maybe a -> a -> Boolean `*/
 const eqMaybe = <a>(maybe : Maybe <Eq <a>>) => (value : Eq <a>) : boolean =>
 	maybe.variation === 'Just' && maybe.value .eq (value)
+
+/**` checkMaybe : (a -> Boolean) -> Maybe a -> Boolean `*/
+const checkMaybe = <a>(predicate : (value : a) => boolean) => (maybe : Maybe <a>) : boolean =>
+	maybe.variation === 'Just' && predicate (maybe.value)
 
 /********************************************************************************************************************************/
 // Constants and Micro-Functions for Pair //
@@ -2561,7 +2564,15 @@ namespace V2
 
 	/**` V2.untranslate : Vector2 -> Vector2 -> Vector2 `*/
 	export const untranslate = (v : Vector2) => (w : Vector2) : Vector2 =>
-		Vector2 (v.x - w.x, v.y - w.y)
+		Vector2 (w.x - v.x, w.y - v.y)
+
+	/**` V2.negate : Vector2 -> Vector2 `*/
+	export const negate = (v : Vector2) : Vector2 =>
+		Vector2 (-v.x, -v.y)
+
+	/**` V2.reciprocate : Vector2 -> Vector2 `*/
+	export const reciprocate = (v : Vector2) : Vector2 =>
+		Vector2 (1 / v.x, 1 / v.y)
 
 	/**` V2.norm : Vector2 -> Number `*/
 	export const norm = (v : Vector2) : number =>
@@ -2586,6 +2597,23 @@ namespace V2
 			m.ix * v.x + m.jx * v.y,
 			m.iy * v.x + m.jy * v.y
 		)
+
+	/**` V2.map : (Number -> Number) -> Vector2 -> Vector2 `*/
+	export const map = (f : (coordinate : number) => number) => (v : Vector2) : Vector2 =>
+		Vector2 (f (v.x), f (v.y))
+
+	/**` V2.each : (Number -> Number -> Number) -> Vector2 -> Vector2 -> Vector2 `*/
+	export const each = (f : (first : number) => (second : number) => number) => (v : Vector2) => (w : Vector2) : Vector2 =>
+		Vector2 (f (v.x) (w.x), f (v.y) (w.y))
+
+	/**` V2.isInRect : Vector2 -> Vector2 -> Vector2 -> Boolean `*/
+	export const isInRect = (rxy : Vector2) => (rwh : Vector2) => (xy : Vector2) : boolean =>
+		rxy.x < xy.x && xy.x < rxy.x + rwh.x &&
+		rxy.y < xy.y && xy.y < rxy.y + rwh.y
+
+	/**` V2.isInCircle : Number -> Vector2 -> Vector2 -> Boolean `*/
+	export const isInCircle = (r : number) => (cxy : Vector2) => (xy : Vector2) : boolean =>
+		(xy.x - cxy.x) ** 2 + (xy.y - cxy.y) ** 2 < r ** 2
 }
 
 namespace V3
@@ -2685,7 +2713,15 @@ namespace V3
 
 	/**` V3.untranslate : Vector3 -> Vector3 -> Vector3 `*/
 	export const untranslate = (v : Vector3) => (w : Vector3) : Vector3 =>
-		Vector3 (v.x - w.x, v.y - w.y, v.z - w.z)
+		Vector3 (w.x - v.x, w.y - v.y, w.z - v.z)
+
+	/**` V3.negate : Vector3 -> Vector3 `*/
+	export const negate = (v : Vector3) : Vector3 =>
+		Vector3 (-v.x, -v.y, -v.z)
+
+	/**` V3.reciprocate : Vector3 -> Vector3 `*/
+	export const reciprocate = (v : Vector3) : Vector3 =>
+		Vector3 (1 / v.x, 1 / v.y, 1 / v.z)
 
 	/**` V3.norm : Vector3 -> Number `*/
 	export const norm = (v : Vector3) : number =>
@@ -2711,6 +2747,14 @@ namespace V3
 			m.iy * v.x + m.jy * v.y + m.ky * v.z,
 			m.iz * v.x + m.jz * v.y + m.kz * v.z
 		)
+
+	/**` V3.map : (Number -> Number) -> Vector3 -> Vector3 `*/
+	export const map = (endomorphism : (coordinate : number) => number) => (v : Vector3) : Vector3 =>
+		Vector3 (endomorphism (v.x), endomorphism (v.y), endomorphism (v.z))
+
+	/**` V3.each : (Number -> Number -> Number) -> Vector3 -> Vector3 -> Vector3 `*/
+	export const each = (f : (first : number) => (second : number) => number) => (v : Vector3) => (w : Vector3) : Vector3 =>
+		Vector3 (f (v.x) (w.x), f (v.y) (w.y), f (v.z) (w.z))
 }
 
 namespace V4
@@ -2826,7 +2870,15 @@ namespace V4
 
 	/**` V4.untranslate : Vector4 -> Vector4 -> Vector4 `*/
 	export const untranslate = (v : Vector4) => (w : Vector4) : Vector4 =>
-		Vector4 (v.x - w.x, v.y - w.y, v.z - w.z, v.w - w.w)
+		Vector4 (w.x - v.x, w.y - v.y, w.z - v.z, w.w - v.w)
+
+	/**` V4.negate : Vector4 -> Vector4 `*/
+	export const negate = (v : Vector4) : Vector4 =>
+		Vector4 (-v.x, -v.y, -v.z, v.w)
+
+	/**` V4.reciprocate : Vector4 -> Vector4 `*/
+	export const reciprocate = (v : Vector4) : Vector4 =>
+		Vector4 (1 / v.x, 1 / v.y, 1 / v.z, 1 / v.w)
 
 	/**` V3.norm : Vector4 -> Number `*/
 	export const norm = (v : Vector4) : number =>
@@ -2853,6 +2905,14 @@ namespace V4
 			m.iz * v.x + m.jz * v.y + m.kz * v.z + m.lz * v.w,
 			m.iw * v.x + m.jw * v.y + m.kw * v.z + m.lw * v.w
 		)
+
+	/**` V4.map : (Number -> Number) -> Vector4 -> Vector4 `*/
+	export const map = (endomorphism : (coordinate : number) => number) => (v : Vector4) : Vector4 =>
+		Vector4 (endomorphism (v.x), endomorphism (v.y), endomorphism (v.z), endomorphism (v.w))
+
+	/**` V4.each : (Number -> Number -> Number) -> Vector4 -> Vector4 -> Vector4 `*/
+	export const each = (f : (first : number) => (second : number) => number) => (v : Vector4) => (w : Vector4) : Vector4 =>
+		Vector4 (f (v.x) (w.x), f (v.y) (w.y), f (v.z) (w.z), f (v.w) (w.w))
 }
 
 namespace M2
@@ -2904,7 +2964,7 @@ namespace M4
 	export const identity = Matrix4 (1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
 
 	/**` M4.basis : (Vector4, Vector4, Vector4, Vector4) -> Matrix4 `*/
-	export const fromBasis = (i : Vector4, j : Vector4, k : Vector4, l : Vector4) : Matrix4 =>
+	export const basis = (i : Vector4, j : Vector4, k : Vector4, l : Vector4) : Matrix4 =>
 		Matrix4 (i.x, j.x, k.x, l.x, i.y, j.y, k.y, l.y, i.z, j.z, k.z, l.z, i.w, j.w, k.w, l.w)
 
 	/**` M4.compose : Matrix4 -> Matrix4 -> Matrix4 `*/
@@ -2949,76 +3009,8 @@ const relaxVertical = (vertical : Vertical) : Vertical =>
 /**` signVertical : Vertical -> Number `*/
 const signVertical = (vertical : Vertical) : number =>
 	vertical === Vertical.Downward || vertical === Vertical.Down ? -1 :
-	vertical === Vertical.Upward   || vertical === Vertical.Up  ?  1 :
+	vertical === Vertical.Upward   || vertical === Vertical.Up   ?  1 :
 	0
-
-/**` mappingLineCapToHTML5 : Mapping LineCap CanvasLineCap `*/
-const mappingLineCapToHTML5 : Mapping <LineCap, CanvasLineCap> =
-	Mapping <LineCap, CanvasLineCap> (
-		[LineCap.Butt   , 'butt'  ],
-		[LineCap.Round  , 'round' ],
-		[LineCap.Square , 'square']
-	)
-
-/**` mappingLineJoinToHTML5 : Mapping LineJoin CanvasLineJoin `*/
-const mappingLineJoinToHTML5 : Mapping <LineJoin, CanvasLineJoin> =
-	Mapping <LineJoin, CanvasLineJoin> (
-		[LineJoin.Round , 'round'],
-		[LineJoin.Bevel , 'bevel'],
-		[LineJoin.Miter , 'miter']
-	)
-
-/**` mappingTextAlignToHTML5 : Mapping TextAlign CanvasTextAlign `*/
-const mappingTextAlignToHTML5 : Mapping <TextAlign, CanvasTextAlign> =
-	Mapping <TextAlign, CanvasTextAlign> (
-		[TextAlign.Center    , 'center'],
-		[TextAlign.End       , 'end'   ],
-		[TextAlign.Leftside  , 'left'  ],
-		[TextAlign.Rightside , 'right' ],
-		[TextAlign.Start     , 'start' ]
-	)
-
-/**` mappingTextBaselineToHTML5 : Mapping TextBaseline CanvasTextBaseline `*/
-const mappingTextBaselineToHTML5 : Mapping <TextBaseline, CanvasTextBaseline> =
-	Mapping <TextBaseline, CanvasTextBaseline> (
-		[TextBaseline.Alphabetic  , 'alphabetic' ],
-		[TextBaseline.Bottom      , 'bottom'     ],
-		[TextBaseline.Hanging     , 'hanging'    ],
-		[TextBaseline.Ideographic , 'ideographic'],
-		[TextBaseline.Middle      , 'middle'     ],
-		[TextBaseline.Top         , 'top'        ]
-	)
-
-/**` mappingCompositionToHTML5 : Mapping Composition String `*/
-const mappingCompositionToHTML5 : Mapping <Composition, string> =
-	Mapping <Composition, string> (
-		[Composition.SourceOver      , 'source-over'     ],
-		[Composition.SourceIn        , 'source-in'       ],
-		[Composition.SourceOut       , 'source-out'      ],
-		[Composition.SourceAtop      , 'source-atop'     ],
-		[Composition.DestinationOver , 'destination-over'],
-		[Composition.DestinationIn   , 'destination-in'  ],
-		[Composition.DestinationOut  , 'destination-out' ],
-		[Composition.DestinationAtop , 'destination-atop'],
-		[Composition.Lighter         , 'lighter'         ],
-		[Composition.Copy            , 'copy'            ],
-		[Composition.Xor             , 'xor'             ],
-		[Composition.Multiply        , 'multiply'        ],
-		[Composition.Screen          , 'screen'          ],
-		[Composition.Overlay         , 'overlay'         ],
-		[Composition.Darken          , 'darken'          ],
-		[Composition.Lighten         , 'lighten'         ],
-		[Composition.ColorDodge      , 'color-dodge'     ],
-		[Composition.ColorBurn       , 'color-burn'      ],
-		[Composition.HardLight       , 'hard-light'      ],
-		[Composition.SoftLight       , 'soft-light'      ],
-		[Composition.Difference      , 'difference'      ],
-		[Composition.Exclusion       , 'exclusion'       ],
-		[Composition.Hue             , 'hue'             ],
-		[Composition.Saturation      , 'saturation'      ],
-		[Composition.Color           , 'color'           ],
-		[Composition.Luminosity      , 'luminosity'      ]
-	)
 
 /********************************************************************************************************************************/
 // Constants and Micro-Functions for Multiple Algebraic Data Types //
@@ -3192,38 +3184,255 @@ const maybeAt = (index : number) => <a>(xs : List <a>) : Maybe <a> =>
 	return Nothing
 }
 
+/**` processToList : Process s a -> s -> List a `*/
+const processToList = <s, a>(process : Process <s, a>) => (state : s) : List <a> =>
+{
+	const p = process.computation (state)
+	return lrprepend (p.snd) (() => processToList (process) (p.fst))
+}
+
+/**` pairProcess : Process s a -> Process s (Pair a a) `*/
+const pairProcess = <s, a>(process : Process <s, a>) : Process <s, Pair <a, a>> =>
+	Process (s => {
+		const p = process.computation (s)
+		const q = process.computation (p.fst)
+		return Pair (q.fst, Pair (p.snd, q.snd))
+	})
+
+/**` repeatProcess : Process s a -> Process s (List a) `*/
+const repeatProcess = <s, a>(process : Process <s, a>) : Process <s, List <a>> =>
+	Process (s => Pair (s, processToList (process) (s)))
+
+/**` pickOut : (a -> Boolean) -> List a -> Pair (Maybe a) (List a) `*/
+const pickOut = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : Pair <Maybe <a>, List <a>> =>
+{
+	let ys            = xs
+	let zs : List <a> = Nil
+	for (let i = 0; ys.variation === 'Cons'; ++i)
+		if (i === MAXI)
+			error (`'pickOut' traversed too many elements (${MAXI}); ${STAP}`)
+		else if (predicate (ys.head))
+		{
+			let ws : List <a> = Nil
+			while (zs.variation === 'Cons')
+				ws = prepend (zs.head) (ws),
+				zs = zs.tail
+
+			return Pair (Just (ys.head), ws .link (ys.tail))
+		}
+		else
+			zs = prepend (ys.head) (zs),
+			ys = ys.tail
+
+	return Pair (Nothing, xs)
+}
+
+/********************************************************************************************************************************/
+// Psuedo Random Generators //
+
+/**` random : Process Number Number `*/
+const random : Process <number, number> =
+	Process (s =>
+		Pair (
+			Math.abs (161 * s ** 3 - 91 * s ** 2 + 177 * s - 901) % 0xffffff,
+			Math.abs (s ** 3 % 23 + 248 * s ** 2 % 34 + 112 * s - 528) % 2048 / 2048
+		)
+	)
+
+/**` randomFloatRange : Number -> Number -> Process Number Number `*/
+const randomFloatRange = (lower : number) => (upper : number) : Process <number, number> =>
+	Process (s =>
+		Pair (
+			Math.abs (698 * s ** 3 - 471 * s ** 2 + 295 * s - 77) % 0xffffff,
+			Math.abs (s ** 3 % 196 + 989 * s ** 2 % 786 + 534 * s - 571) % 2048 / 2048 * (upper - lower) + lower
+		)
+	)
+
+/**` randomIntRange : Number -> Number -> Process Number Number `*/
+const randomIntRange = (lower : number) => (upper : number) : Process <number, number> =>
+	Process (s =>
+		Pair (
+			Math.abs (852 * s ** 3 - 274 * s ** 2 + 345 * s - 558) % 0xffffff,
+			~~ (abs (71 * s ** 3 % 71 + 570 * s ** 2 % 39 + 509 * s - 72) % 2048 / 2048 * (upper - lower)) + lower
+		)
+	)
+
+/**` randomV2 : Process Number Vector2 `*/
+const randomV2 : Process <number, Vector2> =
+	Process (s =>
+		Pair (
+			Math.abs (84 * s ** 3 + 729 * s ** 2 + 215 * s + 1015) % 0xffffff,
+			Vector2 (
+				Math.abs (304 * s ** 3 % 582 + 204 * s ** 2 % 288 + 254 * s - 617) % 2048 / 2048,
+				Math.abs (906 * s ** 3 % 717 + 518 * s ** 2 % 38 + 112 * s - 581) % 2048 / 2048
+			)
+		)
+	)
+
+/**` randomV3 : Process Number Vector3 `*/
+const randomV3 : Process <number, Vector3> =
+	Process (s =>
+		Pair (
+			Math.abs (390 * s ** 3 - 329 * s ** 2 + 22 * s + 41) % 0xffffff,
+			Vector3 (
+				Math.abs(407 * s ** 3 % 594 + 70 * s ** 2 % 61 + s - 5283) % 2048 / 2048,
+				Math.abs(109 * s ** 3 % 200 + 23 * s ** 2 % 8 + 69940 * s - 558) % 2048 / 2048,
+				Math.abs(273 * s ** 3 % 286 + 23 * s ** 2 % 60 + 36 * s - 184) % 2048 / 2048
+			)
+		)
+	)
+
+/**` randomV4 : Process Number Vector4 `*/
+const randomV4 : Process <number, Vector4> =
+	Process (s =>
+		Pair (
+			abs (350 * s ** 3 - 7527 * s ** 2 + 639 * s - 1011) % 0xffffff,
+			Vector4 (
+				Math.abs (881 * s ** 3 % 461 + 213 * s ** 2 % 16 + s - 519) % 2048 / 2048,
+				Math.abs (75 * s ** 3 % 516 + 75459 * s ** 2 % 19 + 67 * s - 693) % 2048 / 2048,
+				Math.abs (3498 * s ** 3 % 242 + 590 * s ** 2 % 27 + 50 * s - 3039) % 2048 / 2048,
+				Math.abs (8641 * s ** 3 % 256 + 613 * s ** 2 % 28 + 12 * s - 62) % 2048 / 2048
+			)
+		)
+	)
+
+/**` randomDirectionV2 : Process Number Vector2 `*/
+const randomDirectionV2 : Process <number, Vector2> =
+	Process (s => {
+		const angle = Math.abs (2474 * s ** 3 % 2676 + 369 * s ** 2 % 3871 + 267628 * s % 6048 + 744) % tau
+		return Pair (
+			Math.abs (372 * s ** 3 - 566 * s ** 2 + 21713 * s + 36769) % 0xffffff,
+			Vector2 (Math.cos(angle), Math.sin(angle))
+		)
+	})
+
+/**` randomDirectionV3 : Process Number Vector3 `*/
+const randomDirectionV3 : Process <number, Vector3> =
+	Process (s => {
+		const angle0 = Math.abs (s ** 3 % 198 + 378 * s ** 2 % 86 + s - 16) % tau
+		const angle1 = Math.abs (116 * s ** 3 - 3168 * s ** 2 + 258 * s - 901) % tau
+		const c      = Math.sin(angle0)
+		return Pair (
+			Math.abs (414 * s ** 3 - 607 * s ** 2 + 889 * s - 888) % 0xffffff,
+			Vector3 (Math.cos(angle0), c * Math.cos(angle1), c * Math.sin(angle1))
+		)
+	})
+
+/**` randomDirectionV4 : Process Number Vector4 `*/
+const randomDirectionV4 : Process <number, Vector4> =
+	Process (s => {
+		const angle0 = Math.abs (905 * s ** 3 % 2312 + 633 * s ** 2 % 94975 + 208 * s - 250) % tau
+		const angle1 = Math.abs (189 * s ** 3 % 2641 - 466 * s ** 2 % 44291 + 224 * s - 917) % tau
+		const angle2 = Math.abs (417 * s ** 3 % 2354 - 262 * s ** 2 % 29516 + 41 * s - 529) % tau
+		const c0     = Math.sin(angle0)
+		const c1     = c0 * Math.sin(angle1)
+		return Pair (
+			Math.abs (161 * s ** 3 - 91 * s ** 2 + 177 * s - 901) % 0xffffff,
+			Vector4 (Math.cos(angle0), c0 * Math.cos(angle1), c1 * Math.cos(angle2), c1 * Math.sin(angle2))
+		)
+	})
+
+
+/**` randomLowercase : Process Number String `*/
+const randomLowercase : Process <number, string> =
+	Process (s =>
+		Pair (
+			Math.abs (28721 * s ** 3 % 2999 - 712 * s ** 2 + 3778 * s - 558) % 0xffffff,
+			String.fromCharCode(Math.abs(3252 * s ** 3 % 3598 + 945 * s ** 2 % 878 + 503 * s % 379 + 826) % 1028 / 1028 * 26 + 97)
+		)
+	)
+
+/**` randomUppercase : Process Number String `*/
+const randomUppercase : Process <number, string> =
+	Process (s =>
+		Pair (
+			Math.abs (363 * s ** 3 % 384 - 31 * s ** 2 + 67 * s - 793) % 0xffffff,
+			String.fromCharCode(Math.abs(3252 * s ** 3 % 3598 + 778 * s ** 2 % 878 + 13 * s % 1701 + 871) % 1028 / 1028 * 26 + 65)
+		)
+	)
+
+/**` randomElem : List a -> Process Number a `*/
+const randomElem = <a>(xs : List <a>) : Process <number, a> =>
+{
+	if (xs.variation === 'Nil')
+		error (`'randomElem' cannot pseudo-randomly pick an element out of Nil`)
+	let length = xs.$LEN!
+	let ys : List <a> = xs
+	if (length === undefined)
+	{
+		while (ys.variation === 'Cons')
+			if (length === MAXI)
+				error (`'randomElem' traversed too many elements (${MAXI}); ${STAP}`)
+			else
+				++length, ys = ys.tail
+		xs.$LEN = length
+	}
+	return Process (s => {
+		let i = ~~(Math.abs(71 * s ** 3 % 71 + 570 * s ** 2 % 39 + 177 * s - 59) % 1028 / 1028 * length)
+		ys = xs
+		while (i)
+			--i, ys = (ys as any).tail
+		return Pair (
+			Math.abs (146 * s ** 3 - 2481 * s ** 2 + 804 * s - 4099) % 0xffffff,
+			(ys as any).head
+		)
+	})
+}
+
+/**` randomChar : String -> Process Number String `*/
+const randomChar = (str : string) : Process <number, string> =>
+	str === ''
+		? error (`'randomChar' cannot pseudo-randomly pick a character out of an empty string`)
+		:
+			Process (s =>
+				Pair (
+					Math.abs (554 * s ** 3 + 88 * s ** 2 + 1048 * s + 48) % 0xffffff,
+					str [~~((2927 * s ** 3 % 2291 - 920 * s ** 2 % 36 + 194 * s % 33 + 556) ** 2 % 1024 / 1024 * str.length)]
+				)
+			)
+
+/**` randomChance : Number -> Process Number Boolean `*/
+const randomChance = (probability : number) : Process <number, boolean> =>
+	Process (s =>
+		Pair (
+			Math.abs(462 * s ** 3 + 261 * s ** 2 - 778 * s - 1510) % 0xffffff,
+			Math.abs(1310 * s ** 3 % 9228 - 2461 * s ** 2 % 568 + 8562 * s % 234 + 2827) % 2048 / 2048 < probability
+		)
+	)
+
+/**` strictRandomShuffle : List a -> Process Number (List a) `*/
+const strictRandomShuffle = <a>(xs : List <a>) : Process <number, List <a>> =>
+	Process (s => {
+		const ys : Array <a> = []
+		for (let i = 0; xs.variation === 'Cons'; ++i)
+			if (i === MAXI)
+				return error (`'strictRandomShuffle' traversed too many elements (${MAXI}); ${STAP}`)
+			else
+				ys.push (xs.head),
+				xs = xs.tail
+		let zs : List <a> = Nil
+		while (ys.length)
+		{
+			s = Math.abs(103282 * s ** 3 % 340858 - 6319 * s ** 2 % 152 + 8596 * s % 854 + 52732) % 2048 / 2048
+			zs = prepend (ys.splice(Math.floor(s *= ys.length), 1)[0]) (zs)
+		}
+		return Pair (Math.abs(3119 * s ** 3 % 654340 - 699585 * s ** 2 % 60418 + 85319 * s % 8152 + 52732) % 0xffffff, zs)
+	})
+
 /********************************************************************************************************************************/
 // Do Notation //
 
 const Do =
 	{
-		IO      : IO        <     {}> (() => Object.create(null)),
-		Process : Process   <any, {}> (s  => Pair (s, Object.create(null))),
-		List    : singleton <     {}> (Object.create(null)),
-		Maybe   : Just      <     {}> (Object.create(null))
+		IO             :           IO        <         {}> (() => Object.create(null)),
+		Process        : <s> () => Process   <s      , {}> (s => Pair (s, Object.create(null))),
+		Process_Random :           Process   <number , {}> (s => Pair (s, Object.create(null))),
+		List           :           singleton <         {}> (Object.create(null)),
+		Maybe          :           Just      <         {}> (Object.create(null))
 	}
 
 /********************************************************************************************************************************/
 // IO Interfacing //
-
-/**` keyboardKeysArray : [String] `*/
-const keyboardKeysArray =
-	[
-		'AltLeft'        , 'AltRight'  , 'ArrowDown'   , 'ArrowLeft'     , 'ArrowRight'   , 'ArrowUp'     , 'Backquote'      ,
-		'Backslash'      , 'Backspace' , 'BracketLeft' , 'BracketRight'  , 'CapsLock'     , 'Comma'       , 'ControlLeft'    ,
-		'ControlRight'   , 'Delete'    , 'NumpadAdd'   , 'NumpadDecimal' , 'NumpadDivide' , 'NumpadEnter' , 'NumpadMultiply' ,
-		'NumpadSubtract' , 'PageUp'    , 'Pagedown'    , 'Period'        , 'Quote'        , 'Semicolon'   , 'ShiftLeft'      ,
-		'ShiftRight'     , 'Slash'     , 'End'         , 'Enter'         , 'Equal'        , 'Home'        , 'Insert'         ,
-		'Minus'          , 'Space'     , 'Tab'         , 'Digit0'        , 'Digit1'       , 'Digit2'      , 'Digit3'         ,
-		'Digit4'         , 'Digit5'    , 'Digit6'      , 'Digit7'        , 'Digit8'       , 'Digit9'      , 'Numpad0'        ,
-		'Numpad1'        , 'Numpad2'   , 'Numpad3'     , 'Numpad4'       , 'Numpad5'      , 'Numpad6'     , 'Numpad7'        ,
-		'Numpad8'        , 'Numpad9'   , 'KeyA'        , 'KeyB'          , 'KeyC'         , 'KeyD'        , 'KeyE'           ,
-		'KeyF'           , 'KeyG'      , 'KeyH'        , 'KeyI'          , 'KeyJ'         , 'KeyK'        , 'KeyL'           ,
-		'KeyM'           , 'KeyN'      , 'KeyO'        , 'KeyP'          , 'KeyQ'         , 'KeyR'        , 'KeyS'           ,
-		'KeyT'           , 'KeyU'      , 'KeyV'        , 'KeyW'          , 'KeyX'         , 'KeyY'        , 'KeyZ'
-	] as const
-
-type KeyboardKey = typeof keyboardKeysArray[number]
 
 const Ψ =
 	{
@@ -3233,2320 +3442,2777 @@ const Ψ =
 		resizeID        : undefined as unknown as number,
 		isResized       : false,
 		isPointerLocked : false,
-		seed            : (Math.random() - 0.5) * Date.now(),
+		seed            : (Math.random() - 0.5) * Date.now() % 2048,
 		debugCounter    : 0,
 		image           : Object.create(null) as { [x : string] : HTMLImageElement },
 		audio           : Object.create(null) as { [x : string] : HTMLAudioElement },
-		mouseScreenX    : 0, mouseScreenY : 0,
-		mouseWindowX    : 0, mouseWindowY : 0,
-		mouseCanvasX    : 0, mouseCanvasY : 0,
-		mouseDeltaX     : 0, mouseDeltaY  : 0,
+		mouseSX         : 0, mouseSY : 0,
+		mouseWX         : 0, mouseWY : 0,
+		mouseCX         : 0, mouseCY : 0,
+		mouseDX         : 0, mouseDY : 0,
 		mouseScroll     : Vertical.Rest,
 		mouseButtons    : Array(5).fill(Vertical.Up) as [Vertical, Vertical, Vertical, Vertical, Vertical],
 		keyboard        :
-			keyboardKeysArray.reduce(
-				($, k) => ({ ...$, [k] : Vertical.Up }),
-				Object.create (null)
-			) as { [x in KeyboardKey] : Vertical }
+			keyboardKeysArray
+				.reduce(($, k) => ({ ...$, [k] : Vertical.Up }), Object.create (null)) as { [x in KeyboardKey] : Vertical }
 	}
 
-namespace I
-{
-	/**` I.n_mouseScreenX : IO Number `*/
-	export const n_mouseScreenX : IO <number> = IO (() => Ψ.mouseScreenX / Ψ.ctx.canvas.width)
+const __MACRO_nonexisting_image_path__ = (org : string, path : string) : any =>
+	error (`'${org}' received an unloaded (possibly non-existing) image at path: '${path}'`)
 
-	/**` I.n_mouseScreenY : IO Number `*/
-	export const n_mouseScreenY : IO <number> = IO (() => Ψ.mouseScreenY / Ψ.ctx.canvas.height)
+const __MACRO_nonexisting_audio_path__ = (org : string, path : string) : any =>
+	error (`'${org}' received an unloaded (possibly non-existing) audio at path: '${path}'`)
 
-	/**` I.n_mouseScreenXY : IO (Pair Number Number) `*/
-	export const n_mouseScreenXY : IO <Pair <number, number>> =
-		IO (() => Pair (Ψ.mouseScreenX / Ψ.ctx.canvas.width, Ψ.mouseScreenY / Ψ.ctx.canvas.height))
+const __MACRO_invalid_index_range      = (org : string, i : number, upper : number) : any =>
+	error (`'${org}' received index of '${i}'; must be a integer in interval [0, ${upper})`)
 
-	/**` I.n_mouseScreenV2 : IO Vector2 `*/
-	export const n_mouseScreenV2 : IO <Vector2> =
-		IO (() => Vector2 (Ψ.mouseScreenX / Ψ.ctx.canvas.width, Ψ.mouseScreenY / Ψ.ctx.canvas.height))
+const __MACRO_clickx__   = (i : number) : IO <Maybe <number>> =>
+	IO (() => Ψ.mouseButtons[i] === Vertical.Downward ? Just (Ψ.mouseCX) : Nothing)
 
-	/**` I.n_mouseWindowX : IO Number `*/
-	export const n_mouseWindowX : IO <number> = IO (() => Ψ.mouseWindowX / Ψ.ctx.canvas.width)
+const __MACRO_clicky__   = (i : number) : IO <Maybe <number>> =>
+	IO (() => Ψ.mouseButtons[i] === Vertical.Downward ? Just (Ψ.mouseCY) : Nothing)
 
-	/**` I.n_mouseWindowY : IO Number `*/
-	export const n_mouseWindowY : IO <number> = IO (() => Ψ.mouseWindowY / Ψ.ctx.canvas.height)
+const __MACRO_clickv__   = (i : number) : IO <Maybe <Vector2>> =>
+	IO (() => Ψ.mouseButtons[i] === Vertical.Downward ? Just (Vector2 (Ψ.mouseCX, Ψ.mouseCY)) : Nothing)
 
-	/**` I.n_mouseWindowXY : IO (Pair Number Number) `*/
-	export const n_mouseWindowXY : IO <Pair <number, number>> =
-		IO (() => Pair (Ψ.mouseWindowX / Ψ.ctx.canvas.width, Ψ.mouseWindowY / Ψ.ctx.canvas.height))
+const __MACRO_n_clickx__ = (i : number) : IO <Maybe <number>> =>
+	IO (() => Ψ.mouseButtons[i] === Vertical.Downward ? Just (Ψ.mouseCX / Ψ.ctx.canvas.width) : Nothing)
 
-	/**` I.n_mouseWindowV2 : IO Vector2 `*/
-	export const n_mouseWindowV2 : IO <Vector2> =
-		IO (() => Vector2 (Ψ.mouseWindowX / Ψ.ctx.canvas.width, Ψ.mouseWindowY / Ψ.ctx.canvas.height))
+const __MACRO_n_clicky__ = (i : number) : IO <Maybe <number>> =>
+	IO (() => Ψ.mouseButtons[i] === Vertical.Downward ? Just (Ψ.mouseCY / Ψ.ctx.canvas.height) : Nothing)
 
-	/**` I.n_mouseCanvasX : IO Number `*/
-	export const n_mouseCanvasX : IO <number> = IO (() => Ψ.mouseCanvasX / Ψ.ctx.canvas.width)
+const __MACRO_n_clickv__ = (i : number) : IO <Maybe <Vector2>> =>
+	IO (() =>
+		Ψ.mouseButtons[i] === Vertical.Downward
+			? Just (Vector2 (Ψ.mouseCX / Ψ.ctx.canvas.width, Ψ.mouseCY / Ψ.ctx.canvas.height))
+			: Nothing
+	)
 
-	/**` I.n_mouseCanvasY : IO Number `*/
-	export const n_mouseCanvasY : IO <number> = IO (() => Ψ.mouseCanvasY / Ψ.ctx.canvas.height)
+/**` n_mouseScreenPositionX : IO Number `*/
+const n_mouseScreenPositionX : IO <number> =
+	IO (() => Ψ.mouseSX / screen.width)
 
-	/**` I.n_mouseCanvasXY : IO (Pair Number Number) `*/
-	export const n_mouseCanvasXY : IO <Pair <number, number>> =
-		IO (() => Pair (Ψ.mouseCanvasX / Ψ.ctx.canvas.width, Ψ.mouseCanvasY / Ψ.ctx.canvas.height))
+/**` n_mouseScreenPositionY : IO Number `*/
+const n_mouseScreenPositionY : IO <number> =
+	IO (() => Ψ.mouseSY / screen.height)
 
-	/**` I.n_mouseCanvasV2 : IO Vector2 `*/
-	export const n_mouseCanvasV2 : IO <Vector2> =
-		IO (() => Vector2 (Ψ.mouseCanvasX / Ψ.ctx.canvas.width, Ψ.mouseCanvasY / Ψ.ctx.canvas.height))
+/**` n_mouseScreenPosition : IO Vector2 `*/
+const n_mouseScreenPosition : IO <Vector2> =
+	IO (() => Vector2 (Ψ.mouseSX / screen.width, Ψ.mouseSY / screen.height))
 
-	/**` I.n_mouseDeltaX : IO Number `*/
-	export const n_mouseDeltaX : IO <number> = IO (() => Ψ.mouseDeltaX / Ψ.ctx.canvas.width)
+/**` mouseScreenPositionX : IO Number `*/
+const mouseScreenPositionX : IO <number> =
+	IO (() => Ψ.mouseSX)
 
-	/**` I.n_mouseDeltaY : IO Number `*/
-	export const n_mouseDeltaY : IO <number> = IO (() => Ψ.mouseDeltaY / Ψ.ctx.canvas.height)
+/**` mouseScreenPositionY : IO Number `*/
+const mouseScreenPositionY : IO <number> =
+	IO (() => Ψ.mouseSY)
 
-	/**` I.n_mouseDeltaXY : IO (Pair Number Number) `*/
-	export const n_mouseDeltaXY : IO <Pair <number, number>> =
-		IO (() => Pair (Ψ.mouseDeltaX / Ψ.ctx.canvas.width, Ψ.mouseDeltaY / Ψ.ctx.canvas.height))
+/**` mouseScreenPosition : IO Vector2 `*/
+const mouseScreenPosition : IO <Vector2> =
+	IO (() => Vector2 (Ψ.mouseSX, Ψ.mouseSY))
 
-	/**` I.n_mouseDeltaV2 : IO Vector2 `*/
-	export const n_mouseDeltaV2 : IO <Vector2> =
-		IO (() => Vector2 (Ψ.mouseDeltaX / Ψ.ctx.canvas.width, Ψ.mouseDeltaY / Ψ.ctx.canvas.height))
+/**` n_mouseWindowPositionX : IO Number `*/
+const n_mouseWindowPositionX : IO <number> =
+	IO (() => Ψ.mouseWX / innerWidth)
 
-	/**` I.n_textW : String -> IO Number `*/
-	export const n_textW = (text : string) : IO <number> =>
-		IO (() => {
-			const m = Ψ.ctx.measureText(text)
-			return Math.abs (m.actualBoundingBoxLeft) + Math.abs (m.actualBoundingBoxRight) / Ψ.ctx.canvas.width
+/**` n_mouseWindowPositionY : IO Number `*/
+const n_mouseWindowPositionY : IO <number> =
+	IO (() => Ψ.mouseWY / innerHeight)
+
+/**` n_mouseWindowPosition : IO Vector2 `*/
+const n_mouseWindowPosition : IO <Vector2> =
+	IO (() => Vector2 (Ψ.mouseWX / innerWidth, Ψ.mouseWY / innerHeight))
+
+/**` mouseWindowPositionX : IO Number `*/
+const mouseWindowPositionX : IO <number> =
+	IO (() => Ψ.mouseWX)
+
+/**` mouseWindowPositionY : IO Number `*/
+const mouseWindowPositionY : IO <number> =
+	IO (() => Ψ.mouseWY)
+
+/**` mouseWindowPosition : IO Vector2 `*/
+const mouseWindowPosition : IO <Vector2> =
+	IO (() => Vector2 (Ψ.mouseWX, Ψ.mouseWY))
+
+/**` n_mouseCanvasPositionX : IO Number `*/
+const n_mouseCanvasPositionX : IO <number> =
+	IO (() => Ψ.mouseCX / Ψ.ctx.canvas.width)
+
+/**` n_mouseCanvasPositionY : IO Number `*/
+const n_mouseCanvasPositionY : IO <number> =
+	IO (() => Ψ.mouseCY / Ψ.ctx.canvas.height)
+
+/**` n_mouseCanvasPosition : IO Vector2 `*/
+const n_mouseCanvasPosition : IO <Vector2> =
+	IO (() => Vector2 (Ψ.mouseCX / Ψ.ctx.canvas.width, Ψ.mouseCY / Ψ.ctx.canvas.height))
+
+/**` mouseCanvasPositionX : IO Number `*/
+const mouseCanvasPositionX : IO <number> =
+	IO (() => Ψ.mouseCX)
+
+/**` mouseCanvasPositionY : IO Number `*/
+const mouseCanvasPositionY : IO <number> =
+	IO (() => Ψ.mouseCY)
+
+/**` mouseCanvasPosition : IO Vector2 `*/
+const mouseCanvasPosition : IO <Vector2> =
+	IO (() => Vector2 (Ψ.mouseCX, Ψ.mouseCY))
+
+/**` n_mouseDeltaX : IO Number `*/
+const n_mouseDeltaX : IO <number> =
+	IO (() => Ψ.mouseDX / Ψ.ctx.canvas.width)
+
+/**` n_mouseDeltaY : IO Number `*/
+const n_mouseDeltaY : IO <number> =
+	IO (() => Ψ.mouseDY / Ψ.ctx.canvas.height)
+
+/**` n_mouseDelta : IO Vector2 `*/
+const n_mouseDelta : IO <Vector2> =
+	IO (() => Vector2 (Ψ.mouseDX / Ψ.ctx.canvas.width, Ψ.mouseDY / Ψ.ctx.canvas.height))
+
+/**` mouseDeltaX : IO Number `*/
+const mouseDeltaX : IO <number> =
+	IO (() => Ψ.mouseDX)
+
+/**` mouseDeltaY : IO Number `*/
+const mouseDeltaY : IO <number> =
+	IO (() => Ψ.mouseDY)
+
+/**` mouseDelta : IO Vector2 `*/
+const mouseDelta : IO <Vector2> =
+	IO (() => Vector2 (Ψ.mouseDX, Ψ.mouseDY))
+
+/**` mouseScroll : IO Vertical `*/
+const mouseScroll : IO <Vertical> =
+	IO (() => Ψ.mouseScroll)
+
+/**` mouseLeft : IO Vertical `*/
+const mouseLeft : IO <Vertical> =
+	IO (() => Ψ.mouseButtons[0])
+
+/**` mouseMiddle : IO Vertical `*/
+const mouseMiddle : IO <Vertical> =
+	IO (() => Ψ.mouseButtons[1])
+
+/**` mouseRight : IO Vertical `*/
+const mouseRight : IO <Vertical> =
+	IO (() => Ψ.mouseButtons[2])
+
+/**` mouse4th : IO Vertical `*/
+const mouse4th : IO <Vertical> =
+	IO (() => Ψ.mouseButtons[3])
+
+/**` mouse5th : IO Vertical `*/
+const mouse5th : IO <Vertical> =
+	IO (() => Ψ.mouseButtons[4])
+
+/**` n_mouseLeftClickCoordinateX : IO (Maybe Number) `*/
+const n_mouseLeftClickCoordinateX : IO <Maybe <number>> =
+	__MACRO_n_clickx__(0)
+
+/**` n_mouseLeftClickCoordinateY : IO (Maybe Number) `*/
+const n_mouseLeftClickCoordinateY : IO <Maybe <number>> =
+	__MACRO_n_clicky__(0)
+
+/**` n_mouseLeftClickCoordinates : IO (Maybe Vector2) `*/
+const n_mouseLeftClickCoordinates : IO <Maybe <Vector2>> =
+	__MACRO_n_clickv__(0)
+
+/**` mouseLeftClickCoordinateX : IO (Maybe Number) `*/
+const mouseLeftClickCoordinateX : IO <Maybe <number>> =
+	__MACRO_clickx__(0)
+
+/**` mouseLeftClickCoordinateY : IO (Maybe Number) `*/
+const mouseLeftClickCoordinateY : IO <Maybe <number>> =
+	__MACRO_clicky__(0)
+
+/**` mouseLeftClickCoordinates : IO (Maybe Vector2) `*/
+const mouseLeftClickCoordinates : IO <Maybe <Vector2>> =
+	__MACRO_clickv__(0)
+
+/**` n_mouseMiddleClickCoordinateX : IO (Maybe Number) `*/
+const n_mouseMiddleClickCoordinateX : IO <Maybe <number>> =
+	__MACRO_n_clickx__(1)
+
+/**` n_mouseMiddleClickCoordinateY : IO (Maybe Number) `*/
+const n_mouseMiddleClickCoordinateY : IO <Maybe <number>> =
+	__MACRO_n_clicky__(1)
+
+/**` n_mouseMiddleClickCoordinates : IO (Maybe Vector2) `*/
+const n_mouseMiddleClickCoordinates : IO <Maybe <Vector2>> =
+	__MACRO_n_clickv__(1)
+
+/**` mouseMiddleClickCoordinateX : IO (Maybe Number) `*/
+const mouseMiddleClickCoordinateX : IO <Maybe <number>> =
+	__MACRO_clickx__(1)
+
+/**` mouseMiddleClickCoordinateY : IO (Maybe Number) `*/
+const mouseMiddleClickCoordinateY : IO <Maybe <number>> =
+	__MACRO_clicky__(1)
+
+/**` mouseMiddleClickCoordinates : IO (Maybe Vector2) `*/
+const mouseMiddleClickCoordinates : IO <Maybe <Vector2>> =
+	__MACRO_clickv__(1)
+
+		/****************************************************************/
+
+/**` n_mouseRightClickCoordinateX : IO (Maybe Number) `*/
+const n_mouseRightClickCoordinateX : IO <Maybe <number>> =
+	__MACRO_n_clickx__(2)
+
+/**` n_mouseRightClickCoordinateY : IO (Maybe Number) `*/
+const n_mouseRightClickCoordinateY : IO <Maybe <number>> =
+	__MACRO_n_clicky__(2)
+
+/**` n_mouseRightClickCoordinates : IO (Maybe Vector2) `*/
+const n_mouseRightClickCoordinates : IO <Maybe <Vector2>> =
+	__MACRO_n_clickv__(2)
+
+/**` mouseRighClickCoordinateX : IO (Maybe Number) `*/
+const mouseRighClickCoordinateX : IO <Maybe <number>> =
+	__MACRO_clickx__(2)
+
+/**` mouseRighClickCoordinateY : IO (Maybe Number) `*/
+const mouseRighClickCoordinateY : IO <Maybe <number>> =
+	__MACRO_clicky__(2)
+
+/**` mouseRighClickCoordinates : IO (Maybe Vector2) `*/
+const mouseRighClickCoordinates : IO <Maybe <Vector2>> =
+	__MACRO_clickv__(2)
+
+/**` n_mouse4thClickCoordinateX : IO (Maybe Number) `*/
+const n_mouse4thClickCoordinateX : IO <Maybe <number>> =
+	__MACRO_n_clickx__(3)
+
+/**` n_mouse4thClickCoordinateY : IO (Maybe Number) `*/
+const n_mouse4thClickCoordinateY : IO <Maybe <number>> =
+	__MACRO_n_clicky__(3)
+
+/**` n_mouse4thClickCoordinates : IO (Maybe Vector2) `*/
+const n_mouse4thClickCoordinates : IO <Maybe <Vector2>> =
+	__MACRO_n_clickv__(3)
+
+/**` mouse4thClickCoordinateX : IO (Maybe Number) `*/
+const mouse4thClickCoordinateX : IO <Maybe <number>> =
+	__MACRO_clickx__(3)
+
+/**` mouse4thClickCoordinateY : IO (Maybe Number) `*/
+const mouse4thClickCoordinateY : IO <Maybe <number>> =
+	__MACRO_clicky__(3)
+
+/**` mouse4thClickCoordinate : IO (Maybe Vector2) `*/
+const mouse4thClickCoordinate : IO <Maybe <Vector2>> =
+	__MACRO_clickv__(3)
+
+		/****************************************************************/
+
+/**` n_mouse5thClickCoordinateX : IO (Maybe Number) `*/
+const n_mouse5thClickCoordinateX : IO <Maybe <number>> =
+	__MACRO_n_clickx__(4)
+
+/**` n_mouse5thClickCoordinateY : IO (Maybe Number) `*/
+const n_mouse5thClickCoordinateY : IO <Maybe <number>> =
+	__MACRO_n_clicky__(4)
+
+/**` n_mouse5thClickCoordinates : IO (Maybe Vector2) `*/
+const n_mouse5thClickCoordinates : IO <Maybe <Vector2>> =
+	__MACRO_n_clickv__(4)
+
+/**` mouse5thClickCoordinateX : IO (Maybe Number) `*/
+const mouse5thClickCoordinateX : IO <Maybe <number>> =
+	__MACRO_clickx__(4)
+
+/**` mouse5thClickCoordinateY : IO (Maybe Number) `*/
+const mouse5thClickCoordinateY : IO <Maybe <number>> =
+	__MACRO_clicky__(4)
+
+/**` mouse5thClickCoordinates : IO (Maybe Vector2) `*/
+const mouse5thClickCoordinates : IO <Maybe <Vector2>> =
+	__MACRO_clickv__(4)
+
+/**` n_wasdKeys : IO Vector2 `*/
+const n_wasdKeys : IO <Vector2> =
+	IO (() => {
+		const x = isDown (Ψ.keyboard.KeyD) as unknown as number - (isDown (Ψ.keyboard.KeyA) as unknown as number)
+		const y = isDown (Ψ.keyboard.KeyS) as unknown as number - (isDown (Ψ.keyboard.KeyW) as unknown as number)
+		const l = x ** 2 + y ** 2
+		return l === 0
+			? V2.zero
+			: l === 1
+				? Vector2 (x, y)
+				: Vector2 (x * invSqrt2, y * invSqrt2)
+	})
+
+/**` wasdKeys : IO Vector2 `*/
+const wasdKeys : IO <Vector2> =
+	IO (() =>
+		Vector2 (
+			isDown (Ψ.keyboard.KeyD) as unknown as number - (isDown (Ψ.keyboard.KeyA) as unknown as number),
+			isDown (Ψ.keyboard.KeyS) as unknown as number - (isDown (Ψ.keyboard.KeyW) as unknown as number)
+		)
+	)
+
+/**` n_arrowKeys : IO Vector2 `*/
+const n_arrowKeys : IO <Vector2> =
+	IO (() => {
+		const x = isDown (Ψ.keyboard.ArrowRight) as unknown as number - (isDown (Ψ.keyboard.ArrowLeft) as unknown as number)
+		const y = isDown (Ψ.keyboard.ArrowDown)  as unknown as number - (isDown (Ψ.keyboard.ArrowUp)   as unknown as number)
+		const l = x ** 2 + y ** 2
+		return l === 0
+			? V2.zero
+			: l === 1
+				? Vector2 (x, y)
+				: Vector2 (x * invSqrt2, y * invSqrt2)
+	})
+
+/**` arrowKeys : IO Vector2 `*/
+const arrowKeys : IO <Vector2> =
+	IO (() =>
+		Vector2 (
+			isDown (Ψ.keyboard.ArrowRight) as unknown as number - (isDown (Ψ.keyboard.ArrowLeft) as unknown as number),
+			isDown (Ψ.keyboard.ArrowDown)  as unknown as number - (isDown (Ψ.keyboard.ArrowUp)   as unknown as number)
+		)
+	)
+
+/**` keyboardKey : KeyboardKey -> IO Vertical `*/
+const keyboardKey = (keyname : KeyboardKey) =>
+	IO (() => Ψ.keyboard[keyname])
+
+/**` screenWidth : IO Number `*/
+const screenWidth : IO <number> =
+	IO (() => screen.width)
+
+/**` screenHeight : IO Number `*/
+const screenHeight : IO <number> =
+	IO (() => screen.height)
+
+/**` screenDimensions : IO Vector2 `*/
+const screenDimensions : IO <Vector2> =
+	IO (() => Vector2 (screen.width, screen.height))
+
+/**` windowWidth : IO Number `*/
+const windowWidth : IO <number> =
+	IO (() => innerWidth)
+
+/**` windowHeight : IO Number `*/
+const windowHeight : IO <number> =
+	IO (() => innerHeight)
+
+/**` windowDimensions : IO Vector2 `*/
+const windowDimensions : IO <Vector2> =
+	IO (() => Vector2 (innerWidth, innerHeight))
+
+/**` canvasWidth : IO Number `*/
+const canvasWidth : IO <number> =
+	IO (() => Ψ.ctx.canvas.width)
+
+/**` canvasHeight : IO Number `*/
+const canvasHeight : IO <number> =
+	IO (() => Ψ.ctx.canvas.height)
+
+/**` canvasDimensions : IO Vector2 `*/
+const canvasDimensions : IO <Vector2> =
+	IO (() => Vector2 (Ψ.ctx.canvas.width, Ψ.ctx.canvas.height))
+
+/**` n_textWidth : String -> IO Number `*/
+const n_textWidth = (text : string) : IO <number> =>
+	IO (() => {
+		const { actualBoundingBoxLeft, actualBoundingBoxRight } = Ψ.ctx.measureText(text)
+		return (Math.abs (actualBoundingBoxLeft) + Math.abs (actualBoundingBoxRight)) / Ψ.ctx.canvas.width
+	})
+
+/**` textWidth : String -> IO Number `*/
+const textWidth = (text : string) : IO <number> =>
+	IO (() => {
+		const { actualBoundingBoxLeft, actualBoundingBoxRight } = Ψ.ctx.measureText(text)
+		return Math.abs (actualBoundingBoxLeft) + Math.abs (actualBoundingBoxRight)
+	})
+
+/**` n_textHeight : String -> IO Number `*/
+const n_textHeight = (text : string) : IO <number> =>
+	IO (() => {
+		const { actualBoundingBoxAscent, actualBoundingBoxDescent } = Ψ.ctx.measureText(text)
+		return (Math.abs (actualBoundingBoxAscent) + Math.abs (actualBoundingBoxDescent)) / Ψ.ctx.canvas.height
+	})
+
+/**` textHeight : String -> IO Number `*/
+const textHeight = (text : string) : IO <number> =>
+	IO (() => {
+		const { actualBoundingBoxAscent, actualBoundingBoxDescent } = Ψ.ctx.measureText(text)
+		return Math.abs (actualBoundingBoxAscent) + Math.abs (actualBoundingBoxDescent)
+	})
+
+/**` n_textDimensions : String -> IO Vector2 `*/
+const n_textDimensions = (text : string) : IO <Vector2> =>
+	IO (() => {
+		const { actualBoundingBoxLeft, actualBoundingBoxRight, actualBoundingBoxAscent, actualBoundingBoxDescent }
+			= Ψ.ctx.measureText(text)
+		return Vector2 (
+			(Math.abs (actualBoundingBoxLeft)   + Math.abs (actualBoundingBoxRight))   / Ψ.ctx.canvas.width,
+			(Math.abs (actualBoundingBoxAscent) + Math.abs (actualBoundingBoxDescent)) / Ψ.ctx.canvas.height
+		)
+	})
+
+/**` textDimensions : String -> IO Vector2 `*/
+const textDimensions = (text : string) : IO <Vector2> =>
+	IO (() => {
+		const { actualBoundingBoxLeft, actualBoundingBoxRight, actualBoundingBoxAscent, actualBoundingBoxDescent }
+			= Ψ.ctx.measureText(text)
+		return Vector2 (
+			Math.abs (actualBoundingBoxLeft)   + Math.abs (actualBoundingBoxRight),
+			Math.abs (actualBoundingBoxAscent) + Math.abs (actualBoundingBoxDescent)
+		)
+	})
+
+/**` n_imageWidth : String -> IO Number `*/
+const n_imageWidth = (path : string) : IO <number> =>
+	IO (() =>
+		Ψ.image[path]
+			? Ψ.image[path].width / Ψ.ctx.canvas.width
+			: __MACRO_nonexisting_image_path__('n_imageWidth', path)
+	)
+
+/**` imageWidth : String -> IO Number `*/
+const imageWidth = (path : string) : IO <number> =>
+	IO (() =>
+		Ψ.image[path]
+			? Ψ.image[path].width
+			: __MACRO_nonexisting_image_path__('imageWidth', path)
+	)
+
+/**` n_imageHeight : String -> IO Number `*/
+const n_imageHeight = (path : string) : IO <number> =>
+	IO (() =>
+		Ψ.image[path]
+			? Ψ.image[path].height / Ψ.ctx.canvas.height
+			: __MACRO_nonexisting_image_path__('n_imageHeight', path)
+	)
+
+/**` imageHeight : String -> IO Number `*/
+const imageHeight = (path : string) : IO <number> =>
+	IO (() =>
+		Ψ.image[path]
+			? Ψ.image[path].height
+			: __MACRO_nonexisting_image_path__('imageHeight', path)
+	)
+
+/**` n_imageDimensions : String -> IO Vector2 `*/
+const n_imageDimensions = (path : string) : IO <Vector2> =>
+	IO (() =>
+		Ψ.image[path]
+			? Vector2 (Ψ.image[path].width / Ψ.ctx.canvas.width, Ψ.image[path].height / Ψ.ctx.canvas.height)
+			: __MACRO_nonexisting_image_path__('n_imageDimensions', path)
+	)
+
+/**` imageDimensions : String -> IO Vector2 `*/
+const imageDimensions = (path : string) : IO <Vector2> =>
+	IO (() =>
+		Ψ.image[path]
+			? Vector2 (Ψ.image[path].width, Ψ.image[path].height)
+			: __MACRO_nonexisting_image_path__('imageDimensions', path)
+	)
+
+/**` n_audioTime : String -> IO Number `*/
+const n_audioTime = (path : string) : IO <number> =>
+	IO (() =>
+		Ψ.audio[path]
+			? Ψ.audio[path].currentTime / Ψ.audio[path].duration
+			: __MACRO_nonexisting_audio_path__('n_audioTime', path)
+	)
+
+/**` audioTime : String -> IO Number `*/
+const audioTime = (path : string) : IO <number> =>
+	IO (() =>
+		Ψ.audio[path]
+			? Ψ.audio[path].currentTime
+			: __MACRO_nonexisting_audio_path__('audioTime', path)
+	)
+
+/**` audioDuration : String -> IO Number `*/
+const audioDuration = (path : string) : IO <number> =>
+	IO (() =>
+		Ψ.audio[path]
+			? Ψ.audio[path].duration
+			: __MACRO_nonexisting_audio_path__('audioDuration', path)
+	)
+
+/**` n_lineThickness : IO Number `*/
+const n_lineThickness : IO <number> =
+	IO (() => Ψ.ctx.lineWidth / Ψ.ctx.canvas.width)
+
+/**` lineThickness : IO Number `*/
+const lineThickness : IO <number> =
+	IO (() => Ψ.ctx.lineWidth)
+
+/**` n_lineDashPattern : IO (List Number) `*/
+const n_lineDashPattern : IO <List <number>> =
+	IO (() => List (...Ψ.ctx.getLineDash().map(x => x / Ψ.ctx.canvas.width)))
+
+/**` lineDashPattern : IO (List Number) `*/
+const lineDashPattern : IO <List <number>> =
+	IO (() => List (...Ψ.ctx.getLineDash()))
+
+/**` n_lineDashOffset : IO Number `*/
+const n_lineDashOffset : IO <number> =
+	IO (() => Ψ.ctx.lineDashOffset / Ψ.ctx.canvas.width)
+
+/**` lineDashOffset : IO Number `*/
+const lineDashOffset : IO <number> =
+	IO (() => Ψ.ctx.lineDashOffset)
+
+/**` miterLimit : IO Number `*/
+const miterLimit : IO <number> =
+	IO (() => Ψ.ctx.miterLimit)
+
+/**` n_fontSize : IO Number `*/
+const n_fontSize : IO <number> =
+	IO (() => parseFloat (Ψ.ctx.font) / Ψ.ctx.canvas.width)
+
+/**` fontStyle : IO String `*/
+const fontStyle : IO <string> =
+	IO (() => Ψ.ctx.font)
+
+/**` fontSize : IO Number `*/
+const fontSize : IO <number> =
+	IO (() => parseFloat (Ψ.ctx.font))
+
+/**` fontFamily : IO String `*/
+const fontFamily : IO <string> =
+	IO (() => Ψ.ctx.font.slice(Ψ.ctx.font.indexOf(' ') + 1))
+
+/**` n_shadowOffsetX : IO Number `*/
+const n_shadowOffsetX : IO <number> =
+	IO (() => Ψ.ctx.shadowOffsetX / Ψ.ctx.canvas.height)
+
+/**` shadowOffsetX : IO Number `*/
+const shadowOffsetX : IO <number> =
+	IO (() => Ψ.ctx.shadowOffsetX)
+
+/**` n_shadowOffsetY : IO Number `*/
+const n_shadowOffsetY : IO <number> =
+	IO (() => Ψ.ctx.shadowOffsetY / Ψ.ctx.canvas.height)
+
+/**` shadowOffsetY : IO Number `*/
+const shadowOffsetY : IO <number> =
+	IO (() => Ψ.ctx.shadowOffsetY)
+
+/**` n_shadowOffset : IO Vector2 `*/
+const n_shadowOffset : IO <Vector2> =
+	IO (() => Vector2 (Ψ.ctx.shadowOffsetX / Ψ.ctx.canvas.width, Ψ.ctx.shadowOffsetY / Ψ.ctx.canvas.height))
+
+/**` shadowOffset : IO Vector2 `*/
+const shadowOffset : IO <Vector2> =
+	IO (() => Vector2 (Ψ.ctx.shadowOffsetX, Ψ.ctx.shadowOffsetY))
+
+/**` shadowBlurAmount : IO Number `*/
+const shadowBlurAmount : IO <number> =
+	IO (() => Ψ.ctx.shadowBlur)
+
+/**` shadowColor : IO String `*/
+const shadowColor : IO <string> =
+	IO (() => Ψ.ctx.shadowColor)
+
+/**` n_isInEvenOddPath : Number -> : Number -> IO Boolean `*/
+const n_isInEvenOddPath = (x : number) => (y : number) : IO <boolean> =>
+	IO (() => Ψ.ctx.isPointInPath(x / Ψ.ctx.canvas.width, y / Ψ.ctx.canvas.height, 'evenodd'))
+
+/**` n_isInEvenOddPathV2 : Vector2 -> IO Boolean `*/
+const n_isInEvenOddPathV2 = (xy : Vector2) : IO <boolean> =>
+	IO (() => Ψ.ctx.isPointInPath(xy.x / Ψ.ctx.canvas.width, xy.y / Ψ.ctx.canvas.height, 'evenodd'))
+
+/**` isInEvenOddPath : Number -> : Number -> IO Boolean `*/
+const isInEvenOddPath = (x : number) => (y : number) : IO <boolean> =>
+	IO (() => Ψ.ctx.isPointInPath(x, y, 'evenodd'))
+
+/**` isInEvenOddPathV2 : Vector2 -> IO Boolean `*/
+const isInEvenOddPathV2 = (xy : Vector2) : IO <boolean> =>
+	IO (() => Ψ.ctx.isPointInPath(xy.x, xy.y, 'evenodd'))
+
+/**` n_isInNonZeroPath : Number -> : Number -> IO Boolean `*/
+const n_isInNonZeroPath = (x : number) => (y : number) : IO <boolean> =>
+	IO (() => Ψ.ctx.isPointInPath(x / Ψ.ctx.canvas.width, y / Ψ.ctx.canvas.height, 'nonzero'))
+
+/**` n_isInNonZeroPathV2 : Vector2 -> IO Boolean `*/
+const n_isInNonZeroPathV2 = (v : Vector2) : IO <boolean> =>
+	IO (() => Ψ.ctx.isPointInPath(v.x / Ψ.ctx.canvas.width, v.y / Ψ.ctx.canvas.height, 'nonzero'))
+
+/**` isInNonZeroPath : Number -> : Number -> IO Boolean `*/
+const isInNonZeroPath = (x : number) => (y : number) : IO <boolean> =>
+	IO (() => Ψ.ctx.isPointInPath(x, y, 'nonzero'))
+
+/**` isInNonZeroPathV2 : Vector2 -> IO Boolean `*/
+const isInNonZeroPathV2 = (v : Vector2) : IO <boolean> =>
+	IO (() => Ψ.ctx.isPointInPath(v.x, v.y, 'nonzero'))
+
+/**` n_isInStroke : Number -> : Number -> IO Boolean `*/
+const n_isInStroke = (x : number) => (y : number) : IO <boolean> =>
+	IO (() => Ψ.ctx.isPointInStroke(x / Ψ.ctx.canvas.width, y / Ψ.ctx.canvas.height))
+
+/**` n_isInStrokeV2 : Vector2 -> IO Boolean `*/
+const n_isInStrokeV2 = (v : Vector2) : IO <boolean> =>
+	IO (() => Ψ.ctx.isPointInStroke(v.x / Ψ.ctx.canvas.width, v.y / Ψ.ctx.canvas.height))
+
+/**` isInStroke : Number -> : Number -> IO Boolean `*/
+const isInStroke = (x : number) => (y : number) : IO <boolean> =>
+	IO (() => Ψ.ctx.isPointInStroke(x, y))
+
+/**` isInStrokeV2 : Vector2 -> IO Boolean `*/
+const isInStrokeV2 = (v : Vector2) : IO <boolean> =>
+	IO (() => Ψ.ctx.isPointInStroke(v.x, v.y))
+
+/**` transformationM2 : IO Matrix2 `*/
+const transformationM2 : IO <Matrix2> =
+	IO (() => {
+		const { a, c, b, d } = Ψ.ctx.getTransform()
+		return Matrix2 (a, c, b, d)
+	})
+
+/**` n_transformationM3 : IO Matrix3 `*/
+const n_transformationM3 : IO <Matrix3> =
+	IO (() => {
+		const m = Ψ.ctx.getTransform()
+		return Matrix3 (m.a, m.c, m.e / Ψ.ctx.canvas.width, m.b, m.d, m.f / Ψ.ctx.canvas.height, 0, 0, 1)
+	})
+
+/**` transformationM3 : IO Matrix3 `*/
+const transformationM3 : IO <Matrix3> =
+	IO (() => {
+		const { a, c, e, b, d, f } = Ψ.ctx.getTransform()
+		return Matrix3 (a, c, e, b, d, f, 0, 0, 1)
+	})
+
+/**` layerIndex : IO Number `*/
+const layerIndex : IO <number> =
+	IO (() => Ψ.ctxs.findIndex(ctx => ctx === Ψ.ctx))
+
+/**` alpha : IO Number `*/
+const alpha : IO <number> =
+	IO (() => Ψ.ctx.globalAlpha)
+
+/**` lineCap : IO LineCap `*/
+const lineCap : IO <LineCap> =
+	IO (() =>
+		Ψ.ctx.lineCap === 'butt'   ? LineCap.Butt   :
+		Ψ.ctx.lineCap === 'round'  ? LineCap.Round  :
+		Ψ.ctx.lineCap === 'square' ? LineCap.Square : never
+	)
+
+/**` lineJoin : IO LineJoin `*/
+const lineJoin : IO <LineJoin> =
+	IO (() =>
+		Ψ.ctx.lineJoin === 'round' ? LineJoin.Round :
+		Ψ.ctx.lineJoin === 'bevel' ? LineJoin.Bevel :
+		Ψ.ctx.lineJoin === 'miter' ? LineJoin.Miter : never
+	)
+
+/**` textAlign : IO TextAlign `*/
+const textAlign : IO <TextAlign> =
+	IO (() =>
+		Ψ.ctx.textAlign === 'center' ? TextAlign.Center    :
+		Ψ.ctx.textAlign === 'end'    ? TextAlign.End       :
+		Ψ.ctx.textAlign === 'left'   ? TextAlign.Leftside  :
+		Ψ.ctx.textAlign === 'right'  ? TextAlign.Rightside :
+		Ψ.ctx.textAlign === 'start'  ? TextAlign.Start     : never
+	)
+
+/**` textBaseline : IO TextBaseline `*/
+const textBaseline : IO <TextBaseline> =
+	IO (() =>
+		Ψ.ctx.textBaseline === 'alphabetic'  ? TextBaseline.Alphabetic  :
+		Ψ.ctx.textBaseline === 'bottom'      ? TextBaseline.Bottom      :
+		Ψ.ctx.textBaseline === 'hanging'     ? TextBaseline.Hanging     :
+		Ψ.ctx.textBaseline === 'ideographic' ? TextBaseline.Ideographic :
+		Ψ.ctx.textBaseline === 'middle'      ? TextBaseline.Middle      :
+		Ψ.ctx.textBaseline === 'top'         ? TextBaseline.Top         : never
+	)
+
+/**` composition : IO Composition `*/
+const composition : IO <Composition> =
+	IO (() =>
+		Ψ.ctx.globalCompositeOperation === 'source-over'      ? Composition.SourceOver      :
+		Ψ.ctx.globalCompositeOperation === 'source-in'        ? Composition.SourceIn        :
+		Ψ.ctx.globalCompositeOperation === 'source-out'       ? Composition.SourceOut       :
+		Ψ.ctx.globalCompositeOperation === 'source-atop'      ? Composition.SourceAtop      :
+		Ψ.ctx.globalCompositeOperation === 'destination-over' ? Composition.DestinationOver :
+		Ψ.ctx.globalCompositeOperation === 'destination-in'   ? Composition.DestinationIn   :
+		Ψ.ctx.globalCompositeOperation === 'destination-out'  ? Composition.DestinationOut  :
+		Ψ.ctx.globalCompositeOperation === 'destination-atop' ? Composition.DestinationAtop :
+		Ψ.ctx.globalCompositeOperation === 'lighter'          ? Composition.Lighter         :
+		Ψ.ctx.globalCompositeOperation === 'copy'             ? Composition.Copy            :
+		Ψ.ctx.globalCompositeOperation === 'xor'              ? Composition.Xor             :
+		Ψ.ctx.globalCompositeOperation === 'multiply'         ? Composition.Multiply        :
+		Ψ.ctx.globalCompositeOperation === 'screen'           ? Composition.Screen          :
+		Ψ.ctx.globalCompositeOperation === 'overlay'          ? Composition.Overlay         :
+		Ψ.ctx.globalCompositeOperation === 'darken'           ? Composition.Darken          :
+		Ψ.ctx.globalCompositeOperation === 'lighten'          ? Composition.Lighten         :
+		Ψ.ctx.globalCompositeOperation === 'color-dodge'      ? Composition.ColorDodge      :
+		Ψ.ctx.globalCompositeOperation === 'color-burn'       ? Composition.ColorBurn       :
+		Ψ.ctx.globalCompositeOperation === 'hard-light'       ? Composition.HardLight       :
+		Ψ.ctx.globalCompositeOperation === 'soft-light'       ? Composition.SoftLight       :
+		Ψ.ctx.globalCompositeOperation === 'difference'       ? Composition.Difference      :
+		Ψ.ctx.globalCompositeOperation === 'exclusion'        ? Composition.Exclusion       :
+		Ψ.ctx.globalCompositeOperation === 'hue'              ? Composition.Hue             :
+		Ψ.ctx.globalCompositeOperation === 'saturation'       ? Composition.Saturation      :
+		Ψ.ctx.globalCompositeOperation === 'color'            ? Composition.Color           :
+		Ψ.ctx.globalCompositeOperation === 'luminosity'       ? Composition.Luminosity      : never
+	)
+
+/**` time : IO Number `*/
+const time : IO <number> =
+	IO (Date.now)
+
+/**` seed : IO Number `*/
+const seed : IO <number> =
+	IO (() => Ψ.seed)
+
+/**` isWindowResized : IO Boolean `*/
+const isWindowResized : IO <boolean> =
+	IO (() => Ψ.isResized)
+
+/**` isPointerLocked : IO Boolean `*/
+const isPointerLocked : IO <boolean> =
+	IO (() => Ψ.isPointerLocked)
+
+/**` beginPath : IO () `*/
+const beginPath : IO <null> =
+	IO (() => (Ψ.ctx.beginPath(), null))
+
+/**` closePath : IO () `*/
+const closePath : IO <null> =
+	IO (() => (Ψ.ctx.closePath(), null))
+
+/**` n_relocateTo : Number -> Number -> IO () `*/
+const n_relocateTo = (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.moveTo(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height), null))
+
+/**` n_relocateToV2 : Vector2 -> IO () `*/
+const n_relocateToV2 = (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.moveTo(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height), null))
+
+/**` relocateTo : Number -> Number -> IO () `*/
+const relocateTo = (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.moveTo(x, y), null))
+
+/**` relocateToV2 : Vector2 -> IO () `*/
+const relocateToV2 = (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.moveTo(v.x, v.y), null))
+
+/**` n_lineTo : Number -> Number -> IO () `*/
+const n_lineTo = (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.lineTo(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height), null))
+
+/**` n_lineToV2 : Vector2 -> IO () `*/
+const n_lineToV2 = (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.lineTo(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height), null))
+
+/**` lineTo : Number -> Number -> IO () `*/
+const lineTo = (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.lineTo(x, y), null))
+
+/**` lineToV2 : Vector2 -> IO () `*/
+const lineToV2 = (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.lineTo(v.x, v.y), null))
+
+/**` n_bezierCurveTo : ...6 Number -> IO () `*/
+const n_bezierCurveTo =
+	(cx0 : number) => (cy0 : number) =>
+	(cx1 : number) => (cy1 : number) =>
+	(x   : number) => (y   : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.bezierCurveTo(
+			cx0 * Ψ.ctx.canvas.width, cy0 * Ψ.ctx.canvas.height,
+			cx1 * Ψ.ctx.canvas.width, cy1 * Ψ.ctx.canvas.height,
+			x   * Ψ.ctx.canvas.width, y   * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` n_bezierCurveToV2 : Vector2 -> Vector2 -> Vector2 -> IO () `*/
+const n_bezierCurveToV2 = (cxy0 : Vector2) => (cxy1 : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.bezierCurveTo(
+			cxy0.x * Ψ.ctx.canvas.width, cxy0.y * Ψ.ctx.canvas.height,
+			cxy1.x * Ψ.ctx.canvas.width, cxy1.y * Ψ.ctx.canvas.height,
+			xy.x   * Ψ.ctx.canvas.width, xy.y   * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` bezierCurveTo : ...6 Number -> IO () `*/
+const bezierCurveTo =
+	(cx0 : number) => (cy0 : number) =>
+	(cx1 : number) => (cy1 : number) =>
+	(x   : number) => (y   : number) : IO <null> =>
+	IO (() => (Ψ.ctx.bezierCurveTo(cx0, cy0, cx1, cy1, x, y), null))
+
+/**` bezierCurveToV2 : Vector2 -> Vector2 -> Vector2 -> IO () `*/
+const bezierCurveToV2 = (cxy0 : Vector2) => (cxy1 : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.bezierCurveTo(cxy0.x, cxy0.y, cxy1.x, cxy1.y, xy.x, xy.y), null))
+
+/**` n_quadraticCurveTo : Number -> Number -> Number -> Number -> IO () `*/
+const n_quadraticCurveTo = (cx : number) => (cy : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.quadraticCurveTo(
+			cx * Ψ.ctx.canvas.width, cy * Ψ.ctx.canvas.height,
+			x  * Ψ.ctx.canvas.width, y  * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` n_quadraticCurveToV2 : Vector2 -> Vector2 -> IO () `*/
+const n_quadraticCurveToV2 = (cxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.quadraticCurveTo(
+			cxy.x * Ψ.ctx.canvas.width, cxy.y * Ψ.ctx.canvas.height,
+			xy.x  * Ψ.ctx.canvas.width, xy.y  * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` quadraticCurveTo : Number -> Number -> Number -> Number -> IO () `*/
+const quadraticCurveTo = (cx : number) => (cy : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.quadraticCurveTo(cx, cy, x, y), null))
+
+/**` quadraticCurveToV2 : Vector2 -> Vector2 -> IO () `*/
+const quadraticCurveToV2 = (cxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.quadraticCurveTo(cxy.x, cxy.y, xy.x, xy.y), null))
+
+/**` n_arcTo : ...5 Number -> IO () `*/
+const n_arcTo = (r : number) => (cx0 : number) => (cy0 : number) => (cx1 : number) => (cy1 : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arcTo(
+			cx0 * Ψ.ctx.canvas.width, cy0 * Ψ.ctx.canvas.height,
+			cx1 * Ψ.ctx.canvas.width, cy1 * Ψ.ctx.canvas.height,
+			r   * Ψ.ctx.canvas.width
+		), null
+	))
+
+/**` n_arcToV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+const n_arcToV2 = (r : number) => (cxy0 : Vector2) => (cxy1 : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arcTo(
+			cxy0.x * Ψ.ctx.canvas.width, cxy0.y * Ψ.ctx.canvas.height,
+			cxy1.x * Ψ.ctx.canvas.width, cxy1.y * Ψ.ctx.canvas.height,
+			r      * Ψ.ctx.canvas.width
+		), null
+	))
+
+/**` arcTo : ...5 Number -> IO () `*/
+const arcTo = (r : number) => (cx0 : number) => (cy0 : number) => (cx1 : number) => (cy1 : number) : IO <null> =>
+	IO (() => (Ψ.ctx.arcTo(cx0, cy0, cx1, cy1, r), null))
+
+/**` arcToV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+const arcToV2 = (r : number) => (cxy0 : Vector2) => (cxy1 : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.arcTo(cxy0.x, cxy0.y, cxy1.x, cxy1.y, r), null))
+
+/**` n_rect : Number -> Number -> Number -> Number -> IO () `*/
+const n_rect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.rect(
+			x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+			w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` n_rectV2 : Vector2 -> Vector2 -> IO () `*/
+const n_rectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.rect(
+			xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+			wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` rect : Number -> Number -> Number -> Number -> IO () `*/
+const rect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+	IO (() => (Ψ.ctx.rect(x, y, w, h), null))
+
+/**` rectV2 : Vector2 -> Vector2 -> IO () `*/
+const rectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.rect(xy.x, xy.y, wh.x, wh.y), null))
+
+/**` n_fillRect : Number -> Number -> Number -> Number -> IO () `*/
+const n_fillRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.fillRect(
+			x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+			w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` n_fillRectV2 : Vector2 -> Vector2 -> IO () `*/
+const n_fillRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.fillRect(
+			xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+			wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` fillRect : Number -> Number -> Number -> Number -> IO () `*/
+const fillRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+	IO (() => (Ψ.ctx.fillRect(x, y, w, h), null))
+
+/**` fillRectV2 : Vector2 -> Vector2 -> IO () `*/
+const fillRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.fillRect(xy.x, xy.y, wh.x, wh.y), null))
+
+/**` n_strokeRect : Number -> Number -> Number -> Number -> IO () `*/
+const n_strokeRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.strokeRect(
+			x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+			w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` n_strokeRectV2 : Vector2 -> Vector2 -> IO () `*/
+const n_strokeRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.strokeRect(
+			xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+			wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` strokeRect : Number -> Number -> Number -> Number -> IO () `*/
+const strokeRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+	IO (() => (Ψ.ctx.strokeRect(x, y, w, h), null))
+
+/**` strokeRectV2 : Vector2 -> Vector2 -> IO () `*/
+const strokeRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.strokeRect(xy.x, xy.y, wh.x, wh.y), null))
+
+/**` n_fillStrokeRect : Number -> Number -> Number -> Number -> IO () `*/
+const n_fillStrokeRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.rect(
+			x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+			w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
+		), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+	))
+
+/**` n_fillStrokeRectV2 : Vector2 -> Vector2 -> IO () `*/
+const n_fillStrokeRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.rect(
+			xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+			wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
+		), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+	))
+
+/**` fillStrokeRect : Number -> Number -> Number -> Number -> IO () `*/
+const fillStrokeRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+	IO (() => (Ψ.ctx.rect(x, y, w, h), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+/**` fillStrokeRectV2 : Vector2 -> Vector2 -> IO () `*/
+const fillStrokeRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.rect(xy.x, xy.y, wh.x, wh.y), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+/**` n_strokeFillRect : Number -> Number -> Number -> Number -> IO () `*/
+const n_strokeFillRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.rect(
+			x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+			w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
+		), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
+	))
+
+/**` n_strokeFillRectV2 : Vector2 -> Vector2 -> IO () `*/
+const n_strokeFillRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.rect(
+			xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+			wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
+		), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
+	))
+
+/**` strokeFillRect : Number -> Number -> Number -> Number -> IO () `*/
+const strokeFillRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+	IO (() => (Ψ.ctx.rect(x, y, w, h), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
+
+/**` strokeFillRectV2 : Vector2 -> Vector2 -> IO () `*/
+const strokeFillRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.rect(xy.x, xy.y, wh.x, wh.y), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
+
+/**` n_area : Number -> Number -> Number -> Number -> IO () `*/
+const n_area = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.rect(
+			x0        * Ψ.ctx.canvas.width, y0        * Ψ.ctx.canvas.height,
+			(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` n_areaV2 : Vector2 -> Vector2 -> IO () `*/
+const n_areaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.rect(
+			xy0.x           * Ψ.ctx.canvas.width, xy0.y           * Ψ.ctx.canvas.width,
+			(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.width
+		), null
+	))
+
+/**` area : Number -> Number -> Number -> Number -> IO () `*/
+const area = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (Ψ.ctx.rect(x0, y0, x1 - x0, y1 - y0), null))
+
+/**` areaV2 : Vector2 -> Vector2 -> IO () `*/
+const areaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.rect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null))
+
+/**` n_fillArea : Number -> Number -> Number -> Number -> IO () `*/
+const n_fillArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.fillRect(
+			x0        * Ψ.ctx.canvas.width, y0        * Ψ.ctx.canvas.height,
+			(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` n_fillAreaV2 : Vector2 -> Vector2 -> IO () `*/
+const n_fillAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.fillRect(
+			xy0.x           * Ψ.ctx.canvas.width, xy0.y           * Ψ.ctx.canvas.height,
+			(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` fillArea : Number -> Number -> Number -> Number -> IO () `*/
+const fillArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (Ψ.ctx.fillRect(x0, y0, x1 - x0, y1 - y0), null))
+
+/**` fillAreaV2 : Vector2 -> Vector2 -> IO () `*/
+const fillAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.fillRect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null))
+
+/**` n_strokeArea : Number -> Number -> Number -> Number -> IO () `*/
+const n_strokeArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.strokeRect(
+			x0        * Ψ.ctx.canvas.width, y0        * Ψ.ctx.canvas.height,
+			(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` n_strokeAreaV2 : Vector2 -> Vector2 -> IO () `*/
+const n_strokeAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.strokeRect(
+			xy0.x           * Ψ.ctx.canvas.width, xy0.y           * Ψ.ctx.canvas.height,
+			(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` strokeArea : Number -> Number -> Number -> Number -> IO () `*/
+const strokeArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (Ψ.ctx.strokeRect(x0, y0, x1 - x0, y1 - y0), null))
+
+/**` strokeAreaV2 : Vector2 -> Vector2 -> IO () `*/
+const strokeAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.strokeRect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null))
+
+/**` n_fillStrokeArea : Number -> Number -> Number -> Number -> IO () `*/
+const n_fillStrokeArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.rect(
+			x0        * Ψ.ctx.canvas.width, y0        * Ψ.ctx.canvas.height,
+			(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
+		), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+	))
+
+/**` n_fillStrokeAreaV2 : Vector2 -> Vector2 -> IO () `*/
+const n_fillStrokeAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.rect(
+			xy0.x           * Ψ.ctx.canvas.width, xy0.y           * Ψ.ctx.canvas.height,
+			(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
+		), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+	))
+
+/**` fillStrokeArea : Number -> Number -> Number -> Number -> IO () `*/
+const fillStrokeArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (Ψ.ctx.rect(x0, y0, x1 - x0, y1 - y0), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+/**` fillStrokeAreaV2 : Vector2 -> Vector2 -> IO () `*/
+const fillStrokeAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.rect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+/**` n_strokeFillArea : Number -> Number -> Number -> Number -> IO () `*/
+const n_strokeFillArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.rect(
+			x0        * Ψ.ctx.canvas.width, y0        * Ψ.ctx.canvas.height,
+			(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
+		), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
+	))
+
+/**` n_strokeFillAreaV2 : Vector2 -> Vector2 -> IO () `*/
+const n_strokeFillAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.rect(
+			xy0.x           * Ψ.ctx.canvas.width, xy0.y           * Ψ.ctx.canvas.height,
+			(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
+		), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
+	))
+
+/**` strokeFillArea : Number -> Number -> Number -> Number -> IO () `*/
+const strokeFillArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (Ψ.ctx.rect(x0, y0, x1 - x0, y1 - y0), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
+
+/**` strokeFillAreaV2 : Vector2 -> Vector2 -> IO () `*/
+const strokeFillAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.rect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
+
+/**` n_arc : ...5 Number -> IO () `*/
+const n_arc = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, a1 * tau),
+		null
+	))
+
+/**` n_arcV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+const n_arcV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, a1 * tau),
+		null
+	))
+
+/**` arc : ...5 Number -> IO () `*/
+const arc = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(x, y, r, a0, a1), null))
+
+/**` arcV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+const arcV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(v.x, v.y, r, a0, a1), null))
+
+/**` n_strokeArc : ...5 Number -> IO () `*/
+const n_strokeArc = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, a1 * tau),
+		Ψ.ctx.stroke(), null
+	))
+
+/**` n_strokeArcV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+const n_strokeArcV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, a1 * tau),
+		Ψ.ctx.stroke(), null
+	))
+
+/**` strokeArc : ...5 Number -> IO () `*/
+const strokeArc = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(x, y, r, a0, a1), Ψ.ctx.stroke(), null))
+
+/**` strokeArcV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+const strokeArcV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(v.x, v.y, r, a0, a1), Ψ.ctx.stroke(), null))
+
+/**` n_arcSection : ...5 Number -> IO () `*/
+const n_arcSection = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, (a0 + a1) * tau),
+		null
+	))
+
+/**` n_arcSectionV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+const n_arcSectionV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, (a0 + a1) * tau),
+		null
+	))
+
+/**` arcSection : ...5 Number -> IO () `*/
+const arcSection = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(x, y, r, a0, a0 + a1), null))
+
+/**` arcSectionV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+const arcSectionV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(v.x, v.y, r, a0, a0 + a1), null))
+
+/**` n_strokeArcSection : ...5 Number -> IO () `*/
+const n_strokeArcSection =
+	(r  : number) =>
+	(a0 : number) => (a1 : number) =>
+	(x  : number) => (y  : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, (a0 + a1) * tau),
+		Ψ.ctx.stroke(), null
+	))
+
+/**` n_strokeArcSectionV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+const n_strokeArcSectionV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, (a0 + a1) * tau),
+		Ψ.ctx.stroke(), null
+	))
+
+/**` strokeArcSection : ...5 Number -> IO () `*/
+const strokeArcSection =
+	(r  : number) =>
+	(a0 : number) => (a1 : number) =>
+	(x  : number) => (y  : number) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(x, y, r, a0, a0 + a1), Ψ.ctx.stroke(), null))
+
+/**` strokeArcSectionV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
+const strokeArcSectionV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(v.x, v.y, r, a0, a0 + a1), Ψ.ctx.stroke(), null))
+
+/**` n_circle : Number -> Number -> Number -> IO () `*/
+const n_circle = (r : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau), null))
+
+/**` n_circleV2 : Number -> Vector2 -> IO () `*/
+const n_circleV2 = (r : number) => (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau), null))
+
+/**` circle : Number -> Number -> Number -> IO () `*/
+const circle = (r : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(x, y, r, 0, tau), null))
+
+/**` circleV2 : Number -> Vector2 -> IO () `*/
+const circleV2 = (r : number) => (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), null))
+
+/**` n_fillCircle : Number -> Number -> Number -> IO () `*/
+const n_fillCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+		Ψ.ctx.fill(), null
+	))
+
+/**` n_fillCircleV2 : Number -> Vector2 -> IO () `*/
+const n_fillCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+		Ψ.ctx.fill(), null
+	))
+
+/**` fillCircle : Number -> Number -> Number -> IO () `*/
+const fillCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(x, y, r, 0, tau), Ψ.ctx.fill(), null))
+
+/**` fillCircleV2 : Number -> Vector2 -> IO () `*/
+const fillCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), Ψ.ctx.fill(), null))
+
+/**` n_strokeCircle : Number -> Number -> Number -> IO () `*/
+const n_strokeCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+		Ψ.ctx.stroke(), null
+	))
+
+/**` n_strokeCircleV2 : Number -> Vector2 -> IO () `*/
+const n_strokeCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+		Ψ.ctx.stroke(), null
+	))
+
+/**` strokeCircle : Number -> Number -> Number -> IO () `*/
+const strokeCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(x, y, r, 0, tau), Ψ.ctx.stroke(), null))
+
+/**` strokeCircleV2 : Number -> Vector2 -> IO () `*/
+const strokeCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), Ψ.ctx.stroke(), null))
+
+/**` n_fillStrokeCircle : Number -> Number -> Number -> IO () `*/
+const n_fillStrokeCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+		Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+	))
+
+/**` n_fillStrokeCircleV2 : Number -> Vector2 -> IO () `*/
+const n_fillStrokeCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+		Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+	))
+
+/**` fillStrokeCircle : Number -> Number -> Number -> IO () `*/
+const fillStrokeCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(x, y, r, 0, tau), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+/**` fillStrokeCircleV2 : Number -> Vector2 -> IO () `*/
+const fillStrokeCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+/**` n_strokeFillCircle : Number -> Number -> Number -> IO () `*/
+const n_strokeFillCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+		Ψ.ctx.stroke(), Ψ.ctx.fill(), null
+	))
+
+/**` n_strokeFillCircleV2 : Number -> Vector2 -> IO () `*/
+const n_strokeFillCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
+		Ψ.ctx.stroke(), Ψ.ctx.fill(), null
+	))
+
+/**` strokeFillCircle : Number -> Number -> Number -> IO () `*/
+const strokeFillCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(x, y, r, 0, tau), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
+
+/**` strokeFillCircleV2 : Number -> Vector2 -> IO () `*/
+const strokeFillCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
+
+/**` n_elliptic : ...7 Number -> IO () `*/
+const n_elliptic =
+	(a  : number) => (a0 : number) => (a1 : number) =>
+	(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			x  * Ψ.ctx.canvas.width, y  * Ψ.ctx.canvas.height,
+			kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
+			a * tau, a0 * tau, a1 * tau
+		), null
+	))
+
+/**` n_ellipticV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+const n_ellipticV2 =
+	(a   : number ) => (a0 : number ) => (a1 : number) =>
+	(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			xy.x  * Ψ.ctx.canvas.width, xy.y  * Ψ.ctx.canvas.width,
+			kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.width, a * tau, a0 * tau, a1 * tau
+		), null
+	))
+
+/**` elliptic : ...7 Number -> IO () `*/
+const elliptic =
+	(a  : number) => (a0 : number) => (a1 : number) =>
+	(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, a0, a1), null))
+
+/**` ellipticV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+const ellipticV2 =
+	(a   : number ) => (a0 : number ) => (a1 : number) =>
+	(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, a0, a1), null))
+
+/**` n_strokeElliptic : ...7 Number -> IO () `*/
+const n_strokeElliptic =
+	(a  : number) => (a0 : number) => (a1 : number) =>
+	(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			x  * Ψ.ctx.canvas.width, y  * Ψ.ctx.canvas.width,
+			kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.width, a * tau, a0 * tau, a1 * tau
+		), Ψ.ctx.stroke(), null
+	))
+
+/**` n_strokeEllipticV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+const n_strokeEllipticV2 =
+	(a   : number ) => (a0 : number ) => (a1 : number) =>
+	(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			xy.x  * Ψ.ctx.canvas.width, xy.y  * Ψ.ctx.canvas.width,
+			kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.width, a * tau, a0 * tau, a1 * tau
+		), Ψ.ctx.stroke(), null
+	))
+
+/**` strokeElliptic : ...7 Number -> IO () `*/
+const strokeElliptic =
+	(a  : number) => (a0 : number) => (a1 : number) =>
+	(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, a0, a1), Ψ.ctx.stroke(), null))
+
+/**` strokeEllipticV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+const strokeEllipticV2 =
+	(a   : number ) => (a0 : number ) => (a1 : number) =>
+	(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, a0, a1), Ψ.ctx.stroke(), null))
+
+/**` n_ellipticSection : ...7 Number -> IO () `*/
+const n_ellipticSection =
+	(a  : number) => (a0 : number) => (a1 : number) =>
+	(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			x  * Ψ.ctx.canvas.width, y  * Ψ.ctx.canvas.width,
+			kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.width, a * tau, a0 * tau, a1 * tau
+		), null
+	))
+
+/**` n_ellipticSectionV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+const n_ellipticSectionV2 =
+	(a   : number ) => (a0 : number ) => (a1 : number) =>
+	(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			xy.x  * Ψ.ctx.canvas.width, xy.y  * Ψ.ctx.canvas.width,
+			kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.width,
+			a * tau, a0 * tau, (a0 + a1) * tau
+		), null
+	))
+
+/**` ellipticSection : ...7 Number -> IO () `*/
+const ellipticSection =
+	(a  : number) => (a0 : number) => (a1 : number) =>
+	(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, a0, a0 + a1), null))
+
+/**` ellipticSectionV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+const ellipticSectionV2 =
+	(a   : number ) => (a0 : number ) => (a1 : number) =>
+	(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, a0, a0 + a1), null))
+
+/**` n_strokeEllipticSection : ...7 Number -> IO () `*/
+const n_strokeEllipticSection =
+	(a  : number) => (a0 : number) => (a1 : number) =>
+	(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			x  * Ψ.ctx.canvas.width, y  * Ψ.ctx.canvas.width,
+			kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.width,
+			a  * tau, a0 * tau, (a0 + a1) * tau
+		), Ψ.ctx.stroke(), null
+	))
+
+/**` n_strokeEllipticSectionV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+const n_strokeEllipticSectionV2 =
+	(a   : number ) => (a0 : number ) => (a1 : number) =>
+	(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			xy.x  * Ψ.ctx.canvas.width, xy.y  * Ψ.ctx.canvas.height,
+			kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
+			a * tau, a0 * tau, (a0 + a1) * tau
+		), Ψ.ctx.stroke(), null
+	))
+
+/**` strokeEllipticSection : ...7 Number -> IO () `*/
+const strokeEllipticSection =
+	(a  : number) => (a0 : number) => (a1 : number) =>
+	(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, a0, a0 + a1), Ψ.ctx.stroke(), null))
+
+/**` strokeEllipticSectionV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
+const strokeEllipticSectionV2 =
+	(a   : number ) => (a0 : number ) => (a1 : number) =>
+	(kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, a0, a0 + a1), Ψ.ctx.stroke(), null))
+
+/**` n_ellipse : ...5 Number -> IO () `*/
+const n_ellipse =
+	(a  : number) =>
+	(kx : number) => (ky : number) =>
+	(x  : number) => (y  : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			x  * Ψ.ctx.canvas.width, y  * Ψ.ctx.canvas.height,
+			kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
+			a * tau, 0, tau
+		), null
+	))
+
+/**` n_ellipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+const n_ellipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			xy.x  * Ψ.ctx.canvas.width, xy.y  * Ψ.ctx.canvas.height,
+			kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
+			a * tau, 0, tau
+		), null
+	))
+
+/**` ellipse : ...5 Number -> IO () `*/
+const ellipse =
+	(a  : number) =>
+	(kx : number) => (ky : number) =>
+	(x  : number) => (y  : number) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, 0, tau), null))
+
+/**` ellipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+const ellipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), null))
+
+/**` n_fillEllipse : ...5 Number -> IO () `*/
+const n_fillEllipse =
+	(a  : number) =>
+	(kx : number) => (ky : number) =>
+	(x  : number) => (y  : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			x  * Ψ.ctx.canvas.width, y  * Ψ.ctx.canvas.height,
+			kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
+			a * tau, 0, tau
+		), Ψ.ctx.fill(), null
+	))
+
+/**` n_fillEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+const n_fillEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			xy.x  * Ψ.ctx.canvas.width, xy.y  * Ψ.ctx.canvas.height,
+			kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
+			a * tau, 0, tau
+		), Ψ.ctx.fill(), null
+	))
+
+/**` fillEllipse : ...5 Number -> IO () `*/
+const fillEllipse =
+	(a  : number) =>
+	(kx : number) => (ky : number) =>
+	(x  : number) => (y  : number) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, 0, tau), Ψ.ctx.fill(), null))
+
+/**` fillEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+const fillEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), Ψ.ctx.fill(), null))
+
+/**` n_strokeEllipse : ...5 Number -> IO () `*/
+const n_strokeEllipse =
+	(a  : number) =>
+	(kx : number) => (ky : number) =>
+	(x  : number) => (y  : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			x  * Ψ.ctx.canvas.width, y  * Ψ.ctx.canvas.height,
+			kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
+			a * tau, 0, tau
+		), Ψ.ctx.stroke(), null
+	))
+
+/**` n_strokeEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+const n_strokeEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			xy.x  * Ψ.ctx.canvas.width, xy.y  * Ψ.ctx.canvas.height,
+			kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
+			a * tau, 0, tau
+		), Ψ.ctx.stroke(), null
+	))
+
+/**` strokeEllipse : ...5 Number -> IO () `*/
+const strokeEllipse =
+	(a  : number) =>
+	(kx : number) => (ky : number) =>
+	(x  : number) => (y  : number) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, 0, tau), Ψ.ctx.stroke(), null))
+
+/**` strokeEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+const strokeEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), Ψ.ctx.stroke(), null))
+
+/**` n_fillStrokeEllipse : ...5 Number -> IO () `*/
+const n_fillStrokeEllipse =
+	(a  : number) =>
+	(kx : number) => (ky : number) =>
+	(x  : number) => (y  : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			x  * Ψ.ctx.canvas.width, y  * Ψ.ctx.canvas.height,
+			kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
+			a * tau, 0, tau
+		), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+	))
+
+/**` n_fillStrokeEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+const n_fillStrokeEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			xy.x  * Ψ.ctx.canvas.width, xy.y  * Ψ.ctx.canvas.height,
+			kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
+			a * tau, 0, tau
+		), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
+	))
+
+/**` fillStrokeEllipse : ...5 Number -> IO () `*/
+const fillStrokeEllipse =
+	(a  : number) =>
+	(kx : number) => (ky : number) =>
+	(x  : number) => (y  : number) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, 0, tau), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+/**` fillStrokeEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+const fillStrokeEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
+
+/**` n_strokeFillEllipse : ...5 Number -> IO () `*/
+const n_strokeFillEllipse =
+	(a  : number) =>
+	(kx : number) => (ky : number) =>
+	(x  : number) => (y  : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			x  * Ψ.ctx.canvas.width, y  * Ψ.ctx.canvas.height,
+			kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
+			a * tau, 0, tau
+		), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
+	))
+
+/**` n_strokeFillEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+const n_strokeFillEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.ellipse(
+			xy.x  * Ψ.ctx.canvas.width, xy.y  * Ψ.ctx.canvas.height,
+			kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
+			a * tau, 0, tau
+		), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
+	))
+
+/**` strokeFillEllipse : ...5 Number -> IO () `*/
+const strokeFillEllipse =
+	(a  : number) =>
+	(kx : number) => (ky : number) =>
+	(x  : number) => (y  : number) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, 0, tau), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
+
+/**` strokeFillEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
+const strokeFillEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
+
+/**` n_fillText : String -> Number -> Number -> IO () `*/
+const n_fillText = (text : string) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.fillText(text, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height), null))
+
+/**` n_fillTextV2 : String -> Vector2 -> IO () `*/
+const n_fillTextV2 = (text : string) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.fillText(text, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height), null))
+
+/**` fillText : String -> Number -> Number -> IO () `*/
+const fillText = (text : string) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.fillText(text, x, y), null))
+
+/**` fillTextV2 : String -> Vector2 -> IO () `*/
+const fillTextV2 = (text : string) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.fillText(text, xy.x, xy.y), null))
+
+/**` n_strokeText : String -> Number -> Number -> IO () `*/
+const n_strokeText = (text : string) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.strokeText(text, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height), null))
+
+/**` n_strokeTextV2 : String -> Vector2 -> IO () `*/
+const n_strokeTextV2 = (text : string) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.strokeText(text, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height), null))
+
+/**` strokeText : String -> Number -> Number -> IO () `*/
+const strokeText = (text : string) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.strokeText(text, x, y), null))
+
+/**` strokeTextV2 : String -> Vector2 -> IO () `*/
+const strokeTextV2 = (text : string) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.strokeText(text, xy.x, xy.y), null))
+
+/**` n_fillStrokeText : String -> Number -> Number -> IO () `*/
+const n_fillStrokeText = (text : string) => (x : number) => (y : number) : IO <null> =>
+	IO (() => {
+		const nextX = x * Ψ.ctx.canvas.width
+		const nextY = y * Ψ.ctx.canvas.height
+		Ψ.ctx.fillText  (text, nextX, nextY)
+		Ψ.ctx.strokeText(text, nextX, nextY)
+		return null
+	})
+
+/**` n_fillStrokeText : String -> Vector2 -> IO () `*/
+const n_fillStrokeTextV2 = (text : string) => (xy : Vector2) : IO <null> =>
+	IO (() => {
+		const nextX = xy.x * Ψ.ctx.canvas.width
+		const nextY = xy.y * Ψ.ctx.canvas.height
+		Ψ.ctx.fillText  (text, nextX, nextY)
+		Ψ.ctx.strokeText(text, nextX, nextY)
+		return null
+	})
+
+/**` fillStrokeText : String -> Number -> Number -> IO () `*/
+const fillStrokeText = (text : string) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.fillText(text, x, y), Ψ.ctx.strokeText(text, x, y), null))
+
+/**` fillStrokeText : String -> Vector2 -> IO () `*/
+const fillStrokeTextV2 = (text : string) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.fillText(text, xy.x, xy.y), Ψ.ctx.strokeText(text, xy.x, xy.y), null))
+
+/**` n_strokeFillText : String -> Number -> Number -> IO () `*/
+const n_strokeFillText = (text : string) => (x : number) => (y : number) : IO <null> =>
+	IO (() => {
+		const nextX = x * Ψ.ctx.canvas.width
+		const nextY = y * Ψ.ctx.canvas.height
+		Ψ.ctx.strokeText(text, nextX, nextY)
+		Ψ.ctx.fillText  (text, nextX, nextY)
+		return null
+	})
+
+/**` n_strokeFillTextV2 : String -> Vector2 -> IO () `*/
+const n_strokeFillTextV2 = (text : string) => (xy : Vector2) : IO <null> =>
+	IO (() => {
+		const nextX = xy.x * Ψ.ctx.canvas.width
+		const nextY = xy.y * Ψ.ctx.canvas.height
+		Ψ.ctx.strokeText(text, nextX, nextY)
+		Ψ.ctx.fillText  (text, nextX, nextY)
+		return null
+	})
+
+/**` strokeFillText : String -> Number -> Number -> IO () `*/
+const strokeFillText = (text : string) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.strokeText(text, x, y), Ψ.ctx.fillText(text, x, y), null))
+
+/**` strokeFillText : String -> Vector2 -> IO () `*/
+const strokeFillTextV2 = (text : string) => (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.strokeText(text, xy.x, xy.y), Ψ.ctx.fillText(text, xy.x, xy.y), null))
+
+/**` n_fillMultilineText : String -> Number -> Number -> Number -> IO () `*/
+const n_fillMultilineText = (text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => {
+		const nextX = Ψ.ctx.canvas.width  * x
+		const nextY = Ψ.ctx.canvas.height * y
+		const nextS = Ψ.ctx.canvas.height * spacing
+		text.split('\n').forEach((line, i) => Ψ.ctx.fillText(line, nextX, nextY + nextS * i))
+		return null
+	})
+
+/**` n_fillMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
+const n_fillMultilineTextV2 = (text : string) => (spacing : number) => (xy : Vector2) : IO <null> =>
+	IO (() => {
+		const nextX = Ψ.ctx.canvas.width  * xy.x
+		const nextY = Ψ.ctx.canvas.height * xy.y
+		const nextS = Ψ.ctx.canvas.height * spacing
+		text.split('\n').forEach((line, i) => Ψ.ctx.fillText(line, nextX, nextY + nextS * i))
+		return null
+	})
+
+/**` fillMultilineText : String -> Number -> Number -> Number -> IO () `*/
+const fillMultilineText = (text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (text.split('\n').forEach((line, i) => Ψ.ctx.fillText(line, x, y + spacing * i)), null))
+
+/**` fillMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
+const fillMultilineTextV2 = (text : string) => (spacing : number) => (xy : Vector2) : IO <null> =>
+	IO (() => (text.split('\n').forEach((line, i) => Ψ.ctx.fillText(line, xy.x, xy.y + spacing * i)), null))
+
+/**` n_strokeMultilineText : String -> Number -> Number -> Number -> IO () `*/
+const n_strokeMultilineText = (text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => {
+		const nextX = Ψ.ctx.canvas.width  * x
+		const nextY = Ψ.ctx.canvas.height * y
+		const nextS = Ψ.ctx.canvas.height * spacing
+		text.split('\n').forEach((line, i) => Ψ.ctx.strokeText(line, nextX, nextY + nextS * i))
+		return null
+	})
+
+/**` n_strokeMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
+const n_strokeMultilineTextV2 = (text : string) => (spacing : number) => (xy : Vector2) : IO <null> =>
+	IO (() => {
+		const nextX = Ψ.ctx.canvas.width  * xy.x
+		const nextY = Ψ.ctx.canvas.height * xy.y
+		const nextS = Ψ.ctx.canvas.height * spacing
+		text.split('\n').forEach((line, i) => Ψ.ctx.strokeText(line, nextX, nextY + nextS * i))
+		return null
+	})
+
+/**` strokeMultilineText : String -> Number -> Number -> Number -> IO () `*/
+const strokeMultilineText = (text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => (text.split('\n').forEach((line, i) => Ψ.ctx.strokeText(line, x, y + spacing * i)), null))
+
+/**` strokeMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
+const strokeMultilineTextV2 = (text : string) => (spacing : number) => (xy : Vector2) : IO <null> =>
+	IO (() => (text.split('\n').forEach((line, i) => Ψ.ctx.strokeText(line, xy.x, xy.y + spacing * i)), null))
+
+/**` n_strokeFillMultilineText : String -> Number -> Number -> Number -> IO () `*/
+const n_strokeFillMultilineText =
+	(text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => {
+		const nextX = Ψ.ctx.canvas.width  * x
+		const nextY = Ψ.ctx.canvas.height * y
+		const nextS = Ψ.ctx.canvas.height * spacing
+		let   lineY = nextY
+		text.split('\n').forEach(line => {
+			Ψ.ctx.strokeText(line, nextX, lineY)
+			Ψ.ctx.fillText  (line, nextX, lineY)
+			lineY += nextS
 		})
+		return null
+	})
 
-	/**` I.n_textH : String -> IO Number `*/
-	export const n_textH = (text : string) : IO <number> =>
-		IO (() => {
-			const m = Ψ.ctx.measureText(text)
-			return Math.abs (m.actualBoundingBoxAscent) + Math.abs (m.actualBoundingBoxDescent) / Ψ.ctx.canvas.height
+/**` n_strokeFillMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
+const n_strokeFillMultilineTextV2 = (text : string) => (spacing : number) => (xy : Vector2) : IO <null> =>
+	IO (() => {
+		const nextX = Ψ.ctx.canvas.width  * xy.x
+		const nextY = Ψ.ctx.canvas.height * xy.y
+		const nextS = Ψ.ctx.canvas.height * spacing
+		let   lineY = nextY
+		text.split('\n').forEach(line => {
+			Ψ.ctx.strokeText(line, nextX, lineY)
+			Ψ.ctx.fillText  (line, nextX, lineY)
+			lineY += nextS
 		})
+		return null
+	})
 
-	/**` I.n_textWH : String -> IO (Pair Number Number) `*/
-	export const n_textWH = (text : string) : IO <Pair <number, number>> =>
-		IO (() => {
-			const m = Ψ.ctx.measureText(text)
-			return Pair (
-				(Math.abs (m.actualBoundingBoxLeft)   + Math.abs (m.actualBoundingBoxRight))   / Ψ.ctx.canvas.width,
-				(Math.abs (m.actualBoundingBoxAscent) + Math.abs (m.actualBoundingBoxDescent)) / Ψ.ctx.canvas.height
-			)
+/**` strokeFillMultilineText : String -> Number -> Number -> Number -> IO () `*/
+const strokeFillMultilineText =
+	(text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => {
+		let lineY = y
+		text.split('\n').forEach(line => {
+			Ψ.ctx.strokeText(line, x, lineY)
+			Ψ.ctx.fillText  (line, x, lineY)
+			lineY += spacing
 		})
+		return null
+	})
 
-	/**` I.n_textV2 : String -> IO Vector2 `*/
-	export const n_textV2 = (text : string) : IO <Vector2> =>
-		IO (() => {
-			const m = Ψ.ctx.measureText(text)
-			return Vector2 (
-				(Math.abs (m.actualBoundingBoxLeft)   + Math.abs (m.actualBoundingBoxRight))   / Ψ.ctx.canvas.width,
-				(Math.abs (m.actualBoundingBoxAscent) + Math.abs (m.actualBoundingBoxDescent)) / Ψ.ctx.canvas.height
-			)
+/**` strokeFillMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
+const strokeFillMultilineTextV2 = (text : string) => (spacing : number) => (xy : Vector2) : IO <null> =>
+	IO (() => {
+		let lineY = xy.y
+		text.split('\n').forEach(line => {
+			Ψ.ctx.strokeText(line, xy.x, lineY)
+			Ψ.ctx.fillText  (line, xy.x, lineY)
+			lineY += spacing
 		})
+		return null
+	})
 
-	/**` I.n_lineThickness : IO Number `*/
-	export const n_lineThickness : IO <number> = IO (() => Ψ.ctx.lineWidth / Ψ.ctx.canvas.width)
-
-	/**` I.n_lineDashPattern : IO (List Number) `*/
-	export const n_lineDashPattern : IO <List <number>> =
-		IO (() => List (...Ψ.ctx.getLineDash() .map (x => x / Ψ.ctx.canvas.width)))
-
-	/**` I.n_lineDashOffset : IO Number `*/
-	export const n_lineDashOffset : IO <number> = IO (() => Ψ.ctx.lineDashOffset / Ψ.ctx.canvas.width)
-
-	/**` I.n_fontSize : IO Number `*/
-	export const n_fontSize : IO <number> = IO (() => parseFloat (Ψ.ctx.font) / Ψ.ctx.canvas.width)
-
-	/**` I.n_shadowX : IO Number `*/
-	export const n_shadowX : IO <number> = IO (() => Ψ.ctx.shadowOffsetX / Ψ.ctx.canvas.height)
-
-	/**` I.n_shadowY : IO Number `*/
-	export const n_shadowY : IO <number> = IO (() => Ψ.ctx.shadowOffsetY / Ψ.ctx.canvas.height)
-
-	/**` I.n_shadowXY : IO (Pair Number Number) `*/
-	export const n_shadowXY : IO <Pair <number, number>> =
-		IO (() => Pair (Ψ.ctx.shadowOffsetX / Ψ.ctx.canvas.width, Ψ.ctx.shadowOffsetY / Ψ.ctx.canvas.height))
-
-	/**` I.n_shadowV2 : IO Vector2 `*/
-	export const n_shadowV2 : IO <Vector2> =
-		IO (() => Vector2 (Ψ.ctx.shadowOffsetX / Ψ.ctx.canvas.width, Ψ.ctx.shadowOffsetY / Ψ.ctx.canvas.height))
-
-	/**` I.n_isInEvenOddPathXY : Number -> : Number -> IO Boolean `*/
-	export const n_isInEvenOddPathXY = (x : number) => (y : number) : IO <boolean> =>
-		IO (() => Ψ.ctx.isPointInPath(x / Ψ.ctx.canvas.width, y / Ψ.ctx.canvas.height, 'evenodd'))
-
-	/**` I.n_isInEvenOddPathV2 : Vector2 -> IO Boolean `*/
-	export const n_isInEvenOddPathV2 = (v : Vector2) : IO <boolean> =>
-		IO (() => Ψ.ctx.isPointInPath(v.x / Ψ.ctx.canvas.width, v.y / Ψ.ctx.canvas.height, 'evenodd'))
-
-	/**` I.n_isInNonZeroPathXY : Number -> : Number -> IO Boolean `*/
-	export const n_isInNonZeroPathXY = (x : number) => (y : number) : IO <boolean> =>
-		IO (() => Ψ.ctx.isPointInPath(x / Ψ.ctx.canvas.width, y / Ψ.ctx.canvas.height, 'nonzero'))
-
-	/**` I.n_isInNonZeroPathV2 : Vector2 -> IO Boolean `*/
-	export const n_isInNonZeroPathV2 = (v : Vector2) : IO <boolean> =>
-		IO (() => Ψ.ctx.isPointInPath(v.x / Ψ.ctx.canvas.width, v.y / Ψ.ctx.canvas.height, 'nonzero'))
-
-	/**` I.n_isInStrokeXY : Number -> : Number -> IO Boolean `*/
-	export const n_isInStrokeXY = (x : number) => (y : number) : IO <boolean> =>
-		IO (() => Ψ.ctx.isPointInStroke(x / Ψ.ctx.canvas.width, y / Ψ.ctx.canvas.height))
-
-	/**` I.n_isInStrokeV2 : Vector2 -> IO Boolean `*/
-	export const n_isInStrokeV2 = (v : Vector2) : IO <boolean> =>
-		IO (() => Ψ.ctx.isPointInStroke(v.x / Ψ.ctx.canvas.width, v.y / Ψ.ctx.canvas.height))
-
-	/**` I.n_matrix : IO Matrix3 `*/
-	export const n_matrix : IO <Matrix3> =
-		IO (() => {
-			const m = Ψ.ctx.getTransform()
-			return Matrix3 (m.a, m.c, m.e / Ψ.ctx.canvas.width, m.b, m.d, m.f / Ψ.ctx.canvas.height, 0, 0, 1)
+/**` n_fillStrokeMultilineText : String -> Number -> Number -> Number -> IO () `*/
+const n_fillStrokeMultilineText =
+	(text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => {
+		const nextX = Ψ.ctx.canvas.width  * x
+		const nextY = Ψ.ctx.canvas.height * y
+		const nextS = Ψ.ctx.canvas.height * spacing
+		let   lineY = nextY
+		text.split('\n').forEach(line => {
+			Ψ.ctx.fillText  (line, nextX, lineY)
+			Ψ.ctx.strokeText(line, nextX, lineY)
+			lineY += nextS
 		})
+		return null
+	})
 
-	/**` I.n_wasd : IO Vector2 `*/
-	export const n_wasd : IO <Vector2> =
-		IO (() => {
-			const x = bit (isDown (Ψ.keyboard.KeyD)) - bit (isDown (Ψ.keyboard.KeyA))
-			const y = bit (isDown (Ψ.keyboard.KeyS)) - bit (isDown (Ψ.keyboard.KeyW))
-			const l = x ** 2 + y ** 2
-			return l === 0
-				? V2.zero
-				: l === 1
-					? Vector2 (x, y)
-					: Vector2 (x * invSqrt2, y * invSqrt2)
+/**` n_fillStrokeMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
+const n_fillStrokeMultilineTextV2 = (text : string) => (spacing : number) => (xy : Vector2) : IO <null> =>
+	IO (() => {
+		const nextX = Ψ.ctx.canvas.width  * xy.x
+		const nextY = Ψ.ctx.canvas.height * xy.y
+		const nextS = Ψ.ctx.canvas.height * spacing
+		let   lineY = nextY
+		text.split('\n').forEach(line => {
+			Ψ.ctx.fillText  (line, nextX, lineY)
+			Ψ.ctx.strokeText(line, nextX, lineY)
+			lineY += nextS
 		})
+		return null
+	})
 
-	/**` I.n_arrows : IO Vector2 `*/
-	export const n_arrows : IO <Vector2> =
-		IO (() => {
-			const x = bit (isDown (Ψ.keyboard.ArrowRight)) - bit (isDown (Ψ.keyboard.ArrowLeft))
-			const y = bit (isDown (Ψ.keyboard.ArrowDown))  - bit (isDown (Ψ.keyboard.ArrowUp))
-			const l = x ** 2 + y ** 2
-			return l === 0
-				? V2.zero
-				: l === 1
-					? Vector2 (x, y)
-					: Vector2 (x * invSqrt2, y * invSqrt2)
+/**` fillStrokeMultilineText : String -> Number -> Number -> Number -> IO () `*/
+const fillStrokeMultilineText =
+	(text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() => {
+		let lineY = y
+		text.split('\n').forEach(line => {
+			Ψ.ctx.fillText  (line, x, lineY)
+			Ψ.ctx.strokeText(line, x, lineY)
+			lineY += spacing
 		})
+		return null
+	})
 
-	/**` I.n_imageW : String -> IO Number `*/
-	export const n_imageW = (path : string) : IO <number> =>
-		IO (() =>
-			Ψ.image[path]
-				? Ψ.image[path].width / Ψ.ctx.canvas.width
-				: error (`'I.n_imageW' received an unloaded (possibly non-existing) image at path: ${path}`)
-		)
-
-	/**` I.n_imageH : String -> IO Number `*/
-	export const n_imageH = (path : string) : IO <number> =>
-		IO (() =>
-			Ψ.image[path]
-				? Ψ.image[path].height / Ψ.ctx.canvas.height
-				: error (`'I.n_imageH' received an unloaded (possibly non-existing) image at path: ${path}`)
-		)
-
-	/**` I.n_imageWH : String -> IO (Pair Number Number) `*/
-	export const n_imageWH = (path : string) : IO <Pair <number, number>> =>
-		IO (() =>
-			Ψ.image[path]
-				? Pair (Ψ.image[path].width / Ψ.ctx.canvas.width, Ψ.image[path].height / Ψ.ctx.canvas.height)
-				: error (`'I.n_imageWH' received an unloaded (possibly non-existing) image at path: ${path}`)
-		)
-
-	/**` I.n_imageV2 : String -> IO Vector2 `*/
-	export const n_imageV2 = (path : string) : IO <Vector2> =>
-		IO (() =>
-			Ψ.image[path]
-				? Vector2 (Ψ.image[path].width / Ψ.ctx.canvas.width, Ψ.image[path].height / Ψ.ctx.canvas.height)
-				: error (`'I.n_imageV2' received an unloaded (possibly non-existing) image at path: ${path}`)
-		)
-
-	/**` I.time : IO Number `*/
-	export const time : IO <number> = IO (Date.now)
-
-	/**` I.isWindowResized : IO Boolean `*/
-	export const isWindowResized : IO <boolean> = IO (() => Ψ.isResized)
-
-	/**` I.isPointerLocked : IO Boolean `*/
-	export const isPointerLocked : IO <boolean> = IO (() => Ψ.isPointerLocked)
-
-	/**` I.seed : IO Number `*/
-	export const seed : IO <number> = IO (() => Ψ.seed)
-
-	/**` I.mouseScreenX : IO Number `*/
-	export const mouseScreenX : IO <number> = IO (() => Ψ.mouseScreenX)
-
-	/**` I.mouseScreenY : IO Number `*/
-	export const mouseScreenY : IO <number> = IO (() => Ψ.mouseScreenY)
-
-	/**` I.mouseScreenXY : IO (Pair Number Number) `*/
-	export const mouseScreenXY : IO <Pair <number, number>> = IO (() => Pair (Ψ.mouseScreenX, Ψ.mouseScreenY))
-
-	/**` I.mouseScreenV2 : IO Vector2 `*/
-	export const mouseScreenV2 : IO <Vector2> = IO (() => Vector2 (Ψ.mouseScreenX, Ψ.mouseScreenY))
-
-	/**` I.mouseWindowX : IO Number `*/
-	export const mouseWindowX : IO <number> = IO (() => Ψ.mouseWindowX)
-
-	/**` I.mouseWindowY : IO Number `*/
-	export const mouseWindowY : IO <number> = IO (() => Ψ.mouseWindowY)
-
-	/**` I.mouseWindowXY : IO (Pair Number Number) `*/
-	export const mouseWindowXY : IO <Pair <number, number>> = IO (() => Pair (Ψ.mouseWindowX, Ψ.mouseWindowY))
-
-	/**` I.mouseWindowV2 : IO Vector2 `*/
-	export const mouseWindowV2 : IO <Vector2> = IO (() => Vector2 (Ψ.mouseWindowX, Ψ.mouseWindowY))
-
-	/**` I.mouseCanvasX : IO Number `*/
-	export const mouseCanvasX : IO <number> = IO (() => Ψ.mouseCanvasX)
-
-	/**` I.mouseCanvasY : IO Number `*/
-	export const mouseCanvasY : IO <number> = IO (() => Ψ.mouseCanvasY)
-
-	/**` I.mouseCanvasXY : IO (Pair Number Number) `*/
-	export const mouseCanvasXY : IO <Pair <number, number>> = IO (() => Pair (Ψ.mouseCanvasX, Ψ.mouseCanvasY))
-
-	/**` I.mouseCanvasV2 : IO Vector2 `*/
-	export const mouseCanvasV2 : IO <Vector2> = IO (() => Vector2 (Ψ.mouseCanvasX, Ψ.mouseCanvasY))
-
-	/**` I.mouseDeltaX : IO Number `*/
-	export const mouseDeltaX : IO <number> = IO (() => Ψ.mouseDeltaX)
-
-	/**` I.mouseDeltaY : IO Number `*/
-	export const mouseDeltaY : IO <number> = IO (() => Ψ.mouseDeltaY)
-
-	/**` I.mouseDeltaXY : IO (Pair Number Number) `*/
-	export const mouseDeltaXY : IO <Pair <number, number>> = IO (() => Pair (Ψ.mouseDeltaX, Ψ.mouseDeltaY))
-
-	/**` I.mouseDeltaV2 : IO Vector2 `*/
-	export const mouseDeltaV2 : IO <Vector2> = IO (() => Vector2 (Ψ.mouseDeltaX, Ψ.mouseDeltaY))
-
-	/**` I.mouseScroll : IO Vertical `*/
-	export const mouseScroll : IO <Vertical> = IO (() => Ψ.mouseScroll)
-
-	/**` I.mouseButtonLeft : IO Vertical `*/
-	export const mouseButtonLeft : IO <Vertical> = IO (() => Ψ.mouseButtons[0])
-
-	/**` I.mouseButtonMid : IO Vertical `*/
-	export const mouseButtonMid : IO <Vertical> = IO (() => Ψ.mouseButtons[1])
-
-	/**` I.mouseButtonRight : IO Vertical `*/
-	export const mouseButtonRight : IO <Vertical> = IO (() => Ψ.mouseButtons[2])
-
-	/**` I.mouseButtonA : IO Vertical `*/
-	export const mouseButtonA : IO <Vertical> = IO (() => Ψ.mouseButtons[3])
-
-	/**` I.mouseButtonB : IO Vertical `*/
-	export const mouseButtonB : IO <Vertical> = IO (() => Ψ.mouseButtons[4])
-
-	/**` I.key : KeyboardKey -> IO Vertical `*/
-	export const key = (keyname : KeyboardKey) : IO <Vertical> => IO (() => Ψ.keyboard[keyname])
-
-	/**` I.screenW : IO Number `*/
-	export const screenW : IO <number> = IO (() => screen.width)
-
-	/**` I.screenH : IO Number `*/
-	export const screenH : IO <number> = IO (() => screen.height)
-
-	/**` I.screenWH : IO (Pair Number Number) `*/
-	export const screenWH : IO <Pair <number, number>> = IO (() => Pair (screen.width, screen.height))
-
-	/**` I.screenV2 : IO Vector2 `*/
-	export const screenV2 : IO <Vector2> = IO (() => Vector2 (screen.width, screen.height))
-
-	/**` I.windowW : IO Number `*/
-	export const windowW : IO <number> = IO (() => innerWidth)
-
-	/**` I.windowH : IO Number `*/
-	export const windowH : IO <number> = IO (() => innerHeight)
-
-	/**` I.windowWH : IO (Pair Number Number) `*/
-	export const windowWH : IO <Pair <number, number>> = IO (() => Pair (innerWidth, innerHeight))
-
-	/**` I.windowV2 : IO Vector2 `*/
-	export const windowV2 : IO <Vector2> = IO (() => Vector2 (innerWidth, innerHeight))
-
-	/**` I.canvasW : IO Number `*/
-	export const canvasW : IO <number> = IO (() => Ψ.ctx.canvas.width)
-
-	/**` I.canvasH : IO Number `*/
-	export const canvasH : IO <number> = IO (() => Ψ.ctx.canvas.height)
-
-	/**` I.canvasWH : IO (Pair Number Number) `*/
-	export const canvasWH : IO <Pair <number, number>> = IO (() => Pair (Ψ.ctx.canvas.width, Ψ.ctx.canvas.height))
-
-	/**` I.canvasV2 : IO Vector2 `*/
-	export const canvasV2 : IO <Vector2> = IO (() => Vector2 (Ψ.ctx.canvas.width, Ψ.ctx.canvas.height))
-
-	/**` I.layer : IO Number `*/
-	export const layer : IO <number> = IO (() => Ψ.ctxs .findIndex (ctx => ctx === Ψ.ctx))
-
-	/**` I.textW : String -> IO Number `*/
-	export const textW = (text : string) : IO <number> =>
-		IO (() => {
-			const m = Ψ.ctx.measureText(text)
-			return Math.abs (m.actualBoundingBoxLeft) + Math.abs (m.actualBoundingBoxRight)
+/**` fillStrokeMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
+const fillStrokeMultilineTextV2 = (text : string) => (spacing : number) => (xy : Vector2) : IO <null> =>
+	IO (() => {
+		let lineY = xy.y
+		text.split('\n').forEach(line => {
+			Ψ.ctx.fillText  (line, xy.x, lineY)
+			Ψ.ctx.strokeText(line, xy.x, lineY)
+			lineY += spacing
 		})
+		return null
+	})
 
-	/**` I.textH : String -> IO Number `*/
-	export const textH = (text : string) : IO <number> =>
-		IO (() => {
-			const m = Ψ.ctx.measureText(text)
-			return Math.abs (m.actualBoundingBoxAscent) + Math.abs (m.actualBoundingBoxDescent)
-		})
+/**` n_line : Number -> Number -> Number -> Number -> IO () `*/
+const n_line = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.moveTo(x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height),
+		Ψ.ctx.lineTo(x1 * Ψ.ctx.canvas.width, y1 * Ψ.ctx.canvas.height),
+		null
+	))
 
-	/**` I.textWH : String -> IO (Pair Number Number) `*/
-	export const textWH = (text : string) : IO <Pair <number, number>> =>
-		IO (() => {
-			const m = Ψ.ctx.measureText(text)
-			return Pair (
-				Math.abs (m.actualBoundingBoxLeft)   + Math.abs (m.actualBoundingBoxRight),
-				Math.abs (m.actualBoundingBoxAscent) + Math.abs (m.actualBoundingBoxDescent)
-			)
-		})
+/**` n_lineV2 : Vector2 -> Vector2 -> IO () `*/
+const n_lineV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.moveTo(xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height),
+		Ψ.ctx.lineTo(xy1.x * Ψ.ctx.canvas.width, xy1.y * Ψ.ctx.canvas.height),
+		null
+	))
 
-	/**` I.textV2 : String -> IO Vector2 `*/
-	export const textV2 = (text : string) : IO <Vector2> =>
-		IO (() => {
-			const m = Ψ.ctx.measureText(text)
-			return Vector2 (
-				Math.abs (m.actualBoundingBoxLeft)   + Math.abs (m.actualBoundingBoxRight),
-				Math.abs (m.actualBoundingBoxAscent) + Math.abs (m.actualBoundingBoxDescent)
-			)
-		})
+/**` line : Number -> Number -> Number -> Number -> IO () `*/
+const line = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (Ψ.ctx.moveTo(x0, y0), Ψ.ctx.lineTo(x1, y1), null))
 
-	/**` I.lineThickness : IO Number `*/
-	export const lineThickness : IO <number> = IO (() => Ψ.ctx.lineWidth)
+/**` lineV2 : Vector2 -> Vector2 -> IO () `*/
+const lineV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.moveTo(xy0.x, xy0.y), Ψ.ctx.lineTo(xy1.x, xy1.y), null))
 
-	/**` I.lineDashPattern : IO (List Number) `*/
-	export const lineDashPattern : IO <List <number>> = IO (() => List (...Ψ.ctx.getLineDash()))
+/**` n_strokeLine : Number -> Number -> Number -> Number -> IO () `*/
+const n_strokeLine = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.moveTo(x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height),
+		Ψ.ctx.lineTo(x1 * Ψ.ctx.canvas.width, y1 * Ψ.ctx.canvas.height),
+		Ψ.ctx.stroke(), null
+	))
 
-	/**` I.lineDashOffset : IO Number `*/
-	export const lineDashOffset : IO <number> = IO (() => Ψ.ctx.lineDashOffset)
+/**` n_strokeLineV2 : Vector2 -> Vector2 -> IO () `*/
+const n_strokeLineV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.moveTo(xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height),
+		Ψ.ctx.lineTo(xy1.x * Ψ.ctx.canvas.width, xy1.y * Ψ.ctx.canvas.height),
+		Ψ.ctx.stroke(), null
+	))
 
-	/**` I.miterLimit : IO Number `*/
-	export const miterLimit : IO <number> = IO (() => Ψ.ctx.miterLimit)
+/**` strokeLine : Number -> Number -> Number -> Number -> IO () `*/
+const strokeLine = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (Ψ.ctx.moveTo(x0, y0), Ψ.ctx.lineTo(x1, y1), Ψ.ctx.stroke(), null))
 
-	/**` I.font : IO String `*/
-	export const font : IO <string> = IO (() => Ψ.ctx.font)
+/**` strokeLineV2 : Vector2 -> Vector2 -> IO () `*/
+const strokeLineV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.moveTo(xy0.x, xy0.y), Ψ.ctx.lineTo(xy1.x, xy1.y), Ψ.ctx.stroke(), null))
 
-	/**` I.fontSize : IO Number `*/
-	export const fontSize : IO <number> = IO (() => parseFloat (Ψ.ctx.font))
+/**` n_vectorLine : Number -> Number -> Number -> Number -> IO () `*/
+const n_vectorLine = (x : number) => (y : number) => (dx : number) => (dy : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.moveTo(x        * Ψ.ctx.canvas.width, y        * Ψ.ctx.canvas.height),
+		Ψ.ctx.lineTo((x + dx) * Ψ.ctx.canvas.width, (y + dy) * Ψ.ctx.canvas.height),
+		null
+	))
 
-	/**` I.fontFamily : IO String `*/
-	export const fontFamily : IO <string> = IO (() => Ψ.ctx.font .slice (Ψ.ctx.font .indexOf (' ') + 1))
+/**` n_vectorLineV2 : Vector2 -> Vector2 -> IO () `*/
+const n_vectorLineV2 = (xy : Vector2) => (dxy : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.moveTo(xy.x           * Ψ.ctx.canvas.width, xy.y           * Ψ.ctx.canvas.height),
+		Ψ.ctx.lineTo((xy.x + dxy.x) * Ψ.ctx.canvas.width, (xy.y + dxy.y) * Ψ.ctx.canvas.height),
+		null
+	))
 
-	/**` I.shadowBlurAmount : IO Number `*/
-	export const shadowBlurAmount : IO <number> = IO (() => Ψ.ctx.shadowBlur)
+/**` vectorLine : Number -> Number -> Number -> Number -> IO () `*/
+const vectorLine = (x : number) => (y : number) => (dx : number) => (dy : number) : IO <null> =>
+	IO (() => (Ψ.ctx.moveTo(x, y), Ψ.ctx.lineTo(x + dx, y + dy), null))
 
-	/**` I.shadowColor : IO String `*/
-	export const shadowColor : IO <string> = IO (() => Ψ.ctx.shadowColor)
+/**` vectorLineV2 : Vector2 -> Vector2 -> IO () `*/
+const vectorLineV2 = (xy : Vector2) => (dxy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.moveTo(xy.x, xy.y), Ψ.ctx.lineTo(xy.x + dxy.x, xy.y + dxy.y), null))
 
-	/**` I.shadowX : IO Number `*/
-	export const shadowX : IO <number> = IO (() => Ψ.ctx.shadowOffsetX)
+/**` n_strokeVectorLine : Number -> Number -> Number -> Number -> IO () `*/
+const n_strokeVectorLine = (x : number) => (y : number) => (dx : number) => (dy : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.moveTo(x        * Ψ.ctx.canvas.width, y        * Ψ.ctx.canvas.height),
+		Ψ.ctx.lineTo((x + dx) * Ψ.ctx.canvas.width, (y + dy) * Ψ.ctx.canvas.height),
+		Ψ.ctx.stroke(), null
+	))
 
-	/**` I.shadowY : IO Number `*/
-	export const shadowY : IO <number> = IO (() => Ψ.ctx.shadowOffsetY)
+/**` n_strokeVectorLineV2 : Vector2 -> Vector2 -> IO () `*/
+const n_strokeVectorLineV2 = (xy : Vector2) => (dxy : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.moveTo(xy.x           * Ψ.ctx.canvas.width, xy.y           * Ψ.ctx.canvas.height),
+		Ψ.ctx.lineTo((xy.x + dxy.x) * Ψ.ctx.canvas.width, (xy.y + dxy.y) * Ψ.ctx.canvas.height),
+		Ψ.ctx.stroke(), null
+	))
 
-	/**` I.shadowXY : IO (Pair Number Number) `*/
-	export const shadowXY : IO <Pair <number, number>> = IO (() => Pair (Ψ.ctx.shadowOffsetX, Ψ.ctx.shadowOffsetY))
+/**` strokeVectorLine : Number -> Number -> Number -> Number -> IO () `*/
+const strokeVectorLine = (x : number) => (y : number) => (dx : number) => (dy : number) : IO <null> =>
+	IO (() => (Ψ.ctx.moveTo(x, y), Ψ.ctx.lineTo(x + dx, y + dy), Ψ.ctx.stroke(), null))
 
-	/**` I.shadowV2 : IO Vector2 `*/
-	export const shadowV2 : IO <Vector2> = IO (() => Vector2 (Ψ.ctx.shadowOffsetX, Ψ.ctx.shadowOffsetY))
+/**` strokeVectorLineV2 : Vector2 -> Vector2 -> IO () `*/
+const strokeVectorLineV2 = (xy : Vector2) => (dxy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.moveTo(xy.x, xy.y), Ψ.ctx.lineTo(xy.x + dxy.x, xy.y + dxy.y), Ψ.ctx.stroke(), null))
 
-	/**` I.isInEvenOddPathXY : Number -> : Number -> IO Boolean `*/
-	export const isInEvenOddPathXY = (x : number) => (y : number) : IO <boolean> =>
-		IO (() => Ψ.ctx.isPointInPath(x, y, 'evenodd'))
+/**` n_image : String -> ...8 Number -> IO () `*/
+const n_image =
+	(path : string) =>
+	(cx   : number) => (cy : number) => (cw : number) => (ch : number) =>
+	(x    : number) => (y  : number) => (w  : number) => (h  : number) : IO <null> =>
+	IO (() =>
+		Ψ.image[path] ?
+				(Ψ.ctx.drawImage(
+					Ψ.image[path],
+					cx * Ψ.image[path].width, cy * Ψ.image[path].height,
+					cw * Ψ.image[path].width, ch * Ψ.image[path].height,
+					x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+					w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
+				), null)
+			: __MACRO_nonexisting_image_path__('n_image', path)
+	)
 
-	/**` I.isInEvenOddPathV2 : Vector2 -> IO Boolean `*/
-	export const isInEvenOddPathV2 = (v : Vector2) : IO <boolean> => IO (() => Ψ.ctx.isPointInPath(v.x, v.y, 'evenodd'))
-
-	/**` I.isInNonZeroPathXY : Number -> : Number -> IO Boolean `*/
-	export const isInNonZeroPathXY = (x : number) => (y : number) : IO <boolean> =>
-		IO (() => Ψ.ctx.isPointInPath(x, y, 'nonzero'))
-
-	/**` I.isInNonZeroPathV2 : Vector2 -> IO Boolean `*/
-	export const isInNonZeroPathV2 = (v : Vector2) : IO <boolean> => IO (() => Ψ.ctx.isPointInPath(v.x, v.y, 'nonzero'))
-
-	/**` I.isInStrokeXY : Number -> : Number -> IO Boolean `*/
-	export const isInStrokeXY = (x : number) => (y : number) : IO <boolean> => IO (() => Ψ.ctx.isPointInStroke(x, y))
-
-	/**` I.isInStrokeV2 : Vector2 -> IO Boolean `*/
-	export const isInStrokeV2 = (v : Vector2) : IO <boolean> => IO (() => Ψ.ctx.isPointInStroke(v.x, v.y))
-
-	/**` I.matrix : IO Matrix3 `*/
-	export const matrix : IO <Matrix3> =
-		IO (() => {
-			const m = Ψ.ctx.getTransform()
-			return Matrix3 (m.a, m.c, m.e, m.b, m.d, m.f, 0, 0, 1)
-		})
-
-	/**` I.alpha : IO Number `*/
-	export const alpha : IO <number> = IO (() => Ψ.ctx.globalAlpha)
-
-	/**` I.lineCap : IO LineCap `*/
-	export const lineCap : IO <LineCap> = IO (() => mappingLineCapToHTML5 .domain (Ψ.ctx.lineCap))
-
-	/**` I.lineJoin : IO LineJoin `*/
-	export const lineJoin : IO <LineJoin> = IO (() => mappingLineJoinToHTML5 .domain (Ψ.ctx.lineJoin))
-
-	/**` I.textAlign : IO TextAlign `*/
-	export const textAlign : IO <TextAlign> = IO (() => mappingTextAlignToHTML5 .domain (Ψ.ctx.textAlign))
-
-	/**` I.textBaseline : IO TextBaseline `*/
-	export const textBaseline : IO <TextBaseline> = IO (() => mappingTextBaselineToHTML5 .domain (Ψ.ctx.textBaseline))
-
-	/**` I.composition : IO Composition `*/
-	export const composition : IO <Composition> = IO (() => mappingCompositionToHTML5 .domain (Ψ.ctx.globalCompositeOperation))
-
-	/**` I.wasd : IO Vector2 `*/
-	export const wasd : IO <Vector2> =
-		IO (() =>
-			Vector2 (
-				bit (isDown (Ψ.keyboard.KeyD)) - bit (isDown (Ψ.keyboard.KeyA)),
-				bit (isDown (Ψ.keyboard.KeyS)) - bit (isDown (Ψ.keyboard.KeyW))
-			)
-		)
-
-	/**` I.arrows : IO Vector2 `*/
-	export const arrows : IO <Vector2> =
-		IO (() =>
-			Vector2 (
-				bit (isDown (Ψ.keyboard.ArrowRight)) - bit (isDown (Ψ.keyboard.ArrowLeft)),
-				bit (isDown (Ψ.keyboard.ArrowDown))  - bit (isDown (Ψ.keyboard.ArrowUp))
-			)
-		)
-
-	/**` I.imageW : String -> IO Number `*/
-	export const imageW = (path : string) : IO <number> =>
-		IO (() =>
-			Ψ.image[path]
-				? Ψ.image[path].width
-				: error (`'I.imageW' received an unloaded (possibly non-existing) image at path: ${path}`)
-		)
-
-	/**` I.imageH : String -> IO Number `*/
-	export const imageH = (path : string) : IO <number> =>
-		IO (() =>
-			Ψ.image[path]
-				? Ψ.image[path].height
-				: error (`'I.imageH' received an unloaded (possibly non-existing) image at path: ${path}`)
-		)
-
-	/**` I.imageWH : String -> IO (Pair Number Number) `*/
-	export const imageWH = (path : string) : IO <Pair <number, number>> =>
-		IO (() =>
-			Ψ.image[path]
-				? Pair (Ψ.image[path].width, Ψ.image[path].height)
-				: error (`'I.imageWH' received an unloaded (possibly non-existing) image at path: ${path}`)
-		)
-
-	/**` I.imageV2 : String -> IO Vector2 `*/
-	export const imageV2 = (path : string) : IO <Vector2> =>
-		IO (() =>
-			Ψ.image[path]
-				? Vector2 (Ψ.image[path].width, Ψ.image[path].height)
-				: error (`'I.imageV2' received an unloaded (possibly non-existing) image at path: ${path}`)
-		)
-
-	/**` I.audioDuration : String -> IO Number `*/
-	export const audioDuration = (path : string) : IO <number> =>
-		IO (() =>
-			Ψ.audio[path]
-				? Ψ.audio[path].duration
-				: error (`'I.audioDuration' received an unloaded (possibly non-existing) audio at path: ${path}`)
-		)
-
-	/**` I.audioTime : String -> IO Number `*/
-	export const audioTime = (path : string) : IO <number> =>
-		IO (() =>
-			Ψ.audio[path]
-				? Ψ.audio[path].currentTime
-				: error (`'I.audioTime' received an unloaded (possibly non-existing) audio at path: ${path}`)
-		)
-}
-
-namespace O
-{
-	/**` O.n_setCanvasW : Number -> IO () `*/
-	export const n_setCanvasW = (w : number) : IO <null> =>
-		IO (() => (Ψ.ctxs.forEach(ctx => ctx.canvas.width = w * innerWidth), null))
-
-	/**` O.n_setCanvasH : Number -> IO () `*/
-	export const n_setCanvasH = (h : number) : IO <null> =>
-		IO (() => (Ψ.ctxs.forEach(ctx => ctx.canvas.height = h * innerHeight), null))
-
-	/**` O.n_setCanvasWH : Number -> Number -> IO () `*/
-	export const n_setCanvasWH = (w : number) => (h : number) : IO <null> =>
-		IO (() => (Ψ.ctxs.forEach(ctx => (ctx.canvas.width = w * innerWidth, ctx.canvas.height = h * innerHeight)), null))
-
-	/**` O.n_setCanvasV2 : Vector2 -> IO () `*/
-	export const n_setCanvasV2 = (wh : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctxs.forEach(ctx => (ctx.canvas.width = wh.x * innerWidth, ctx.canvas.height = wh.y * innerHeight)), null))
-
-	/**` O.n_setLineThickness : Number -> IO () `*/
-	export const n_setLineThickness = (thickness : number) : IO <null> =>
-		IO (() => (Ψ.ctx.lineWidth = thickness * Ψ.ctx.canvas.width, null))
-
-	/**` O.n_setLineDashPattern : List Number -> IO () `*/
-	export const n_setLineDashPattern = (pattern : List <number>) : IO <null> =>
-		IO (() => (Ψ.ctx.setLineDash(listToArray (pattern).map(x => x * Ψ.ctx.canvas.width)), null))
-
-	/**` O.n_setLineDashOffset : Number -> IO () `*/
-	export const n_setLineDashOffset = (offset : number) : IO <null> =>
-		IO (() => (Ψ.ctx.lineDashOffset = offset * Ψ.ctx.canvas.width, null))
-
-	/**` O.n_setFontSize : Number -> IO () `*/
-	export const n_setFontSize = (size : number) : IO <null> =>
-		IO (() => (Ψ.ctx.font = `${size * Ψ.ctx.canvas.width}px${Ψ.ctx.font.slice(Ψ.ctx.font.indexOf(' '))}`, null))
-
-	/**` O.n_setShadowRGBA : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_setShadowRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
-		IO (() => (Ψ.ctx.shadowColor = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null))
-
-	/**` O.n_setShadowX : Number -> IO () `*/
-	export const n_setShadowX = (x : number) : IO <null> => IO (() => (Ψ.ctx.shadowOffsetX = x * Ψ.ctx.canvas.width, null))
-
-	/**` O.n_setShadowY : Number -> IO () `*/
-	export const n_setShadowY = (y : number) : IO <null> => IO (() => (Ψ.ctx.shadowOffsetY = y * Ψ.ctx.canvas.height, null))
-
-	/**` O.n_setShadowXY : Number -> Number -> IO `*/
-	export const n_setShadowXY = (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.shadowOffsetX = x * Ψ.ctx.canvas.width, Ψ.ctx.shadowOffsetY = y * Ψ.ctx.canvas.height, null))
-
-	/**` O.n_setShadowV2 : IO Vector2 `*/
-	export const n_setShadowV2 = (xy : Vector2) : IO <null> =>
-		IO (() => (
-			Vector2 (
-				Ψ.ctx.shadowOffsetX = xy.x * Ψ.ctx.canvas.width,
-				Ψ.ctx.shadowOffsetY = xy.y * Ψ.ctx.canvas.height
-			), null)
-		)
-
-	/**` O.n_setMatrix : Matrix3 -> IO () `*/
-	export const n_setMatrix = (m3 : Matrix3) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.setTransform(
-				m3.ix, m3.iy, m3.jx, m3.jy,
-				m3.kx * Ψ.ctx.canvas.width, m3.ky * Ψ.ctx.canvas.height
-			), null)
-		)
-
-	/**` O.n_setFillRGBA : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_setFillRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
-		IO (() => (Ψ.ctx.fillStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null))
-
-	/**` O.n_setFillV4 : Vector4 -> IO () `*/
-	export const n_setFillV4 = (v : Vector4) : IO <null> =>
-		IO (() => (Ψ.ctx.fillStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null))
-
-	/**` O.n_setStrokeRGBA : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_setStrokeRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
-		IO (() => (Ψ.ctx.strokeStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null))
-
-	/**` O.n_setStrokeV4 : Vector4 -> IO () `*/
-	export const n_setStrokeV4 = (v : Vector4) : IO <null> =>
-		IO (() => (Ψ.ctx.strokeStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null))
-
-	/**` O.n_drawImage : String -> ...8 Number -> IO () `*/
-	export const n_drawImage =
-		(path : string) =>
-		(cx   : number) => (cy : number) => (cw : number) => (ch : number) =>
-		(x    : number) => (y  : number) => (w  : number) => (h  : number) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.n_drawImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(
-				Ψ.image[path],
-				cx * Ψ.image[path].width, cy * Ψ.image[path].height, cw * Ψ.image[path].width, ch * Ψ.image[path].height,
-				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
-			)
-			return null
-		})
-
-	/**` O.n_drawImageV2 : String -> ...4 Vector2 -> IO () `*/
-	export const n_drawImageV2 =
-		(path : string ) =>
-		(cxy  : Vector2) => (cwh : Vector2) =>
-		(xy   : Vector2) => (wh  : Vector2) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.n_drawImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(
+/**` n_imageV2 : String -> ...4 Vector2 -> IO () `*/
+const n_imageV2 =
+	(path : string ) =>
+	(cxy  : Vector2) => (cwh : Vector2) =>
+	(xy   : Vector2) => (wh  : Vector2) : IO <null> =>
+	IO (() =>
+		Ψ.image[path] ?
+			(Ψ.ctx.drawImage(
 				Ψ.image[path],
 				cxy.x * Ψ.image[path].width, cxy.y * Ψ.image[path].height,
 				cwh.x * Ψ.image[path].width, cwh.y * Ψ.image[path].height,
 				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
 				wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
-			)
-			return null
-		})
+			), null)
+		: __MACRO_nonexisting_image_path__('n_imageV2', path)
+	)
 
-	/**` O.n_drawUncroppedImage : String -> ...4 Number -> IO () `*/
-	export const n_drawUncroppedImage =
-		(path : string) =>
-		(x    : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.n_drawUncroppedImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(
+/**` image : String -> ...8 Number -> IO () `*/
+const image =
+	(path : string) =>
+	(cx   : number) => (cy : number) => (cw : number) => (ch : number) =>
+	(x    : number) => (y  : number) => (w  : number) => (h  : number) : IO <null> =>
+	IO (() =>
+		Ψ.image[path]
+			? (Ψ.ctx.drawImage(Ψ.image[path], cx, cy, cw, ch, x, y, w, h), null)
+			: __MACRO_nonexisting_image_path__('image', path)
+	)
+
+/**` imageV2 : String -> ...4 Vector2 -> IO () `*/
+const imageV2 =
+	(path : string ) =>
+	(cxy  : Vector2) => (cwh : Vector2) =>
+	(xy   : Vector2) => (wh  : Vector2) : IO <null> =>
+	IO (() =>
+		Ψ.image[path]
+			? (Ψ.ctx.drawImage(Ψ.image[path], cxy.x, cxy.y, cwh.x, cwh.y, xy.x, xy.y, wh.x, wh.y), null)
+			: __MACRO_nonexisting_image_path__('imageV2', path)
+	)
+
+/**` n_uncroppedImage : String -> ...4 Number -> IO () `*/
+const n_uncroppedImage =
+	(path : string) =>
+	(x    : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+	IO (() =>
+		Ψ.image[path] ?
+				(Ψ.ctx.drawImage(
+					Ψ.image[path],
+					x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+					w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
+				), null)
+			: __MACRO_nonexisting_image_path__('n_uncroppedImage', path)
+	)
+
+/**` n_uncroppedImageV2 : String -> Vector2 -> Vector2 -> IO () `*/
+const n_uncroppedImageV2 = (path : string) => (xy : Vector2) => (wh : Vector2) : IO <null> =>
+	IO (() =>
+		Ψ.image[path] ?
+			(Ψ.ctx.drawImage(
 				Ψ.image[path],
-				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
-			)
-			return null
-		})
+				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+				wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
+			), null)
+		: __MACRO_nonexisting_image_path__('n_uncroppedImageV2', path)
+	)
 
-	/**` O.n_drawUncroppedImageV2 : String -> Vector2 -> Vector2 -> IO () `*/
-	export const n_drawUncroppedImageV2 = (path : string) => (xy : Vector2) => (wh : Vector2) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.n_drawUncroppedImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(
-				Ψ.image[path],
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height, wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
-			)
-			return null
-		})
+/**` uncroppedImage : String -> ...4 Number -> IO () `*/
+const uncroppedImage =
+	(path : string) =>
+	(x    : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+	IO (() =>
+		Ψ.image[path]
+			? (Ψ.ctx.drawImage(Ψ.image[path], x, y, w, h), null)
+			: __MACRO_nonexisting_image_path__('uncroppedImage', path)
+	)
 
-	/**` O.n_drawFullImage : String -> Number -> Number -> IO () `*/
-	export const n_drawFullImage = (path : string) => (x : number) => (y : number) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.n_drawFullImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(Ψ.image[path], x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height)
-			return null
-		})
+/**` uncroppedImageV2 : String -> Vector2 -> Vector2 -> IO () `*/
+const uncroppedImageV2 = (path : string) => (xy : Vector2) => (wh : Vector2) : IO <null> =>
+	IO (() =>
+		Ψ.image[path]
+			? (Ψ.ctx.drawImage(Ψ.image[path], xy.x, xy.y, wh.x, wh.y), null)
+			: __MACRO_nonexisting_image_path__('uncroppedImageV2', path)
+	)
 
-	/**` O.n_drawFullImageV2 : String -> Vector2 -> IO () `*/
-	export const n_drawFullImageV2 = (path : string) => (xy : Vector2) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.n_drawFullImage' received an unloaded image at path: '${path}'`)
-			Ψ.ctx.drawImage(Ψ.image[path], xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height)
-			return null
-		})
+/**` n_fullImage : String -> Number -> Number -> IO () `*/
+const n_fullImage = (path : string) => (x : number) => (y : number) : IO <null> =>
+	IO (() =>
+		Ψ.image[path]
+			? (Ψ.ctx.drawImage(Ψ.image[path], x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height), null)
+			: __MACRO_nonexisting_image_path__('n_fullImage', path)
+	)
 
-	/**` O.n_drawFullScaledImage : String -> Number -> Number -> Number -> IO () `*/
-	export const n_drawFullScaledImage = (path : string) => (k : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.n_drawFullScaledImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(
+/**` n_fullImageV2 : String -> Vector2 -> IO () `*/
+const n_fullImageV2 = (path : string) => (xy : Vector2) : IO <null> =>
+	IO (() =>
+		Ψ.image[path]
+			? __MACRO_nonexisting_image_path__('n_fullImageV2', path)
+			: (Ψ.ctx.drawImage(Ψ.image[path], xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height), null)
+	)
+
+/**` fullImage : String -> Number -> Number -> IO () `*/
+const fullImage = (path : string) => (x : number) => (y : number) : IO <null> =>
+	IO (() =>
+		Ψ.image[path]
+			? (Ψ.ctx.drawImage(Ψ.image[path], x, y), null)
+			: __MACRO_nonexisting_image_path__('fullImage', path)
+	)
+
+/**` fullImageV2 : String -> Vector2 -> IO () `*/
+const fullImageV2 = (path : string) => (xy : Vector2) : IO <null> =>
+	IO (() =>
+		Ψ.image[path]
+			? (Ψ.ctx.drawImage(Ψ.image[path], xy.x, xy.y), null)
+			: __MACRO_nonexisting_image_path__('fullImageV2', path)
+	)
+
+/**` n_fullScaledImage : String -> Number -> Number -> Number -> IO () `*/
+const n_fullScaledImage = (path : string) => (k : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() =>
+		Ψ.image[path] ?
+			(Ψ.ctx.drawImage(
 				Ψ.image[path],
 				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
 				Ψ.image[path].width * k * Ψ.ctx.canvas.width, Ψ.image[path].height * k * Ψ.ctx.canvas.height
-			)
-			return null
-		})
+			), null)
+		: __MACRO_nonexisting_image_path__('n_fullScaledImage', path)
+	)
 
-	/**` O.n_drawFullScaledImageV2 : String -> Number -> Vector2 -> IO () `*/
-	export const n_drawFullScaledImageV2 = (path : string) => (k : number) => (xy : Vector2) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.n_drawFullScaledImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(
+/**` n_fullScaledImageV2 : String -> Number -> Vector2 -> IO () `*/
+const n_fullScaledImageV2 = (path : string) => (k : number) => (xy : Vector2) : IO <null> =>
+	IO (() =>
+		Ψ.image[path] ?
+			(Ψ.ctx.drawImage(
 				Ψ.image[path],
 				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
 				Ψ.image[path].width * k * Ψ.ctx.canvas.width, Ψ.image[path].height * k * Ψ.ctx.canvas.height
-			)
-			return null
-		})
+			), null)
+		: __MACRO_nonexisting_image_path__('n_fullScaledImageV2', path)
+	)
 
-	/**` O.n_drawSquareImage : String -> Number -> Number -> Number -> IO () `*/
-	export const n_drawSquareImage = (path : string) => (k : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.n_drawSquareImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(
+/**` fullScaledImage : String -> Number -> Number -> Number -> IO () `*/
+const fullScaledImage = (path : string) => (k : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() =>
+		Ψ.image[path]
+			? (Ψ.ctx.drawImage(Ψ.image[path], x, y, Ψ.image[path].width * k, Ψ.image[path].height * k), null)
+			: __MACRO_nonexisting_image_path__('fullScaledImage', path)
+	)
+
+/**` fullScaledImageV2 : String -> Number -> Vector2 -> IO () `*/
+const fullScaledImageV2 = (path : string) => (k : number) => (xy : Vector2) : IO <null> =>
+	IO (() =>
+		Ψ.image[path]
+			? (Ψ.ctx.drawImage(Ψ.image[path], xy.x, xy.y, Ψ.image[path].width * k, Ψ.image[path].height * k), null)
+			: __MACRO_nonexisting_image_path__('fullScaledImageV2', path)
+	)
+
+/**` n_squareImage : String -> Number -> Number -> Number -> IO () `*/
+const n_squareImage = (path : string) => (w : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() =>
+		Ψ.image[path] ?
+			(Ψ.ctx.drawImage(
 				Ψ.image[path],
 				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
-				k * Ψ.ctx.canvas.width, k * Ψ.ctx.canvas.height
-			)
-			return null
-		})
+				w * Ψ.ctx.canvas.width, w * Ψ.ctx.canvas.width
+			), null)
+		: __MACRO_nonexisting_image_path__('n_squareImage', path)
+	)
 
-	/**` O.n_drawSquareImageV2 : String -> Number -> Vector2 -> IO () `*/
-	export const n_drawSquareImageV2 = (path : string) => (k : number) => (xy : Vector2) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.n_drawSquareImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(
+/**` n_squareImageV2 : String -> Number -> Vector2 -> IO () `*/
+const n_squareImageV2 = (path : string) => (w : number) => (xy : Vector2) : IO <null> =>
+	IO (() =>
+		Ψ.image[path] ?
+			(Ψ.ctx.drawImage(
 				Ψ.image[path],
 				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
-				k * Ψ.ctx.canvas.width, k * Ψ.ctx.canvas.height
-			)
-			return null
-		})
-
-	/**` O.n_clearRect : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_clearRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.clearRect(
-				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
-				w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
-			), null
-		))
-
-	/**` O.n_clearRectV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_clearRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.clearRect(
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
-				wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
-			), null
-		))
-
-	/**` O.n_clearArea : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_clearArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.clearRect(
-				x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height,
-				(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
-			), null
-		))
-
-	/**` O.n_clearAreaV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_clearAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.clearRect(
-				xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height,
-				(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
-			), null
-		))
-
-	/**` O.n_rotate : Number -> IO () `*/
-	export const n_rotate = (angle : number) : IO <null> => IO (() => (Ψ.ctx.rotate(angle * tau), null))
-
-	/**` O.n_translateX : Number -> IO () `*/
-	export const n_translateX = (dx : number) : IO <null> =>
-		IO (() => (Ψ.ctx.translate(dx * Ψ.ctx.canvas.width, 0), null))
-
-	/**` O.n_translateY : Number -> IO () `*/
-	export const n_translateY = (dy : number) : IO <null> =>
-		IO (() => (Ψ.ctx.translate(0, dy * Ψ.ctx.canvas.height), null))
-
-	/**` O.n_translateXY : Number -> Number -> IO () `*/
-	export const n_translateXY = (dx : number) => (dy : number) : IO <null> =>
-		IO (() => (Ψ.ctx.translate(dx * Ψ.ctx.canvas.width, dy * Ψ.ctx.canvas.height), null))
-
-	/**` O.n_translateV2 : Vector2 -> IO () `*/
-	export const n_translateV2 = (v : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.translate(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height), null))
-
-	/**` O.n_transform2 : Matrix2 -> IO () `*/
-	export const n_transform2 = (m2 : Matrix2) : IO <null> =>
-		IO (() => (Ψ.ctx.transform(m2.ix, m2.iy, m2.jx, m2.jy, 0, 0), null))
-
-	/**` O.n_transform3 : Matrix3 -> IO () `*/
-	export const n_transform3 = (m3 : Matrix3) : IO <null> =>
-		IO (() => (Ψ.ctx.transform(m3.ix, m3.iy, m3.jx, m3.jy, m3.kx * Ψ.ctx.canvas.width, m3.ky * Ψ.ctx.canvas.height), null))
-
-	/**` O.n_moveTo : Number -> Number -> IO () `*/
-	export const n_moveTo = (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.moveTo(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height), null))
-
-	/**` O.n_moveToV2 : Vector2 -> IO () `*/
-	export const n_moveToV2 = (v : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.moveTo(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height), null))
-
-	/**` O.n_bezierCurveTo : ...6 Number -> IO () `*/
-	export const n_bezierCurveTo =
-		(cx0 : number) => (cy0 : number) =>
-		(cx1 : number) => (cy1 : number) =>
-		(x   : number) => (y   : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.bezierCurveTo(
-				cx0 * Ψ.ctx.canvas.width, cy0 * Ψ.ctx.canvas.height,
-				cx1 * Ψ.ctx.canvas.width, cy1 * Ψ.ctx.canvas.height,
-				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height
-			), null
-		))
-
-	/**` O.n_bezierCurveToV2 : Vector2 -> Vector2 -> Vector2 -> IO () `*/
-	export const n_bezierCurveToV2 = (cxy0 : Vector2) => (cxy1 : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.bezierCurveTo(
-				cxy0.x * Ψ.ctx.canvas.width, cxy0.y * Ψ.ctx.canvas.height,
-				cxy1.x * Ψ.ctx.canvas.width, cxy1.y * Ψ.ctx.canvas.height,
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height
-			), null
-		))
-
-	/**` O.n_quadraticCurveTo : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_quadraticCurveTo = (cx : number) => (cy : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.quadraticCurveTo(
-				cx * Ψ.ctx.canvas.width, cy * Ψ.ctx.canvas.height, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height
-			), null
-		))
-
-	/**` O.n_quadraticCurveToV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_quadraticCurveToV2 = (cxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.quadraticCurveTo(
-				cxy.x * Ψ.ctx.canvas.width, cxy.y * Ψ.ctx.canvas.height, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height
-			), null
-		))
-
-	/**` O.n_arcTo : ...5 Number -> IO () `*/
-	export const n_arcTo = (r : number) => (cx0 : number) => (cy0 : number) => (cx1 : number) => (cy1 : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arcTo(
-				cx0 * Ψ.ctx.canvas.width, cy0 * Ψ.ctx.canvas.height,
-				cx1 * Ψ.ctx.canvas.width, cy1 * Ψ.ctx.canvas.height,
-				r * Ψ.ctx.canvas.width
-			), null
-		))
-
-	/**` O.n_arcToV2 : Number -> Vector2 -> Vector2 -> IO () `*/
-	export const n_arcToV2 = (r : number) => (cxy0 : Vector2) => (cxy1 : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arcTo(
-				cxy0.x * Ψ.ctx.canvas.width, cxy0.y * Ψ.ctx.canvas.height,
-				cxy1.x * Ψ.ctx.canvas.width, cxy1.y * Ψ.ctx.canvas.height,
-				r * Ψ.ctx.canvas.width
-			), null
-		))
-
-	/**` O.n_rect : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_rect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.rect(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height),
-			null
-		))
-
-	/**` O.n_rectV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_rectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.rect(
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
-				wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
-			), null
-		))
-
-	/**` O.n_fillRect : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_fillRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.fillRect(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height),
-			null
-		))
-
-	/**` O.n_fillRectV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_fillRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.fillRect(
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
-				wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
-			), null
-		))
-
-	/**` O.n_strokeRect : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_strokeRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.strokeRect(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height),
-			null
-		))
-
-	/**` O.n_strokeRectV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_strokeRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.strokeRect(
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
-				wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
-			), null
-		))
-
-	/**` O.n_fillStrokeRect : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_fillStrokeRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.rect(
-				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
-				w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
-			), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_fillStrokeRectV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_fillStrokeRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.rect(
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
-				wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
-			), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_strokeFillRect : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_strokeFillRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.rect(
-				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
-				w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
-			), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
-		))
-
-	/**` O.n_strokeFillRectV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_strokeFillRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.rect(
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
-				wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
-			), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
-		))
-
-	/**` O.n_area : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_area = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.rect(
-				x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height,
-				(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
-			), null
-		))
-
-	/**` O.n_areaV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_areaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.rect(
-				xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.width,
-				(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.width
-			), null
-		))
-
-	/**` O.n_fillArea : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_fillArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.fillRect(
-				x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height,
-				(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
-			), null
-		))
-
-	/**` O.n_fillAreaV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_fillAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.fillRect(
-				xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height,
-				(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
-			), null
-		))
-
-	/**` O.n_strokeArea : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_strokeArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.strokeRect(
-				x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height,
-				(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
-			), null))
-
-	/**` O.n_strokeAreaV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_strokeAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.strokeRect(
-				xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height,
-				(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
-			), null
-		))
-
-	/**` O.n_fillStrokeArea : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_fillStrokeArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.rect(
-				x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height,
-				(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
-			), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_fillStrokeAreaV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_fillStrokeAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.rect(
-				xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height,
-				(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
-			), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_strokeFillArea : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_strokeFillArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.rect(
-				x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height,
-				(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
-			), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
-		))
-
-	/**` O.n_strokeFillAreaV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_strokeFillAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.rect(
-				xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height,
-				(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
-			), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
-		))
-
-	/**` O.n_arc : ...5 Number -> IO () `*/
-	export const n_arc = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, a1 * tau),
-			null
-		))
-
-	/**` O.n_arcV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
-	export const n_arcV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, a1 * tau),
-			null
-		))
-
-	/**` O.n_strokeArc : ...5 Number -> IO () `*/
-	export const n_strokeArc = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, a1 * tau),
-			Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_strokeArcV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
-	export const n_strokeArcV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, a1 * tau),
-			Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_arcSection : ...5 Number -> IO () `*/
-	export const n_arcSection = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, (a0 + a1) * tau),
-			null
-		))
-
-	/**` O.n_arcSectionV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
-	export const n_arcSectionV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, (a0 + a1) * tau),
-			null
-		))
-
-	/**` O.n_strokeArcSection : ...5 Number -> IO () `*/
-	export const n_strokeArcSection =
-		(r  : number) =>
-		(a0 : number) => (a1 : number) =>
-		(x  : number) => (y  : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, (a0 + a1) * tau),
-			Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_strokeArcSectionV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
-	export const n_strokeArcSectionV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, a0 * tau, (a0 + a1) * tau),
-			Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_circle : Number -> Number -> Number -> IO () `*/
-	export const n_circle = (r : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau), null))
-
-	/**` O.n_circleV2 : Number -> Vector2 -> IO () `*/
-	export const n_circleV2 = (r : number) => (v : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
-			null
-		))
-
-	/**` O.n_fillCircle : Number -> Number -> Number -> IO () `*/
-	export const n_fillCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
-			Ψ.ctx.fill(), null
-		))
-
-	/**` O.n_fillCircleV2 : Number -> Vector2 -> IO () `*/
-	export const n_fillCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
-			Ψ.ctx.fill(), null
-		))
-
-	/**` O.n_strokeCircle : Number -> Number -> Number -> IO () `*/
-	export const n_strokeCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
-			Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_strokeCircleV2 : Number -> Vector2 -> IO () `*/
-	export const n_strokeCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
-			Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_fillStrokeCircle : Number -> Number -> Number -> IO () `*/
-	export const n_fillStrokeCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
-			Ψ.ctx.fill(), Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_fillStrokeCircleV2 : Number -> Vector2 -> IO () `*/
-	export const n_fillStrokeCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
-			Ψ.ctx.fill(), Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_strokeFillCircle : Number -> Number -> Number -> IO () `*/
-	export const n_strokeFillCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
-			Ψ.ctx.stroke(), Ψ.ctx.fill(), null
-		))
-
-	/**` O.n_strokeFillCircleV2 : Number -> Vector2 -> IO () `*/
-	export const n_strokeFillCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.arc(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height, r * Ψ.ctx.canvas.width, 0, tau),
-			Ψ.ctx.stroke(), Ψ.ctx.fill(), null
-		))
-
-	/**` O.n_elliptic : ...7 Number -> IO () `*/
-	export const n_elliptic =
-		(a  : number) => (a0 : number) => (a1 : number) =>
-		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
-				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
-				a * tau, a0 * tau, a1 * tau
-			), null
-		))
-
-	/**` O.n_ellipticV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
-	export const n_ellipticV2 =
-		(a   : number ) => (a0 : number ) => (a1 : number) =>
-		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.width,
-				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.width, a * tau, a0 * tau, a1 * tau), null))
-
-	/**` O.n_strokeElliptic : ...7 Number -> IO () `*/
-	export const n_strokeElliptic =
-		(a  : number) => (a0 : number) => (a1 : number) =>
-		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.width,
-				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.width, a * tau, a0 * tau, a1 * tau), Ψ.ctx.stroke(), null))
-
-	/**` O.n_strokeEllipticV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
-	export const n_strokeEllipticV2 =
-		(a   : number ) => (a0 : number ) => (a1 : number) =>
-		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.width,
-				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.width, a * tau, a0 * tau, a1 * tau), Ψ.ctx.stroke(), null))
-
-	/**` O.n_ellipticSection : ...7 Number -> IO () `*/
-	export const n_ellipticSection =
-		(a  : number) => (a0 : number) => (a1 : number) =>
-		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.width,
-				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.width, a * tau, a0 * tau, a1 * tau), null))
-
-	/**` O.n_ellipticSectionV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
-	export const n_ellipticSectionV2 =
-		(a   : number ) => (a0 : number ) => (a1 : number) =>
-		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.width,
-				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.width,
-				a * tau, a0 * tau, (a0 + a1) * tau
-			), null
-		))
-
-	/**` O.n_strokeEllipticSection : ...7 Number -> IO () `*/
-	export const n_strokeEllipticSection =
-		(a  : number) => (a0 : number) => (a1 : number) =>
-		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.width,
-				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.width,
-				a * tau, a0 * tau, (a0 + a1) * tau
-			), Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_strokeEllipticSectionV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
-	export const n_strokeEllipticSectionV2 =
-		(a   : number ) => (a0 : number ) => (a1 : number) =>
-		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
-				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
-				a * tau, a0 * tau, (a0 + a1) * tau
-			),
-			Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_ellipse : ...5 Number -> IO () `*/
-	export const n_ellipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
-				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
-				a * tau, 0, tau
-			),
-			null
-		))
-
-	/**` O.n_ellipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
-	export const n_ellipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
-				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
-				a * tau, 0, tau
-			),
-			null
-		))
-
-	/**` O.n_fillEllipse : ...5 Number -> IO () `*/
-	export const n_fillEllipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
-				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
-				a * tau, 0, tau
-			),
-			Ψ.ctx.fill(), null
-		))
-
-	/**` O.n_fillEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
-	export const n_fillEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
-				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
-				a * tau, 0, tau
-			),
-			Ψ.ctx.fill(), null
-		))
-
-	/**` O.n_strokeEllipse : ...5 Number -> IO () `*/
-	export const n_strokeEllipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
-				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
-				a * tau, 0, tau
-			), Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_strokeEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
-	export const n_strokeEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
-				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
-				a * tau, 0, tau
-			), Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_fillStrokeEllipse : ...5 Number -> IO () `*/
-	export const n_fillStrokeEllipse =
-		(a  : number) =>
-		(kx : number) => (ky : number) =>
-		(x  : number) => (y  : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
-				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
-				a * tau, 0, tau
-			), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_fillStrokeEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
-	export const n_fillStrokeEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
-				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
-				a * tau, 0, tau
-			), Ψ.ctx.fill(), Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_strokeFillEllipse : ...5 Number -> IO () `*/
-	export const n_strokeFillEllipse =
-		(a  : number) =>
-		(kx : number) => (ky : number) =>
-		(x  : number) => (y  : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
-				kx * Ψ.ctx.canvas.width, ky * Ψ.ctx.canvas.height,
-				a * tau, 0, tau
-			), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
-		))
-
-	/**` O.n_strokeFillEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
-	export const n_strokeFillEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.ellipse(
-				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
-				kxy.x * Ψ.ctx.canvas.width, kxy.y * Ψ.ctx.canvas.height,
-				a * tau, 0, tau
-			), Ψ.ctx.stroke(), Ψ.ctx.fill(), null
-		))
-
-	/**` O.n_fillText : a -> Number -> Number -> IO () `*/
-	export const n_fillText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.fillText(text as any, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height), null))
-
-	/**` O.n_fillTextV2 : a -> Vector2 -> IO () `*/
-	export const n_fillTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.fillText(text as any, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height), null))
-
-	/**` O.n_strokeText : a -> Number -> Number -> IO () `*/
-	export const n_strokeText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.strokeText(text as any, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height), null))
-
-	/**` O.n_strokeTextV2 : a -> Vector2 -> IO () `*/
-	export const n_strokeTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.strokeText(text as any, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height), null))
-
-	/**` O.n_fillStrokeText : a -> Number -> Number -> IO () `*/
-	export const n_fillStrokeText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.fillText(text as any, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height),
-			Ψ.ctx.strokeText(text as any, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height),
-			null
-		))
-
-	/**` O.n_fillStrokeText : a -> Vector2 -> IO () `*/
-	export const n_fillStrokeTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.fillText(text as any, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height),
-			Ψ.ctx.strokeText(text as any, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height),
-			null
-		))
-
-	/**` O.n_strokeFillText : a -> Number -> Number -> IO () `*/
-	export const n_strokeFillText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.strokeText(text as any, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height),
-			Ψ.ctx.fillText(text as any, x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height),
-			null
-		))
-
-	/**` O.n_strokeFillTextV2 : a -> Vector2 -> IO () `*/
-	export const n_strokeFillTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.strokeText(text as any, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height),
-			Ψ.ctx.fillText(text as any, xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height),
-			null
-		))
-
-	/**` O.n_fillMultilineText : String -> Number -> Number -> Number -> IO () `*/
-	export const n_fillMultilineText = (text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => {
-			const nextX = Ψ.ctx.canvas.width  * x
-			const nextY = Ψ.ctx.canvas.height * y
-			const nextS = Ψ.ctx.canvas.height * spacing
-			text.split('\n').forEach((line, i) => Ψ.ctx.fillText(line, nextX, nextY + nextS * i))
-			return null
-		})
-
-	/**` O.n_fillMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
-	export const n_fillMultilineTextV2 = (text : string) => (spacing : number) => (v : Vector2) : IO <null> =>
-		O.n_fillMultilineText (text) (spacing) (v.x) (v.y)
-
-	/**` O.n_strokeMultilineText : String -> Number -> Number -> Number -> IO () `*/
-	export const n_strokeMultilineText = (text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => {
-			const nextX = Ψ.ctx.canvas.width  * x
-			const nextY = Ψ.ctx.canvas.height * y
-			const nextS = Ψ.ctx.canvas.height * spacing
-			text.split('\n').forEach((line, i) => Ψ.ctx.strokeText(line, nextX, nextY + nextS * i))
-			return null
-		})
-
-	/**` O.n_strokeMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
-	export const n_strokeMultilineTextV2 = (text : string) => (spacing : number) => (v : Vector2) : IO <null> =>
-		O.n_strokeMultilineText (text) (spacing) (v.x) (v.y)
-
-	/**` O.n_strokeFillMultilineText : String -> Number -> Number -> Number -> IO () `*/
-	export const n_strokeFillMultilineText = (text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => {
-			const nextX = Ψ.ctx.canvas.width  * x
-			const nextY = Ψ.ctx.canvas.height * y
-			const nextS = Ψ.ctx.canvas.height * spacing
-			text.split('\n').forEach((line, i) => {
-				Ψ.ctx.strokeText(line, nextX, nextY + nextS * i)
-				Ψ.ctx.fillText(line, nextX, nextY + nextS * i)
-			})
-			return null
-		})
-
-	/**` O.n_strokeFillMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
-	export const n_strokeFillMultilineTextV2 = (text : string) => (spacing : number) => (v : Vector2) : IO <null> =>
-		O.n_strokeFillMultilineText (text) (spacing) (v.x) (v.y)
-
-	/**` O.n_fillStrokeMultilineText : String -> Number -> Number -> Number -> IO () `*/
-	export const n_fillStrokeMultilineText = (text : string) => (spacing : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => {
-			const nextX = Ψ.ctx.canvas.width  * x
-			const nextY = Ψ.ctx.canvas.height * y
-			const nextS = Ψ.ctx.canvas.height * spacing
-			text.split('\n').forEach((line, i) => {
-				Ψ.ctx.fillText(line, nextX, nextY + nextS * i)
-				Ψ.ctx.strokeText(line, nextX, nextY + nextS * i)
-			})
-			return null
-		})
-
-	/**` O.n_fillStrokeMultilineTextV2 : String -> Number -> Vector2 -> IO () `*/
-	export const n_fillStrokeMultilineTextV2 = (text : string) => (spacing : number) => (v : Vector2) : IO <null> =>
-		O.n_fillStrokeMultilineText (text) (spacing) (v.x) (v.y)
-
-	/**` O.n_line : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_line = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.moveTo(x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height),
-			Ψ.ctx.lineTo(x1 * Ψ.ctx.canvas.width, y1 * Ψ.ctx.canvas.height),
-			null
-		))
-
-	/**` O.n_lineV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_lineV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.moveTo(xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height),
-			Ψ.ctx.lineTo(xy1.x * Ψ.ctx.canvas.width, xy1.y * Ψ.ctx.canvas.height),
-			null
-		))
-
-	/**` O.n_strokeLine : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_strokeLine = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.moveTo(x0 * Ψ.ctx.canvas.width, y0 * Ψ.ctx.canvas.height),
-			Ψ.ctx.lineTo(x1 * Ψ.ctx.canvas.width, y1 * Ψ.ctx.canvas.height),
-			Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_strokeLineV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_strokeLineV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.moveTo(xy0.x * Ψ.ctx.canvas.width, xy0.y * Ψ.ctx.canvas.height),
-			Ψ.ctx.lineTo(xy1.x * Ψ.ctx.canvas.width, xy1.y * Ψ.ctx.canvas.height),
-			Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_vector : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_vector = (x : number) => (y : number) => (dx : number) => (dy : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.moveTo(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.width),
-			Ψ.ctx.lineTo((x + dx) * Ψ.ctx.canvas.width, (y + dy) * Ψ.ctx.canvas.width),
-			null
-		))
-
-	/**` O.n_vectorV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_vectorV2 = (xy : Vector2) => (dxy : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.moveTo(xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.width),
-			Ψ.ctx.lineTo((xy.x + dxy.x) * Ψ.ctx.canvas.width, (xy.y + dxy.y) * Ψ.ctx.canvas.width),
-			null
-		))
-
-	/**` O.n_strokeVector : Number -> Number -> Number -> Number -> IO () `*/
-	export const n_strokeVector = (x : number) => (y : number) => (dx : number) => (dy : number) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.moveTo(x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.width),
-			Ψ.ctx.lineTo((x + dx) * Ψ.ctx.canvas.width, (y + dy) * Ψ.ctx.canvas.width),
-			Ψ.ctx.stroke(), null
-		))
-
-	/**` O.n_strokeVectorV2 : Vector2 -> Vector2 -> IO () `*/
-	export const n_strokeVectorV2 = (xy : Vector2) => (dxy : Vector2) : IO <null> =>
-		IO (() => (
-			Ψ.ctx.moveTo(xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.width),
-			Ψ.ctx.lineTo((xy.x + dxy.x) * Ψ.ctx.canvas.width, (xy.y + dxy.y) * Ψ.ctx.canvas.width),
-			Ψ.ctx.stroke(), null
-		))
-
-	/**` O.requestPointerLock : IO () `*/
-	export const requestPointerLock : IO <null> =
-		IO (() => (onmouseup = () => Ψ.isPointerLocked || Ψ.ctx.canvas.requestPointerLock(), null))
-
-	/**` O.deactivatePointerLock : IO () `*/
-	export const deactivatePointerLock : IO <null> = IO (() => onmouseup = null)
-
-	/**` O.setCanvasW : Number -> IO () `*/
-	export const setCanvasW = (w : number) : IO <null> => IO (() => (Ψ.ctxs.forEach(ctx => ctx.canvas.width = w), null))
-
-	/**` O.setCanvasH : Number -> IO () `*/
-	export const setCanvasH = (h : number) : IO <null> => IO (() => (Ψ.ctxs.forEach(ctx => ctx.canvas.height = h), null))
-
-	/**` O.setCanvasWH : Number -> Number -> IO () `*/
-	export const setCanvasWH = (w : number) => (h : number) : IO <null> =>
-		IO (() => (Ψ.ctxs.forEach(ctx => (ctx.canvas.width = w, ctx.canvas.height = h)), null))
-
-	/**` O.setCanvasV2 : Vector2 -> IO () `*/
-	export const setCanvasV2 = (wh : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctxs.forEach(ctx => (ctx.canvas.width = wh.x, ctx.canvas.height = wh.y)), null))
-
-	/**` O.setLayer : Number -> IO () `*/
-	export const setLayer = (index : number) : IO <null> =>
-		IO (() =>
-			index < 0 || index >= Ψ.ctxs.length || !Number.isInteger (index)
-				? error (`'O.setLayer' received index of '${index}'; must be a integer in interval [0, ${Ψ.ctxs.length})`)
-				: (Ψ.ctx = Ψ.ctxs[index]!, null)
-		)
-
-	/**` O.setLineThickness : Number -> IO () `*/
-	export const setLineThickness = (thickness : number) : IO <null> => IO (() => (Ψ.ctx.lineWidth = thickness, null))
-
-	/**` O.setLineDashPattern : List Number -> IO () `*/
-	export const setLineDashPattern = (pattern : List <number>) : IO <null> =>
-		IO (() => (Ψ.ctx.setLineDash(listToArray (pattern)), null))
-
-	/**` O.setLineDashOffset : Number -> IO () `*/
-	export const setLineDashOffset = (offset : number) : IO <null> => IO (() => (Ψ.ctx.lineDashOffset = offset, null))
-
-	/**` O.setMiterLimit : Number -> IO () `*/
-	export const setMiterLimit = (limit : number) : IO <null> => IO (() => (Ψ.ctx.miterLimit = limit, null))
-
-	/**` O.setFont : String -> IO `*/
-	export const setFont = (font : string) : IO <null> => IO (() => (Ψ.ctx.font = font, null))
-
-	/**` O.setFontSize : Number -> IO () `*/
-	export const setFontSize = (size : number) : IO <null> =>
-		IO (() => (Ψ.ctx.font = `${size}px${Ψ.ctx.font.slice(Ψ.ctx.font.indexOf(' '))}`, null))
-
-	/**` O.setFontFamily : String -> IO () `*/
-	export const setFontFamily = (family : string) : IO <null> =>
-		IO (() => (Ψ.ctx.font = `${parseFloat(Ψ.ctx.font)}px "${family}"`, null))
-
-	/**` O.setShadowBlurAmount : Number -> IO () `*/
-	export const setShadowBlurAmount = (amount : number) : IO <null> => IO (() => (Ψ.ctx.shadowBlur = amount, null))
-
-	/**` O.setShadowColor : String -> IO () `*/
-	export const setShadowColor = (color : string) : IO <null> => IO (() => (Ψ.ctx.shadowColor = color, null))
-
-	/**` O.setShadowRGBA : Number -> Number -> Number -> Number -> IO () `*/
-	export const setShadowRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
-		IO (() => (Ψ.ctx.shadowColor = `rgba(${r},${g},${b},${a})`, null))
-
-	/**` O.setShadowV4 : Vector4 -> IO () `*/
-	export const setShadowV4 = (v : Vector4) : IO <null> =>
-		IO (() => (Ψ.ctx.shadowColor = `rgba(${v.x},${v.y},${v.z},${v.w})`, null))
-
-	/**` O.setShadowX : Number -> IO () `*/
-	export const setShadowX = (x : number) : IO <null> => IO (() => (Ψ.ctx.shadowOffsetX = x, null))
-
-	/**` O.setShadowY : Number -> IO () `*/
-	export const setShadowY = (y : number) : IO <null> => IO (() => (Ψ.ctx.shadowOffsetY = y, null))
-
-	/**` O.setShadowXY : Number -> Number -> IO `*/
-	export const setShadowXY = (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.shadowOffsetX = x, Ψ.ctx.shadowOffsetY = y, null))
-
-	/**` O.setShadowV2 : IO Vector2 `*/
-	export const setShadowV2 = (xy : Vector2) : IO <null> =>
-		IO (() => (Vector2 (Ψ.ctx.shadowOffsetX = xy.x, Ψ.ctx.shadowOffsetY = xy.y), null))
-
-	/**` O.setMatrix : Matrix3 -> IO () `*/
-	export const setMatrix = (m3 : Matrix3) : IO <null> =>
-		IO (() => (Ψ.ctx.setTransform(m3.ix, m3.iy, m3.jx, m3.jy, m3.kx, m3.ky), null))
-
-	/**` O.resetMatrix : IO () `*/
-	export const resetMatrix : IO <null> = IO (() => (Ψ.ctx.resetTransform(), null))
-
-	/**` O.setAlpha : Number -> IO () `*/
-	export const setAlpha = (alpha : number) : IO <null> => IO (() => (Ψ.ctx.globalAlpha = alpha, null))
-
-	/**` O.setFillColor : String -> IO () `*/
-	export const setFillColor = (color : string) : IO <null> => IO (() => (Ψ.ctx.fillStyle = color, null))
-
-	/**` O.setFillRGBA : Number -> Number -> Number -> Number -> IO () `*/
-	export const setFillRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
-		IO (() => (Ψ.ctx.fillStyle = `rgba(${r},${g},${b},${a})`, null))
-
-	/**` O.setFillV4 : Vector4 -> IO () `*/
-	export const setFillV4 = (v : Vector4) : IO <null> =>
-		IO (() => (Ψ.ctx.fillStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`, null))
-
-	/**` O.setStrokeColor : String -> IO () `*/
-	export const setStrokeColor = (color : string) : IO <null> => IO (() => (Ψ.ctx.strokeStyle = color, null))
-
-	/**` O.setStrokeRGBA : Number -> Number -> Number -> Number -> IO () `*/
-	export const setStrokeRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
-		IO (() => (Ψ.ctx.strokeStyle = `rgba(${r},${g},${b},${a})`, null))
-
-	/**` O.setStrokeV4 : Vector4 -> IO () `*/
-	export const setStrokeV4 = (v : Vector4) : IO <null> =>
-		IO (() => (Ψ.ctx.strokeStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`, null))
-
-	/**` O.setLineCap : LineCap -> IO () `*/
-	export const setLineCap = (linecap : LineCap) : IO <null> =>
-		IO (() => (Ψ.ctx.lineCap = mappingLineCapToHTML5 .codomain (linecap), null))
-
-	/**` O.setLineJoin : LineJoin -> IO () `*/
-	export const setLineJoin = (linejoin : LineJoin) : IO <null> =>
-		IO (() => (Ψ.ctx.lineJoin = mappingLineJoinToHTML5 .codomain (linejoin), null))
-
-	/**` O.setTextAlign : TextAlign -> IO () `*/
-	export const setTextAlign = (alignment : TextAlign) : IO <null> =>
-		IO (() => (Ψ.ctx.textAlign = mappingTextAlignToHTML5 .codomain (alignment), null))
-
-	/**` O.setTextBaseline : TextBaseline -> IO () `*/
-	export const setTextBaseline = (baseline : TextBaseline) : IO <null> =>
-		IO (() => (Ψ.ctx.textBaseline = mappingTextBaselineToHTML5 .codomain (baseline), null))
-
-	/**` O.setComposition : Composition -> IO () `*/
-	export const setComposition = (composition : Composition) : IO <null> =>
-		IO (() => (Ψ.ctx.globalCompositeOperation = mappingCompositionToHTML5 .codomain (composition), null))
-
-	/**` O.setToCenterText : IO () `*/
-	export const setToCenterText : IO <null> =
-		IO (() => (Ψ.ctx.textAlign = 'center', Ψ.ctx.textBaseline = 'middle', null))
-
-	/**` O.setToDefaultText : IO () `*/
-	export const setToDefaultText : IO <null> =
-		IO (() => (Ψ.ctx.textAlign = 'start', Ψ.ctx.textBaseline = 'alphabetic', null))
-
-	/**` O.resetState : IO () `*/
-	export const resetState : IO <null> =
-		IO (() => {
-			for (const k in Ψ.keyboard)     Ψ.keyboard[k as KeyboardKey] = relaxVertical (Ψ.keyboard[k as KeyboardKey])
-			for (const i in Ψ.mouseButtons) Ψ.mouseButtons[i]            = relaxVertical (Ψ.mouseButtons[i]!)
-			Ψ.mouseDeltaX = Ψ.mouseDeltaY = 0
-			Ψ.mouseScroll = Vertical.Rest
-			Ψ.isResized   = false
-			return null
-		})
-
-	/**` O.setAudioTime : String -> Number -> IO () `*/
-	export const setAudioTime = (path : string) => (time : number) : IO <null> =>
-		IO (() => {
-			if (!Ψ.audio[path])
-				error (`'O.setAudioTime' received an unloaded (possibly non-existing) audio at path: '${path}'`)
-			if (time < 0 || time > Ψ.audio[path].duration)
-				error (`'O.setAudioTime' received '${time}' as an input; \
-must be in interval [0, ${Ψ.audio[path].duration}] for audio file: '${path}'`)
-			Ψ.audio[path].currentTime = time
-			return null
-		})
-
-	/**` O.resetAudio : String -> IO () `*/
-	export const resetAudio = (path : string) : IO <null> =>
-		IO (() => {
-			if (!Ψ.audio[path])
-				error (`'O.resetAudio' received an unloaded (possibly non-existing) audio at path: '${path}'`)
-			Ψ.audio[path].pause()
-			Ψ.audio[path].currentTime = 0
-			return null
-		})
-
-	/**` O.flush : IO () `*/
-	export const flush : IO <null> = IO (() => (console.clear(), null))
-
-	/**` O.log : a -> IO () `*/
-	export const log = <a>(message : a) : IO <null> => IO (() => (console.log(message), null))
-
-	/**` O.warning : a -> IO () `*/
-	export const warning = <a>(message : a) : IO <null> => IO (() => (console.warn(message), null))
-
-	/**` O.debug : Number -> a -> IO () `*/
-	export const debug = (count : number) => <a>(message : a) : IO <null> =>
-		IO (() => {
-			if (--Ψ.debugCounter < 0)
-				Ψ.debugCounter = count,
-				console.debug(message)
-			return null
-		})
-
-	/**` O.count : String -> IO () `*/
-	export const count = <a>(identifier : string) : IO <null> => IO (() => (console.count(identifier), null))
-
-	/**` O.resetCount : String -> IO () `*/
-	export const resetCount = <a>(identifier : string) : IO <null> => IO (() => (console.countReset(identifier), null))
-
-	/**` O.queue : IO a -> IO () `*/
-	export const queue = <a>(effect : IO <a>) : IO <null> => IO (() => (requestAnimationFrame(effect.effect), null))
-
-	/**` O.loadImage : String -> IO () `*/
-	export const loadImage = (path : string) : IO <null> =>
-		IO (() => {
-			Ψ.image[path]          = new Image
-			Ψ.image[path]!.src     = path
-			Ψ.image[path]!.onerror = () => error (`'O.loadImage' could not load image at path: '${path}'`)
-			return null
-		})
-
-	/**` O.loadAudio : String -> IO () `*/
-	export const loadAudio = (path : string) : IO <null> =>
-		IO (() => {
-			Ψ.audio[path]          = new Audio(path)
-			Ψ.audio[path]!.onerror = () => error (`'O.loadAudio' could not load audio at path: '${path}'`)
-			return null
-		})
-
-	/**` O.loadFont : String -> IO () `*/
-	export const loadFont = (path : string) : IO <null> =>
-		IO (() => {
-			new FontFace(path.slice(path.lastIndexOf('/') + 1, path.lastIndexOf('.')), `url(${path})`)
-				.load()
-				.then((font : any) => (document as any).fonts.add(font))
-				.catch(() => error (`'loadFont' could not load font at path: '${path}'`))
-			return null
-		})
-
-	/**` O.drawImage : String -> ...8 Number -> IO () `*/
-	export const drawImage =
-		(path : string) =>
-		(cx   : number) => (cy : number) => (cw : number) => (ch : number) =>
-		(x    : number) => (y  : number) => (w  : number) => (h  : number) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.drawImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(Ψ.image[path], cx, cy, cw, ch, x, y, w, h)
-			return null
-		})
-
-	/**` O.drawImageV2 : String -> ...4 Vector2 -> IO () `*/
-	export const drawImageV2 =
-		(path : string ) =>
-		(cxy  : Vector2) => (cwh : Vector2) =>
-		(xy   : Vector2) => (wh  : Vector2) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.drawImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(Ψ.image[path], cxy.x, cxy.y, cwh.x, cwh.y, xy.x, xy.y, wh.x, wh.y)
-			return null
-		})
-
-	/**` O.drawUncroppedImage : String -> ...4 Number -> IO () `*/
-	export const drawUncroppedImage =
-		(path : string) =>
-		(x    : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.drawUncroppedImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(Ψ.image[path], x, y, w, h)
-			return null
-		})
-
-	/**` O.drawUncroppedImageV2 : String -> Vector2 -> Vector2 -> IO () `*/
-	export const drawUncroppedImageV2 = (path : string) => (xy : Vector2) => (wh : Vector2) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.drawUncroppedImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(Ψ.image[path], xy.x, xy.y, wh.x, wh.y)
-			return null
-		})
-
-	/**` O.drawFullImage : String -> Number -> Number -> IO () `*/
-	export const drawFullImage = (path : string) => (x : number) => (y : number) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.drawFullImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(Ψ.image[path], x, y)
-			return null
-		})
-
-	/**` O.drawFullImageV2 : String -> Vector2 -> IO () `*/
-	export const drawFullImageV2 = (path : string) => (xy : Vector2) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.drawFullImage' received an unloaded image at path: '${path}'`)
-			Ψ.ctx.drawImage(Ψ.image[path], xy.x, xy.y)
-			return null
-		})
-
-	/**` O.drawFullScaledImage : String -> Number -> Number -> Number -> IO () `*/
-	export const drawFullScaledImage = (path : string) => (k : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.drawFullScaledImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(Ψ.image[path], x, y, Ψ.image[path].width * k, Ψ.image[path].height * k)
-			return null
-		})
-
-	/**` O.drawFullScaledImageV2 : String -> Number -> Vector2 -> IO () `*/
-	export const drawFullScaledImageV2 = (path : string) => (k : number) => (xy : Vector2) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.drawFullScaledImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(Ψ.image[path], xy.x, xy.y, Ψ.image[path].width * k, Ψ.image[path].height * k)
-			return null
-		})
-
-	/**` O.drawSquareImage : String -> Number -> Number -> Number -> IO () `*/
-	export const drawSquareImage = (path : string) => (k : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.drawSquareImage' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(Ψ.image[path], x, y, k, k)
-			return null
-		})
-
-	/**` O.drawSquareImageV2 : String -> Number -> Vector2 -> IO () `*/
-	export const drawSquareImageV2 = (path : string) => (k : number) => (xy : Vector2) : IO <null> =>
-		IO (() => {
-			if (!Ψ.image[path])
-				error (`'O.drawSquareImageV2' received an unloaded (possibly non-existing) image at path: '${path}'`)
-			Ψ.ctx.drawImage(Ψ.image[path], xy.x, xy.y, k, k)
-			return null
-		})
-
-	/**` O.playAudio : String -> IO () `*/
-	export const playAudio = (path : string) : IO <null> =>
-		IO (() => {
-			if (!Ψ.audio[path])
-				error (`'O.playAudio' received an unloaded (possibly non-existing) audio at path: '${path}'`)
-			Ψ.audio[path].play()
-			return null
-		})
-
-	/**` O.pauseAudio : String -> IO () `*/
-	export const pauseAudio = (path : string) : IO <null> =>
-		IO (() => {
-			if (!Ψ.audio[path])
-				error (`'O.pauseAudio' received an unloaded (possibly non-existing) audio at path: '${path}'`)
-			Ψ.audio[path].pause()
-			return null
-		})
-
-	/**` O.playSFX : String -> IO () `*/
-	export const playSFX = (path : string) : IO <null> =>
-		IO (() => {
-			if (Ψ.audio[path])
-				(Ψ.audio[path].cloneNode() as any).play()
-			else
-				error (`'O.playSFX' received an unloaded (possibly non-existing) audio at path: '${path}'`)
-			return null
-		})
-
-	/**` O.clearLayer : IO () `*/
-	export const clearLayer : IO <null> =
-		IO (() => (Ψ.ctx.clearRect(0, 0, Ψ.ctx.canvas.width, Ψ.ctx.canvas.height), null))
-
-	/**` O.clearCanvas : IO () `*/
-	export const clearCanvas : IO <null> =
-		IO (() => (Ψ.ctxs.forEach(ctx => ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)), null))
-
-	/**` O.clearRect : Number -> Number -> Number -> Number -> IO () `*/
-	export const clearRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-		IO (() => (Ψ.ctx.clearRect(x, y, w, h), null))
-
-	/**` O.clearRectV2 : Vector2 -> Vector2 -> IO () `*/
-	export const clearRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.clearRect(xy.x, xy.y, wh.x, wh.y), null))
-
-	/**` O.clearArea : Number -> Number -> Number -> Number -> IO () `*/
-	export const clearArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (Ψ.ctx.clearRect(x0, y0, x1 - x0, y1 - y0), null))
-
-	/**` O.clearAreaV2 : Vector2 -> Vector2 -> IO () `*/
-	export const clearAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.clearRect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null))
-
-	/**` O.fill : IO () `*/
-	export const fill : IO <null> = IO (() => (Ψ.ctx.fill(), null))
-
-	/**` O.stroke : IO () `*/
-	export const stroke : IO <null> = IO (() => (Ψ.ctx.stroke(), null))
-
-	/**` O.save : IO () `*/
-	export const save : IO <null> = IO (() => (Ψ.ctx.save(), null))
-
-	/**` O.restore : IO () `*/
-	export const restore : IO <null> = IO (() => (Ψ.ctx.restore(), null))
-
-	/**` O.clipEvenOdd : IO () `*/
-	export const clipEvenOdd : IO <null> = IO (() => (Ψ.ctx.clip('evenodd'), null))
-
-	/**` O.clipNonZero : IO () `*/
-	export const clipNonZero : IO <null> = IO (() => (Ψ.ctx.clip('nonzero'), null))
-
-	/**` O.rotate : Number -> IO () `*/
-	export const rotate = (angle : number) : IO <null> => IO (() => (Ψ.ctx.rotate(angle), null))
-
-	/**` O.scaleX : Number -> IO () `*/
-	export const scaleX = (kx : number) : IO <null> => IO (() => (Ψ.ctx.scale(kx, 1), null))
-
-	/**` O.scaleY : Number -> IO () `*/
-	export const scaleY = (ky : number) : IO <null> => IO (() => (Ψ.ctx.scale(1, ky), null))
-
-	/**` O.scaleXY : Number -> Number -> IO () `*/
-	export const scaleXY = (kx : number) => (ky : number) : IO <null> => IO (() => (Ψ.ctx.scale(kx, ky), null))
-
-	/**` O.scaleV2 : Vector2 -> IO () `*/
-	export const scaleV2 = (v : Vector2) : IO <null> => IO (() => (Ψ.ctx.scale(v.x, v.y), null))
-
-	/**` O.translateX : Number -> IO () `*/
-	export const translateX = (dx : number) : IO <null> => IO (() => (Ψ.ctx.translate(dx, 0), null))
-
-	/**` O.translateY : Number -> IO () `*/
-	export const translateY = (dy : number) : IO <null> => IO (() => (Ψ.ctx.translate(0, dy), null))
-
-	/**` O.translateXY : Number -> Number -> IO () `*/
-	export const translateXY = (dx : number) => (dy : number) : IO <null> => IO (() => (Ψ.ctx.translate(dx, dy), null))
-
-	/**` O.translateV2 : Vector2 -> IO () `*/
-	export const translateV2 = (v : Vector2) : IO <null> => IO (() => (Ψ.ctx.translate(v.x, v.y), null))
-
-	/**` O.transform2 : Matrix2 -> IO () `*/
-	export const transform2 = (m2 : Matrix2) : IO <null> =>
-		IO (() => (Ψ.ctx.transform(m2.ix, m2.iy, m2.jx, m2.jy, 0, 0), null))
-
-	/**` O.transform3 : Matrix3 -> IO () `*/
-	export const transform3 = (m3 : Matrix3) : IO <null> =>
-		IO (() => (Ψ.ctx.transform(m3.ix, m3.iy, m3.jx, m3.jy, m3.kx, m3.ky), null))
-
-	/**` O.beginPath : IO () `*/
-	export const beginPath : IO <null> = IO (() => (Ψ.ctx.beginPath(), null))
-
-	/**` O.closePath : IO () `*/
-	export const closePath : IO <null> = IO (() => (Ψ.ctx.closePath(), null))
-
-	/**` O.moveTo : Number -> Number -> IO () `*/
-	export const moveTo = (x : number) => (y : number) : IO <null> => IO (() => (Ψ.ctx.moveTo(x, y), null))
-
-	/**` O.moveToV2 : Vector2 -> IO () `*/
-	export const moveToV2 = (v : Vector2) : IO <null> => IO (() => (Ψ.ctx.moveTo(v.x, v.y), null))
-
-	/**` O.bezierCurveTo : ...6 Number -> IO () `*/
-	export const bezierCurveTo =
-		(cx0 : number) => (cy0 : number) =>
-		(cx1 : number) => (cy1 : number) =>
-		(x   : number) => (y   : number) : IO <null> =>
-		IO (() => (Ψ.ctx.bezierCurveTo(cx0, cy0, cx1, cy1, x, y), null))
-
-	/**` O.bezierCurveToV2 : Vector2 -> Vector2 -> Vector2 -> IO () `*/
-	export const bezierCurveToV2 = (cxy0 : Vector2) => (cxy1 : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.bezierCurveTo(cxy0.x, cxy0.y, cxy1.x, cxy1.y, xy.x, xy.y), null))
-
-	/**` O.quadraticCurveTo : Number -> Number -> Number -> Number -> IO () `*/
-	export const quadraticCurveTo = (cx : number) => (cy : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.quadraticCurveTo(cx, cy, x, y), null))
-
-	/**` O.quadraticCurveToV2 : Vector2 -> Vector2 -> IO () `*/
-	export const quadraticCurveToV2 = (cxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.quadraticCurveTo(cxy.x, cxy.y, xy.x, xy.y), null))
-
-	/**` O.arcTo : ...5 Number -> IO () `*/
-	export const arcTo = (r : number) => (cx0 : number) => (cy0 : number) => (cx1 : number) => (cy1 : number) : IO <null> =>
-		IO (() => (Ψ.ctx.arcTo(cx0, cy0, cx1, cy1, r), null))
-
-	/**` O.arcToV2 : Number -> Vector2 -> Vector2 -> IO () `*/
-	export const arcToV2 = (r : number) => (cxy0 : Vector2) => (cxy1 : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.arcTo(cxy0.x, cxy0.y, cxy1.x, cxy1.y, r), null))
-
-	/**` O.rect : Number -> Number -> Number -> Number -> IO () `*/
-	export const rect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-		IO (() => (Ψ.ctx.rect(x, y, w, h), null))
-
-	/**` O.rectV2 : Vector2 -> Vector2 -> IO () `*/
-	export const rectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.rect(xy.x, xy.y, wh.x, wh.y), null))
-
-	/**` O.fillRect : Number -> Number -> Number -> Number -> IO () `*/
-	export const fillRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-		IO (() => (Ψ.ctx.fillRect(x, y, w, h), null))
-
-	/**` O.fillRectV2 : Vector2 -> Vector2 -> IO () `*/
-	export const fillRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.fillRect(xy.x, xy.y, wh.x, wh.y), null))
-
-	/**` O.strokeRect : Number -> Number -> Number -> Number -> IO () `*/
-	export const strokeRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-		IO (() => (Ψ.ctx.strokeRect(x, y, w, h), null))
-
-	/**` O.strokeRectV2 : Vector2 -> Vector2 -> IO () `*/
-	export const strokeRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.strokeRect(xy.x, xy.y, wh.x, wh.y), null))
-
-	/**` O.fillStrokeRect : Number -> Number -> Number -> Number -> IO () `*/
-	export const fillStrokeRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-		IO (() => (Ψ.ctx.rect(x, y, w, h), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
-
-	/**` O.fillStrokeRectV2 : Vector2 -> Vector2 -> IO () `*/
-	export const fillStrokeRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.rect(xy.x, xy.y, wh.x, wh.y), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
-
-	/**` O.strokeFillRect : Number -> Number -> Number -> Number -> IO () `*/
-	export const strokeFillRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
-		IO (() => (Ψ.ctx.rect(x, y, w, h), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
-
-	/**` O.strokeFillRectV2 : Vector2 -> Vector2 -> IO () `*/
-	export const strokeFillRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.rect(xy.x, xy.y, wh.x, wh.y), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
-
-	/**` O.area : Number -> Number -> Number -> Number -> IO () `*/
-	export const area = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (Ψ.ctx.rect(x0, y0, x1 - x0, y1 - y0), null))
-
-	/**` O.areaV2 : Vector2 -> Vector2 -> IO () `*/
-	export const areaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.rect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null))
-
-	/**` O.fillArea : Number -> Number -> Number -> Number -> IO () `*/
-	export const fillArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (Ψ.ctx.fillRect(x0, y0, x1 - x0, y1 - y0), null))
-
-	/**` O.fillAreaV2 : Vector2 -> Vector2 -> IO () `*/
-	export const fillAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.fillRect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null))
-
-	/**` O.strokeArea : Number -> Number -> Number -> Number -> IO () `*/
-	export const strokeArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (Ψ.ctx.strokeRect(x0, y0, x1 - x0, y1 - y0), null))
-
-	/**` O.strokeAreaV2 : Vector2 -> Vector2 -> IO () `*/
-	export const strokeAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.strokeRect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null))
-
-	/**` O.fillStrokeArea : Number -> Number -> Number -> Number -> IO () `*/
-	export const fillStrokeArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (Ψ.ctx.rect(x0, y0, x1 - x0, y1 - y0), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
-
-	/**` O.fillStrokeAreaV2 : Vector2 -> Vector2 -> IO () `*/
-	export const fillStrokeAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.rect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
-
-	/**` O.strokeFillArea : Number -> Number -> Number -> Number -> IO () `*/
-	export const strokeFillArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (Ψ.ctx.rect(x0, y0, x1 - x0, y1 - y0), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
-
-	/**` O.strokeFillAreaV2 : Vector2 -> Vector2 -> IO () `*/
-	export const strokeFillAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.rect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
-
-	/**` O.arc : ...5 Number -> IO () `*/
-	export const arc = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(x, y, r, a0, a1), null))
-
-	/**` O.arcV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
-	export const arcV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(v.x, v.y, r, a0, a1), null))
-
-	/**` O.strokeArc : ...5 Number -> IO () `*/
-	export const strokeArc = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(x, y, r, a0, a1), Ψ.ctx.stroke(), null))
-
-	/**` O.strokeArcV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
-	export const strokeArcV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(v.x, v.y, r, a0, a1), Ψ.ctx.stroke(), null))
-
-	/**` O.arcSection : ...5 Number -> IO () `*/
-	export const arcSection = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(x, y, r, a0, a0 + a1), null))
-
-	/**` O.arcSectionV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
-	export const arcSectionV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(v.x, v.y, r, a0, a0 + a1), null))
-
-	/**` O.strokeArcSection : ...5 Number -> IO () `*/
-	export const strokeArcSection = (r : number) => (a0 : number) => (a1 : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(x, y, r, a0, a0 + a1), Ψ.ctx.stroke(), null))
-
-	/**` O.strokeArcSectionV2 : Number -> Number -> Number -> Vector2 -> IO () `*/
-	export const strokeArcSectionV2 = (r : number) => (a0 : number) => (a1 : number) => (v : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(v.x, v.y, r, a0, a0 + a1), Ψ.ctx.stroke(), null))
-
-	/**` O.circle : Number -> Number -> Number -> IO () `*/
-	export const circle = (r : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(x, y, r, 0, tau), null))
-
-	/**` O.circleV2 : Number -> Vector2 -> IO () `*/
-	export const circleV2 = (r : number) => (v : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), null))
-
-	/**` O.fillCircle : Number -> Number -> Number -> IO () `*/
-	export const fillCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(x, y, r, 0, tau), Ψ.ctx.fill(), null))
-
-	/**` O.fillCircleV2 : Number -> Vector2 -> IO () `*/
-	export const fillCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), Ψ.ctx.fill(), null))
-
-	/**` O.strokeCircle : Number -> Number -> Number -> IO () `*/
-	export const strokeCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(x, y, r, 0, tau), Ψ.ctx.stroke(), null))
-
-	/**` O.strokeCircleV2 : Number -> Vector2 -> IO () `*/
-	export const strokeCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), Ψ.ctx.stroke(), null))
-
-	/**` O.fillStrokeCircle : Number -> Number -> Number -> IO () `*/
-	export const fillStrokeCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(x, y, r, 0, tau), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
-
-	/**` O.fillStrokeCircleV2 : Number -> Vector2 -> IO () `*/
-	export const fillStrokeCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
-
-	/**` O.strokeFillCircle : Number -> Number -> Number -> IO () `*/
-	export const strokeFillCircle = (r : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(x, y, r, 0, tau), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
-
-	/**` O.strokeFillCircleV2 : Number -> Vector2 -> IO () `*/
-	export const strokeFillCircleV2 = (r : number) => (v : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.arc(v.x, v.y, r, 0, tau), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
-
-	/**` O.elliptic : ...7 Number -> IO () `*/
-	export const elliptic =
-		(a  : number) => (a0 : number) => (a1 : number) =>
-		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, a0, a1), null))
-
-	/**` O.ellipticV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
-	export const ellipticV2 =
-		(a   : number ) => (a0 : number ) => (a1 : number) =>
-		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, a0, a1), null))
-
-	/**` O.strokeElliptic : ...7 Number -> IO () `*/
-	export const strokeElliptic =
-		(a  : number) => (a0 : number) => (a1 : number) =>
-		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, a0, a1), Ψ.ctx.stroke(), null))
-
-	/**` O.strokeEllipticV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
-	export const strokeEllipticV2 =
-		(a   : number ) => (a0 : number ) => (a1 : number) =>
-		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, a0, a1), Ψ.ctx.stroke(), null))
-
-	/**` O.ellipticSection : ...7 Number -> IO () `*/
-	export const ellipticSection =
-		(a  : number) => (a0 : number) => (a1 : number) =>
-		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, a0, a0 + a1), null))
-
-	/**` O.ellipticSectionV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
-	export const ellipticSectionV2 =
-		(a   : number ) => (a0 : number ) => (a1 : number) =>
-		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, a0, a0 + a1), null))
-
-	/**` O.strokeEllipticSection : ...7 Number -> IO () `*/
-	export const strokeEllipticSection =
-		(a  : number) => (a0 : number) => (a1 : number) =>
-		(kx : number) => (ky : number) => (x  : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, a0, a0 + a1), Ψ.ctx.stroke(), null))
-
-	/**` O.strokeEllipticSectionV2 : Number -> Number -> Number -> Vector2 -> Vector2 -> IO () `*/
-	export const strokeEllipticSectionV2 =
-		(a   : number ) => (a0 : number ) => (a1 : number) =>
-		(kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, a0, a0 + a1), Ψ.ctx.stroke(), null))
-
-	/**` O.ellipse : ...5 Number -> IO () `*/
-	export const ellipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, 0, tau), null))
-
-	/**` O.ellipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
-	export const ellipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), null))
-
-	/**` O.fillEllipse : ...5 Number -> IO () `*/
-	export const fillEllipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, 0, tau), Ψ.ctx.fill(), null))
-
-	/**` O.fillEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
-	export const fillEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), Ψ.ctx.fill(), null))
-
-	/**` O.strokeEllipse : ...5 Number -> IO () `*/
-	export const strokeEllipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, 0, tau), Ψ.ctx.stroke(), null))
-
-	/**` O.strokeEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
-	export const strokeEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), Ψ.ctx.stroke(), null))
-
-	/**` O.fillStrokeEllipse : ...5 Number -> IO () `*/
-	export const fillStrokeEllipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, 0, tau), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
-
-	/**` O.fillStrokeEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
-	export const fillStrokeEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), Ψ.ctx.fill(), Ψ.ctx.stroke(), null))
-
-	/**` O.strokeFillEllipse : ...5 Number -> IO () `*/
-	export const strokeFillEllipse = (a : number) => (kx : number) => (ky : number) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(x, y, kx, ky, a, 0, tau), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
-
-	/**` O.strokeFillEllipseV2 : Number -> Vector2 -> Vector2 -> IO () `*/
-	export const strokeFillEllipseV2 = (a : number) => (kxy : Vector2) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.ellipse(xy.x, xy.y, kxy.x, kxy.y, a, 0, tau), Ψ.ctx.stroke(), Ψ.ctx.fill(), null))
-
-	/**` O.fillText : a -> Number -> Number -> IO () `*/
-	export const fillText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.fillText(text as any, x, y), null))
-
-	/**` O.fillTextV2 : a -> Vector2 -> IO () `*/
-	export const fillTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.fillText(text as any, xy.x, xy.y), null))
-
-	/**` O.strokeText : a -> Number -> Number -> IO () `*/
-	export const strokeText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.strokeText(text as any, x, y), null))
-
-	/**` O.strokeTextV2 : a -> Vector2 -> IO () `*/
-	export const strokeTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.strokeText(text as any, xy.x, xy.y), null))
-
-	/**` O.fillStrokeText : a -> Number -> Number -> IO () `*/
-	export const fillStrokeText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.fillText(text as any, x, y), Ψ.ctx.strokeText(text as any, x, y), null))
-
-	/**` O.fillStrokeText : a -> Vector2 -> IO () `*/
-	export const fillStrokeTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.fillText(text as any, xy.x, xy.y), Ψ.ctx.strokeText(text as any, xy.x, xy.y), null))
-
-	/**` O.strokeFillText : a -> Number -> Number -> IO () `*/
-	export const strokeFillText = <a>(text : a) => (x : number) => (y : number) : IO <null> =>
-		IO (() => (Ψ.ctx.strokeText(text as any, x, y), Ψ.ctx.fillText(text as any, x, y), null))
-
-	/**` O.strokeFillText : a -> Vector2 -> IO () `*/
-	export const strokeFillTextV2 = <a>(text : a) => (xy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.strokeText(text as any, xy.x, xy.y), Ψ.ctx.fillText(text as any, xy.x, xy.y), null))
-
-	/**` O.line : Number -> Number -> Number -> Number -> IO () `*/
-	export const line = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (Ψ.ctx.moveTo(x0, y0), Ψ.ctx.lineTo(x1, y1), null))
-
-	/**` O.lineV2 : Vector2 -> Vector2 -> IO () `*/
-	export const lineV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.moveTo(xy0.x, xy0.y), Ψ.ctx.lineTo(xy1.x, xy1.y), null))
-
-	/**` O.strokeLine : Number -> Number -> Number -> Number -> IO () `*/
-	export const strokeLine = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
-		IO (() => (Ψ.ctx.moveTo(x0, y0), Ψ.ctx.lineTo(x1, y1), Ψ.ctx.stroke(), null))
-
-	/**` O.strokeLineV2 : Vector2 -> Vector2 -> IO () `*/
-	export const strokeLineV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.moveTo(xy0.x, xy0.y), Ψ.ctx.lineTo(xy1.x, xy1.y), Ψ.ctx.stroke(), null))
-
-	/**` O.vector : Number -> Number -> Number -> Number -> IO () `*/
-	export const vector = (x : number) => (y : number) => (dx : number) => (dy : number) : IO <null> =>
-		IO (() => (Ψ.ctx.moveTo(x, y), Ψ.ctx.lineTo(x + dx, y + dy), null))
-
-	/**` O.vectorV2 : Vector2 -> Vector2 -> IO () `*/
-	export const vectorV2 = (xy : Vector2) => (dxy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.moveTo(xy.x, xy.y), Ψ.ctx.lineTo(xy.x + dxy.x, xy.y + dxy.y), null))
-
-	/**` O.strokeVector : Number -> Number -> Number -> Number -> IO () `*/
-	export const strokeVector = (x : number) => (y : number) => (dx : number) => (dy : number) : IO <null> =>
-		IO (() => (Ψ.ctx.moveTo(x, y), Ψ.ctx.lineTo(x + dx, y + dy), Ψ.ctx.stroke(), null))
-
-	/**` O.strokeVectorV2 : Vector2 -> Vector2 -> IO () `*/
-	export const strokeVectorV2 = (xy : Vector2) => (dxy : Vector2) : IO <null> =>
-		IO (() => (Ψ.ctx.moveTo(xy.x, xy.y), Ψ.ctx.lineTo(xy.x + dxy.x, xy.y + dxy.y), Ψ.ctx.stroke(), null))
-}
+				w    * Ψ.ctx.canvas.width, w    * Ψ.ctx.canvas.width
+			), null)
+		: __MACRO_nonexisting_image_path__('n_squareImageV2', path)
+	)
+
+/**` squareImage : String -> Number -> Number -> Number -> IO () `*/
+const squareImage = (path : string) => (w : number) => (x : number) => (y : number) : IO <null> =>
+	IO (() =>
+		Ψ.image[path]
+			? (Ψ.ctx.drawImage(Ψ.image[path], x, y, w, w), null)
+			: __MACRO_nonexisting_image_path__('squareImage', path)
+	)
+
+/**` squareImageV2 : String -> Number -> Vector2 -> IO () `*/
+const squareImageV2 = (path : string) => (w : number) => (xy : Vector2) : IO <null> =>
+	IO (() =>
+		Ψ.image[path]
+			? (Ψ.ctx.drawImage(Ψ.image[path], xy.x, xy.y, w, w), null)
+			: __MACRO_nonexisting_image_path__('squareImageV2', path)
+	)
+
+/**` n_clearRect : Number -> Number -> Number -> Number -> IO () `*/
+const n_clearRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.clearRect(
+			x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
+			w * Ψ.ctx.canvas.width, h * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` n_clearRectV2 : Vector2 -> Vector2 -> IO () `*/
+const n_clearRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.clearRect(
+			xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
+			wh.x * Ψ.ctx.canvas.width, wh.y * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` clearRect : Number -> Number -> Number -> Number -> IO () `*/
+const clearRect = (x : number) => (y : number) => (w : number) => (h : number) : IO <null> =>
+	IO (() => (Ψ.ctx.clearRect(x, y, w, h), null))
+
+/**` clearRectV2 : Vector2 -> Vector2 -> IO () `*/
+const clearRectV2 = (xy : Vector2) => (wh : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.clearRect(xy.x, xy.y, wh.x, wh.y), null))
+
+/**` n_clearArea : Number -> Number -> Number -> Number -> IO () `*/
+const n_clearArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.clearRect(
+			x0        * Ψ.ctx.canvas.width, y0        * Ψ.ctx.canvas.height,
+			(x1 - x0) * Ψ.ctx.canvas.width, (y1 - y0) * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` n_clearAreaV2 : Vector2 -> Vector2 -> IO () `*/
+const n_clearAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.clearRect(
+			xy0.x           * Ψ.ctx.canvas.width, xy0.y           * Ψ.ctx.canvas.height,
+			(xy1.x - xy0.x) * Ψ.ctx.canvas.width, (xy1.y - xy0.y) * Ψ.ctx.canvas.height
+		), null
+	))
+
+/**` clearArea : Number -> Number -> Number -> Number -> IO () `*/
+const clearArea = (x0 : number) => (y0 : number) => (x1 : number) => (y1 : number) : IO <null> =>
+	IO (() => (Ψ.ctx.clearRect(x0, y0, x1 - x0, y1 - y0), null))
+
+/**` clearAreaV2 : Vector2 -> Vector2 -> IO () `*/
+const clearAreaV2 = (xy0 : Vector2) => (xy1 : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.clearRect(xy0.x, xy0.y, xy1.x - xy0.x, xy1.y - xy0.y), null))
+
+/**` clearLayer : Number -> IO () `*/
+const clearLayer = (index : number) : IO <null> =>
+	IO (() =>
+		index >= 0 && index < Ψ.ctxs.length && Number.isInteger (index)
+			? (Ψ.ctx.clearRect(0, 0, Ψ.ctx.canvas.width, Ψ.ctx.canvas.height), null)
+			: __MACRO_invalid_index_range('clearLayer', index, Ψ.ctxs.length)
+	)
+
+/**` clearCurrentLayer : IO () `*/
+const clearCurrentLayer : IO <null> =
+	IO (() => (Ψ.ctx.clearRect(0, 0, Ψ.ctx.canvas.width, Ψ.ctx.canvas.height), null))
+
+/**` clearCanvas : IO () `*/
+const clearCanvas : IO <null> =
+	IO (() => (Ψ.ctxs.forEach(ctx => ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)), null))
+
+/**` fill : IO () `*/
+const fill : IO <null> =
+	IO (() => (Ψ.ctx.fill(), null))
+
+/**` stroke : IO () `*/
+const stroke : IO <null> =
+	IO (() => (Ψ.ctx.stroke(), null))
+
+/**` clipEvenOdd : IO () `*/
+const clipEvenOdd : IO <null> =
+	IO (() => (Ψ.ctx.clip('evenodd'), null))
+
+/**` clipNonZero : IO () `*/
+const clipNonZero : IO <null> =
+	IO (() => (Ψ.ctx.clip('nonzero'), null))
+
+/**` n_rotate : Number -> IO () `*/
+const n_rotate = (angle : number) : IO <null> =>
+	IO (() => (Ψ.ctx.rotate(angle * tau), null))
+
+/**` rotate : Number -> IO () `*/
+const rotate = (angle : number) : IO <null> =>
+	IO (() => (Ψ.ctx.rotate(angle), null))
+
+/**` n_translateX : Number -> IO () `*/
+const n_translateX = (dx : number) : IO <null> =>
+	IO (() => (Ψ.ctx.translate(dx * Ψ.ctx.canvas.width, 0), null))
+
+/**` n_translateY : Number -> IO () `*/
+const n_translateY = (dy : number) : IO <null> =>
+	IO (() => (Ψ.ctx.translate(0, dy * Ψ.ctx.canvas.height), null))
+
+/**` n_translateXY : Number -> Number -> IO () `*/
+const n_translateXY = (dx : number) => (dy : number) : IO <null> =>
+	IO (() => (Ψ.ctx.translate(dx * Ψ.ctx.canvas.width, dy * Ψ.ctx.canvas.height), null))
+
+/**` n_translateV2 : Vector2 -> IO () `*/
+const n_translateV2 = (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.translate(v.x * Ψ.ctx.canvas.width, v.y * Ψ.ctx.canvas.height), null))
+
+/**` translateX : Number -> IO () `*/
+const translateX = (dx : number) : IO <null> =>
+	IO (() => (Ψ.ctx.translate(dx, 0), null))
+
+/**` translateY : Number -> IO () `*/
+const translateY = (dy : number) : IO <null> =>
+	IO (() => (Ψ.ctx.translate(0, dy), null))
+
+/**` translateXY : Number -> Number -> IO () `*/
+const translateXY = (dx : number) => (dy : number) : IO <null> =>
+	IO (() => (Ψ.ctx.translate(dx, dy), null))
+
+/**` translateV2 : Vector2 -> IO () `*/
+const translateV2 = (v : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.translate(v.x, v.y), null))
+
+/**` scale : Number -> IO () `*/
+const scale = (k : number) : IO <null> =>
+	IO (() => (Ψ.ctx.scale(k, k), null))
+
+/**` scaleX : Number -> IO () `*/
+const scaleX = (kx : number) : IO <null> =>
+	IO (() => (Ψ.ctx.scale(kx, 1), null))
+
+/**` scaleY : Number -> IO () `*/
+const scaleY = (ky : number) : IO <null> =>
+	IO (() => (Ψ.ctx.scale(1, ky), null))
+
+/**` scaleXY : Number -> Number -> IO () `*/
+const scaleXY = (kx : number) => (ky : number) : IO <null> =>
+	IO (() => (Ψ.ctx.scale(kx, ky), null))
+
+/**` scaleV2 : Vector2 -> IO () `*/
+const scaleV2 = (kxy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.scale(kxy.x, kxy.y), null))
+
+/**` n_applyTransformationM2 : Matrix2 -> IO () `*/
+const n_applyTransformationM2 = (m2 : Matrix2) : IO <null> =>
+	IO (() => (Ψ.ctx.transform(m2.ix, m2.iy, m2.jx, m2.jy, 0, 0), null))
+
+/**` n_applyTransformationM3 : Matrix3 -> IO () `*/
+const n_applyTransformationM3 = (m3 : Matrix3) : IO <null> =>
+	IO (() => (Ψ.ctx.transform(m3.ix, m3.iy, m3.jx, m3.jy, m3.kx * Ψ.ctx.canvas.width, m3.ky * Ψ.ctx.canvas.height), null))
+
+/**` applyTransformationM2 : Matrix2 -> IO () `*/
+const applyTransformationM2 = (m2 : Matrix2) : IO <null> =>
+	IO (() => (Ψ.ctx.transform(m2.ix, m2.iy, m2.jx, m2.jy, 0, 0), null))
+
+/**` applyTransformationM3 : Matrix3 -> IO () `*/
+const applyTransformationM3 = (m3 : Matrix3) : IO <null> =>
+	IO (() => (Ψ.ctx.transform(m3.ix, m3.iy, m3.jx, m3.jy, m3.kx, m3.ky), null))
+
+/**` setTransformationM2 : Matrix2 -> IO () `*/
+const setTransformationM2 = (m2 : Matrix2) : IO <null> =>
+	IO (() => (Ψ.ctx.setTransform(m2.ix, m2.iy, m2.jx, m2.jy, 0, 0), null))
+
+/**` n_setTransformationM3 : Matrix3 -> IO () `*/
+const n_setTransformationM3 = (m3 : Matrix3) : IO <null> =>
+	IO (() => (Ψ.ctx.setTransform(m3.ix, m3.iy, m3.jx, m3.jy, m3.kx * Ψ.ctx.canvas.width, m3.ky * Ψ.ctx.canvas.height), null))
+
+/**` setTransformationM3 : Matrix3 -> IO () `*/
+const setTransformationM3 = (m3 : Matrix3) : IO <null> =>
+	IO (() => (Ψ.ctx.setTransform(m3.ix, m3.iy, m3.jx, m3.jy, m3.kx, m3.ky), null))
+
+/**` resetTransformation : IO () `*/
+const resetTransformation : IO <null> =
+	IO (() => (Ψ.ctx.resetTransform(), null))
+
+/**` n_setCanvasWidth : Number -> IO () `*/
+const n_setCanvasWidth = (w : number) : IO <null> =>
+	IO (() => (Ψ.ctxs.forEach(ctx => ctx.canvas.width = w * innerWidth), null))
+
+/**` setCanvasWidth : Number -> IO () `*/
+const setCanvasWidth = (w : number) : IO <null> =>
+	IO (() => (Ψ.ctxs.forEach(ctx => ctx.canvas.width = w), null))
+
+/**` n_setCanvasHeight : Number -> IO () `*/
+const n_setCanvasHeight = (h : number) : IO <null> =>
+	IO (() => (Ψ.ctxs.forEach(ctx => ctx.canvas.height = h * innerHeight), null))
+
+/**` setCanvasHeight : Number -> IO () `*/
+const setCanvasHeight = (h : number) : IO <null> =>
+	IO (() => (Ψ.ctxs.forEach(ctx => ctx.canvas.height = h), null))
+
+/**` n_setCanvasDimensions : Number -> Number -> IO () `*/
+const n_setCanvasDimensions = (w : number) => (h : number) : IO <null> =>
+	IO (() => (Ψ.ctxs.forEach(ctx => (ctx.canvas.width = w * innerWidth, ctx.canvas.height = h * innerHeight)), null))
+
+/**` n_setCanvasDimensionsV2 : Vector2 -> IO () `*/
+const n_setCanvasDimensionsV2 = (wh : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctxs.forEach(ctx => (ctx.canvas.width = wh.x * innerWidth, ctx.canvas.height = wh.y * innerHeight)), null))
+
+/**` setCanvasDimensionsV2 : Vector2 -> IO () `*/
+const setCanvasDimensionsV2 = (wh : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctxs.forEach(ctx => (ctx.canvas.width = wh.x, ctx.canvas.height = wh.y)), null))
+
+/**` setCanvasDimensions : Number -> Number -> IO () `*/
+const setCanvasDimensions = (w : number) => (h : number) : IO <null> =>
+	IO (() => (Ψ.ctxs.forEach(ctx => (ctx.canvas.width = w, ctx.canvas.height = h)), null))
+
+/**` n_setLineThickness : Number -> IO () `*/
+const n_setLineThickness = (thickness : number) : IO <null> =>
+	IO (() => (Ψ.ctx.lineWidth = thickness * Ψ.ctx.canvas.width, null))
+
+/**` setLineThickness : Number -> IO () `*/
+const setLineThickness = (thickness : number) : IO <null> =>
+	IO (() => (Ψ.ctx.lineWidth = thickness, null))
+
+/**` n_setLineDashPattern : List Number -> IO () `*/
+const n_setLineDashPattern = (pattern : List <number>) : IO <null> =>
+	IO (() => (Ψ.ctx.setLineDash(listToArray (pattern).map(x => x * Ψ.ctx.canvas.width)), null))
+
+/**` setLineDashPattern : List Number -> IO () `*/
+const setLineDashPattern = (pattern : List <number>) : IO <null> =>
+	IO (() => (Ψ.ctx.setLineDash(listToArray (pattern)), null))
+
+/**` n_setLineDashOffset : Number -> IO () `*/
+const n_setLineDashOffset = (offset : number) : IO <null> =>
+	IO (() => (Ψ.ctx.lineDashOffset = offset * Ψ.ctx.canvas.width, null))
+
+/**` setLineDashOffset : Number -> IO () `*/
+const setLineDashOffset = (offset : number) : IO <null> =>
+	IO (() => (Ψ.ctx.lineDashOffset = offset, null))
+
+/**` setFontStyle : String -> IO () `*/
+const setFontStyle = (font : string) : IO <null> =>
+	IO (() => (Ψ.ctx.font = font, null))
+
+/**` n_setFontSize : Number -> IO () `*/
+const n_setFontSize = (size : number) : IO <null> =>
+	IO (() => (Ψ.ctx.font = `${size * Ψ.ctx.canvas.width}px${Ψ.ctx.font.slice(Ψ.ctx.font.indexOf(' '))}`, null))
+
+/**` setFontSize : Number -> IO () `*/
+const setFontSize = (size : number) : IO <null> =>
+	IO (() => (Ψ.ctx.font = `${size}px${Ψ.ctx.font.slice(Ψ.ctx.font.indexOf(' '))}`, null))
+
+/**` setFontFamily : String -> IO () `*/
+const setFontFamily = (family : string) : IO <null> =>
+	IO (() => (Ψ.ctx.font = `${parseFloat(Ψ.ctx.font)}px "${family}"`, null))
+
+/**` n_setShadowRGBA : Number -> Number -> Number -> Number -> IO () `*/
+const n_setShadowRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
+	IO (() => (Ψ.ctx.shadowColor = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null))
+
+/**` setShadowRGBAV4 : Vector4 -> IO () `*/
+const setShadowRGBAV4 = (v : Vector4) : IO <null> =>
+	IO (() => (Ψ.ctx.shadowColor = `rgba(${v.x},${v.y},${v.z},${v.w})`, null))
+
+/**` setShadowRGBA : Number -> Number -> Number -> Number -> IO () `*/
+const setShadowRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
+	IO (() => (Ψ.ctx.shadowColor = `rgba(${r},${g},${b},${a})`, null))
+
+/**` n_setShadowRGBAV4 : Vector4 -> IO () `*/
+const n_setShadowRGBAV4 = (v : Vector4) : IO <null> =>
+	IO (() => (Ψ.ctx.shadowColor = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w * 255})`, null))
+
+/**` n_setShadowX : Number -> IO () `*/
+const n_setShadowX = (x : number) : IO <null> =>
+	IO (() => (Ψ.ctx.shadowOffsetX = x * Ψ.ctx.canvas.width, null))
+
+/**` setShadowX : Number -> IO () `*/
+const setShadowX = (x : number) : IO <null> =>
+	IO (() => (Ψ.ctx.shadowOffsetX = x, null))
+
+/**` n_setShadowY : Number -> IO () `*/
+const n_setShadowY = (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.shadowOffsetY = y * Ψ.ctx.canvas.height, null))
+
+/**` setShadowY : Number -> IO () `*/
+const setShadowY = (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.shadowOffsetY = y, null))
+
+/**` n_setShadowXY : Number -> Number -> IO () `*/
+const n_setShadowXY = (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.shadowOffsetX = x * Ψ.ctx.canvas.width, Ψ.ctx.shadowOffsetY = y * Ψ.ctx.canvas.height, null))
+
+/**` setShadowXY : Number -> Number -> IO () `*/
+const setShadowXY = (x : number) => (y : number) : IO <null> =>
+	IO (() => (Ψ.ctx.shadowOffsetX = x, Ψ.ctx.shadowOffsetY = y, null))
+
+/**` n_setShadowXYV2 : IO () `*/
+const n_setShadowXYV2 = (xy : Vector2) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.shadowOffsetX = xy.x * Ψ.ctx.canvas.width,
+		Ψ.ctx.shadowOffsetY = xy.y * Ψ.ctx.canvas.height,
+		null
+	))
+
+/**` setShadowXYV2 : IO () `*/
+const setShadowXYV2 = (xy : Vector2) : IO <null> =>
+	IO (() => (Ψ.ctx.shadowOffsetX = xy.x, Ψ.ctx.shadowOffsetY = xy.y, null))
+
+/**` setShadowColor : String -> IO () `*/
+const setShadowColor = (color : string) : IO <null> =>
+	IO (() => (Ψ.ctx.shadowColor = color, null))
+
+/**` n_setFillRGBA : Number -> Number -> Number -> Number -> IO () `*/
+const n_setFillRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
+	IO (() => (Ψ.ctx.fillStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null))
+
+/**` n_setFillRGBAV4 : Vector4 -> IO () `*/
+const n_setFillRGBAV4 = (v : Vector4) : IO <null> =>
+	IO (() => (Ψ.ctx.fillStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null))
+
+/**` setFillRGBA : Number -> Number -> Number -> Number -> IO () `*/
+const setFillRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
+	IO (() => (Ψ.ctx.fillStyle = `rgba(${r},${g},${b},${a})`, null))
+
+/**` setFillRGBAV4 : Vector4 -> IO () `*/
+const setFillRGBAV4 = (v : Vector4) : IO <null> =>
+	IO (() => (Ψ.ctx.fillStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`, null))
+
+/**` n_setStrokeRGBA : Number -> Number -> Number -> Number -> IO () `*/
+const n_setStrokeRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
+	IO (() => (Ψ.ctx.strokeStyle = `rgba(${r * 255},${g * 255},${b * 255},${a})`, null))
+
+/**` n_setStrokeRGBAV4 : Vector4 -> IO () `*/
+const n_setStrokeRGBAV4 = (v : Vector4) : IO <null> =>
+	IO (() => (Ψ.ctx.strokeStyle = `rgba(${v.x * 255},${v.y * 255},${v.z * 255},${v.w})`, null))
+
+/**` setStrokeRGBA : Number -> Number -> Number -> Number -> IO () `*/
+const setStrokeRGBA = (r : number) => (g : number) => (b : number) => (a : number) : IO <null> =>
+	IO (() => (Ψ.ctx.strokeStyle = `rgba(${r},${g},${b},${a})`, null))
+
+/**` setStrokeRGBAV4 : Vector4 -> IO () `*/
+const setStrokeRGBAV4 = (v : Vector4) : IO <null> =>
+	IO (() => (Ψ.ctx.strokeStyle = `rgba(${v.x},${v.y},${v.z},${v.w})`, null))
+
+/**` setFillColor : String -> IO () `*/
+const setFillColor = (color : string) : IO <null> =>
+	IO (() => (Ψ.ctx.fillStyle = color, null))
+
+/**` setStrokeColor : String -> IO () `*/
+const setStrokeColor = (color : string) : IO <null> =>
+	IO (() => (Ψ.ctx.strokeStyle = color, null))
+
+/**` setMiterLimit : Number -> IO () `*/
+const setMiterLimit = (limit : number) : IO <null> =>
+	IO (() => (Ψ.ctx.miterLimit = limit, null))
+
+/**` setShadowBlurAmount : Number -> IO () `*/
+const setShadowBlurAmount = (amount : number) : IO <null> =>
+	IO (() => (Ψ.ctx.shadowBlur = amount, null))
+
+/**` setAlpha : Number -> IO () `*/
+const setAlpha = (alpha : number) : IO <null> =>
+	IO (() => (Ψ.ctx.globalAlpha = alpha, null))
+
+/**` setLineCap : LineCap -> IO () `*/
+const setLineCap = (linecap : LineCap) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.lineCap =
+			linecap === LineCap.Butt   ? 'butt'   :
+			linecap === LineCap.Round  ? 'round'  :
+			linecap === LineCap.Square ? 'square' : never, null
+	))
+
+/**` setLineJoin : LineJoin -> IO () `*/
+const setLineJoin = (linejoin : LineJoin) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.lineJoin =
+			linejoin === LineJoin.Round ? 'round' :
+			linejoin === LineJoin.Bevel ? 'bevel' :
+			linejoin === LineJoin.Miter ? 'miter' : never, null
+	))
+
+/**` setTextAlign : TextAlign -> IO () `*/
+const setTextAlign = (alignment : TextAlign) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.textAlign =
+			alignment === TextAlign.Center    ? 'center' :
+			alignment === TextAlign.End       ? 'end'    :
+			alignment === TextAlign.Leftside  ? 'left'   :
+			alignment === TextAlign.Rightside ? 'right'  :
+			alignment === TextAlign.Start     ? 'start'  : never, null
+	))
+
+/**` setTextBaseline : TextBaseline -> IO () `*/
+const setTextBaseline = (baseline : TextBaseline) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.textBaseline =
+			baseline === TextBaseline.Alphabetic  ? 'alphabetic'  :
+			baseline === TextBaseline.Bottom      ? 'bottom'      :
+			baseline === TextBaseline.Hanging     ? 'hanging'     :
+			baseline === TextBaseline.Ideographic ? 'ideographic' :
+			baseline === TextBaseline.Middle      ? 'middle'      :
+			baseline === TextBaseline.Top         ? 'top'         : never, null
+	))
+
+/**` setComposition : Composition -> IO () `*/
+const setComposition = (composition : Composition) : IO <null> =>
+	IO (() => (
+		Ψ.ctx.globalCompositeOperation =
+			composition === Composition.SourceOver      ? 'source-over'      :
+			composition === Composition.SourceIn        ? 'source-in'        :
+			composition === Composition.SourceOut       ? 'source-out'       :
+			composition === Composition.SourceAtop      ? 'source-atop'      :
+			composition === Composition.DestinationOver ? 'destination-over' :
+			composition === Composition.DestinationIn   ? 'destination-in'   :
+			composition === Composition.DestinationOut  ? 'destination-out'  :
+			composition === Composition.DestinationAtop ? 'destination-atop' :
+			composition === Composition.Lighter         ? 'lighter'          :
+			composition === Composition.Copy            ? 'copy'             :
+			composition === Composition.Xor             ? 'xor'              :
+			composition === Composition.Multiply        ? 'multiply'         :
+			composition === Composition.Screen          ? 'screen'           :
+			composition === Composition.Overlay         ? 'overlay'          :
+			composition === Composition.Darken          ? 'darken'           :
+			composition === Composition.Lighten         ? 'lighten'          :
+			composition === Composition.ColorDodge      ? 'color-dodge'      :
+			composition === Composition.ColorBurn       ? 'color-burn'       :
+			composition === Composition.HardLight       ? 'hard-light'       :
+			composition === Composition.SoftLight       ? 'soft-light'       :
+			composition === Composition.Difference      ? 'difference'       :
+			composition === Composition.Exclusion       ? 'exclusion'        :
+			composition === Composition.Hue             ? 'hue'              :
+			composition === Composition.Saturation      ? 'saturation'       :
+			composition === Composition.Color           ? 'color'            :
+			composition === Composition.Luminosity      ? 'luminosity'       : never, null
+	))
+
+/**` setToCenterText : IO () `*/
+const setToCenterText : IO <null> =
+	IO (() => (Ψ.ctx.textAlign = 'center', Ψ.ctx.textBaseline = 'middle', null))
+
+/**` setToDefaultText : IO () `*/
+const setToDefaultText : IO <null> =
+	IO (() => (Ψ.ctx.textAlign = 'start', Ψ.ctx.textBaseline = 'alphabetic', null))
+
+/**` setLayer : Number -> IO () `*/
+const setLayer = (index : number) : IO <null> =>
+	IO (() =>
+		index >= 0 && index < Ψ.ctxs.length && Number.isInteger (index)
+			? (Ψ.ctx = Ψ.ctxs[index]!, null)
+			: __MACRO_invalid_index_range('layer', index, Ψ.ctxs.length)
+	)
+
+/**` loadFont : String -> IO () `*/
+const loadFont = (path : string) : IO <null> =>
+	IO (() => (
+		new FontFace(path.slice(path.lastIndexOf('/') + 1, path.lastIndexOf('.')), `url(${path})`)
+			.load()
+			.then((font : any) => (document as any).fonts.add(font))
+			.catch(() => error (`'loadFont' could not load font at path: '${path}'`)),
+		null
+	))
+
+/**` loadImage : String -> IO () `*/
+const loadImage = (path : string) : IO <null> =>
+	IO (() => {
+		Ψ.image[path]          = new Image
+		Ψ.image[path]!.src     = path
+		Ψ.image[path]!.onerror = () => error (`'loadImage' could not load image at path: '${path}'`)
+		return null
+	})
+
+/**` loadAudio : String -> IO () `*/
+const loadAudio = (path : string) : IO <null> =>
+	IO (() => {
+		Ψ.audio[path]          = new Audio(path)
+		Ψ.audio[path]!.onerror = () => error (`'loadAudio' could not load audio at path: '${path}'`)
+		return null
+	})
+
+/**` setAudioTime : String -> Number -> IO () `*/
+const setAudioTime = (path : string) => (time : number) : IO <null> =>
+	IO (() =>
+		Ψ.audio[path]
+			? time >= 0 && time <= Ψ.audio[path].duration
+				? (Ψ.audio[path].currentTime = time, null)
+				: error (
+					`'setAudioTime' received '${time}' as an input; must be in ` +
+					`interval [0, ${Ψ.audio[path].duration}] for audio file: '${path}'`
+				)
+			: __MACRO_nonexisting_audio_path__('setAudioTime', path)
+	)
+
+/**` resetAudio : String -> IO () `*/
+const resetAudio = (path : string) : IO <null> =>
+	IO (() =>
+		Ψ.audio[path]
+			? (Ψ.audio[path].pause(), Ψ.audio[path].currentTime = 0, null)
+			: __MACRO_nonexisting_audio_path__('resetAudio', path)
+	)
+
+/**` playAudio : String -> IO () `*/
+const playAudio = (path : string) : IO <null> =>
+	IO (() =>
+		Ψ.audio[path]
+			? (Ψ.audio[path].play(), null)
+			: __MACRO_nonexisting_audio_path__('playAudio', path)
+	)
+
+/**` pauseAudio : String -> IO () `*/
+const pauseAudio = (path : string) : IO <null> =>
+	IO (() =>
+		Ψ.audio[path]
+			? (Ψ.audio[path].pause(), null)
+			: __MACRO_nonexisting_audio_path__ ('pauseAudio', path)
+	)
+
+/**` playSFX : String -> IO () `*/
+const playSFX = (path : string) : IO <null> =>
+	IO (() =>
+		Ψ.audio[path]
+			? ((Ψ.audio[path].cloneNode() as any).play(), null)
+			: __MACRO_nonexisting_audio_path__('playSFX', path)
+	)
+
+/**` flush : IO () `*/
+const flush : IO <null> =
+	IO (() => (console.clear(), null))
+
+/**` log : a -> IO () `*/
+const log = <a>(message : a) : IO <null> =>
+	IO (() => (console.log(message), null))
+
+/**` warning : a -> IO () `*/
+const warning = <a>(message : a) : IO <null> =>
+	IO (() => (console.warn(message), null))
+
+/**` debug : a -> IO () `*/
+const debug = <a>(message : a) : IO <null> =>
+	IO (() => (console.warn(message), null))
+
+/**` delayedLog : Number -> a -> IO () `*/
+const delayedLog = (count : number) => <a>(message : a) : IO <null> =>
+	IO (() =>
+		--Ψ.debugCounter < 0
+			? (Ψ.debugCounter = count, console.debug(message), null)
+			: null
+	)
+
+/**` countLog : String -> IO () `*/
+const countLog = (identifier : string) : IO <null> =>
+	IO (() => (console.count(identifier), null))
+
+/**` resetCountLog : String -> IO () `*/
+const resetCountLog = (identifier : string) : IO <null> =>
+	IO (() => (console.countReset(identifier), null))
+
+/**` saveCanvasState : IO () `*/
+const saveCanvasState : IO <null> =
+	IO (() => (Ψ.ctx.save(), null))
+
+/**` restoreCanvasState : IO () `*/
+const restoreCanvasState : IO <null> =
+	IO (() => (Ψ.ctx.restore(), null))
+
+/**` requestPointerLock : IO () `*/
+const requestPointerLock : IO <null> =
+	IO (() => (onmouseup = () => Ψ.isPointerLocked || Ψ.ctxs[0].canvas.requestPointerLock(), null))
+
+/**` deactivatePointerLock : IO () `*/
+const deactivatePointerLock : IO <null> =
+	IO (() => (document.exitPointerLock(), onmouseup = null))
+
+/**` queueIO : IO a -> IO () `*/
+const queueIO = <a>(io : IO <a>) : IO <null> =>
+	IO (() => {
+		for (const k in Ψ.keyboard)     Ψ.keyboard[k as KeyboardKey] = relaxVertical (Ψ.keyboard[k as KeyboardKey])
+		for (const i in Ψ.mouseButtons) Ψ.mouseButtons[i]            = relaxVertical (Ψ.mouseButtons[i]!)
+		Ψ.mouseDX     = Ψ.mouseDY = 0
+		Ψ.mouseScroll = Vertical.Rest
+		Ψ.isResized   = false
+		requestAnimationFrame(io.effect)
+		return null
+	})
+
+/********************************************************************************************************************************/
 
 onload = () =>
 {
@@ -5568,14 +6234,14 @@ onload = () =>
 			ev.deltaY > 0 ? Vertical.Down : Vertical.Rest
 	onmousemove = ev =>
 	{
-		Ψ.mouseWindowX = ev.x,
-		Ψ.mouseWindowY = ev.y,
-		Ψ.mouseCanvasX = ev.clientX - Ψ.ctxs[0].canvas.offsetLeft,
-		Ψ.mouseCanvasY = ev.clientY - Ψ.ctxs[0].canvas.offsetTop,
-		Ψ.mouseScreenX = ev.screenX,
-		Ψ.mouseScreenY = ev.screenY,
-		Ψ.mouseDeltaX  = ev.movementX,
-		Ψ.mouseDeltaY  = ev.movementY
+		Ψ.mouseWX = ev.x,
+		Ψ.mouseWY = ev.y,
+		Ψ.mouseCX = ev.clientX - Ψ.ctxs[0].canvas.offsetLeft,
+		Ψ.mouseCY = ev.clientY - Ψ.ctxs[0].canvas.offsetTop,
+		Ψ.mouseSX = ev.screenX,
+		Ψ.mouseSY = ev.screenY,
+		Ψ.mouseDX  = ev.movementX,
+		Ψ.mouseDY  = ev.movementY
 	}
 
 	document.onpointerlockchange = () => Ψ.isPointerLocked = document.pointerLockElement === Ψ.ctxs[0].canvas
