@@ -99,17 +99,17 @@ const __MACRO__ =
 					for (let i = 0; xs_.variation === 'Cons' && ys_.variation === 'Cons'; ++i)
 						if (i === MAX)
 						{
-							console.error(`'.eq' traversed too many elements`)
+							console.error(`'.eq' traversed too many elements (${MAX})`)
 							console.dir(`Signature : <LEFTSIDE> .eq (<RIGHTSIDE>) | Error originated from Macro'`)
 							console.dir(`<LEFTSIDE>  =`, xs)
 							console.dir(`<RIGHTSIDE> =`, ys)
 							return halt
 						}
-						else if (!(xs_.head as any) .eq (ys_.head))
-							return false
-						else
+						else if ((xs_.head as any) .eq (ys_.head))
 							xs_ = xs_.tail,
 							ys_ = ys_.tail
+						else
+							return false
 					return xs_.variation === ys_.variation
 				}
 			else return false
@@ -131,15 +131,15 @@ const __MACRO__ =
 					for (let i = 0; xs_.variation === 'Cons'; ++i)
 						if (i === MAX)
 						{
-							console.error(`'.show' traversed too many elements`)
+							console.error(`'.show' traversed too many elements (${MAX})`)
 							console.dir(`Signature : <VALUE> .show | Error originated from Macro`)
 							console.dir(`<VALUE>  =`, xs)
 							return halt
 						}
 						else
-							str += (xs_.head as any).show + ", ",
+							str += `${(xs_.head as any).show}, "`,
 							xs_ = xs_.tail
-					return str.slice(0, -2) + ")"
+					return `${str.slice(0, -2)})`
 				}
 			else return xs.$show
 		}
@@ -569,7 +569,7 @@ const toStr = (obj : Object) : string => obj.toString()
 // Globalization of Typeclass Functions //
 
 /**` eq : (Eq a) => a -> a -> Boolean `*/
-const eq = <a extends Eq <a>>(leftside : a) : (rightside : a) => boolean => leftside.eq
+const eq = <a extends Eq <a>>(leftside : a) => (rightside : a) : boolean => leftside .eq (rightside)
 
 /**` show : (Show a) => a -> String `*/
 const show = <a extends Show <a>>(value : a) : string => value.show
@@ -756,7 +756,6 @@ const Just = <a>(value : a) : Maybe <a> =>
 		get show()
 		{
 			if (this.$show === undefined)
-			{
 				if ((value as any) ?.show === undefined)
 				{
 					console.error(`'.show' cannot stringify the given Maybe value as it does not implement '.show'`)
@@ -765,7 +764,6 @@ const Just = <a>(value : a) : Maybe <a> =>
 					return halt
 				}
 				else return this.$show = `Just (${(value as any) .show})`
-			}
 			else return this.$show
 		},
 		bind      : f => f (value),
@@ -816,17 +814,17 @@ const Cons = <a>(lvalue : () => a) => (lxs : () => List <a>) : List <a> =>
 				for (let i = 0; this_.variation === 'Cons' && xs_.variation === 'Cons'; ++i)
 					if (i === MAX)
 					{
-						console.error(`'.eq' traversed too many elements`)
+						console.error(`'.eq' traversed too many elements (${MAX})`)
 						console.dir(`Signature : <LEFTSIDE> .eq (<RIGHTSIDE>) | <LEFTSIDE> originated from 'Cons'`)
 						console.dir(`<LEFTSIDE>  =`, this)
 						console.dir(`<RIGHTSIDE> =`, xs)
 						return halt
 					}
-					else if (!(this_.head as any) .eq (xs_.head))
-						return false
-					else
+					else if ((this_.head as any) .eq (xs_.head))
 						this_ = this_.tail,
 						xs_   = xs_.tail
+					else
+						return false
 				return this_.variation === xs_.variation
 			}
 		},
@@ -842,17 +840,19 @@ const Cons = <a>(lvalue : () => a) => (lxs : () => List <a>) : List <a> =>
 				}
 				else
 				{
-					let str              = "List ("
+					let str              = ""
 					let this_ : List <a> = this
 					for (let i = 0; this_.variation === 'Cons'; ++i)
 						if (i === MAX)
 						{
-
+							console.error(`'.show' traversed too many elements (${MAX})`)
+							console.dir(`Signature : <VALUE> .show | <VALUE> originated from 'Cons'`)
+							return halt
 						}
 						else
-							str += (this_.head as any).show + ", ",
+							str += `${(this_.head as any).show}, `,
 							this_ = this_.tail
-					return this.$show = str.slice(0, -2) + ")"
+					return this.$show = `List (${str.slice(0, -2)})`
 				}
 			else return this.$show
 		},
@@ -1408,8 +1408,8 @@ const strictRandomShuffle = <a>(xs : List <a>) : Process <number, List <a>> =>
 	else
 	{
 		const array = (() => {
-			let xs_             = xs
-			let arr : Array <a> = []
+			let xs_               = xs
+			const arr : Array <a> = []
 			for (let i = 0; xs_.variation === 'Cons'; ++i)
 				if (i === MAX)
 				{
@@ -1425,7 +1425,7 @@ const strictRandomShuffle = <a>(xs : List <a>) : Process <number, List <a>> =>
 		})()
 
 		return Process (s => {
-			let array_ = array.slice()
+			const array_ = array.slice()
 			let j = 0
 			let i = array_.length
 			while (i !== 0)
@@ -1714,17 +1714,17 @@ const prepend = <a>(value : a) => (xs : List <a>) : List <a> =>
 						for (let i = 0; this_.variation === 'Cons' && xs_.variation === 'Cons'; ++i)
 							if (i === MAX)
 							{
-								console.error(`'.eq' traversed too many elements`)
+								console.error(`'.eq' traversed too many elements (${MAX})`)
 								console.dir(`Signature : <LEFTSIDE> .eq (<RIGHTSIDE>) | <LEFTSIDE> originated from 'prepend'`)
 								console.dir(`<LEFTSIDE>  =`, this)
 								console.dir(`<RIGHTSIDE> =`, xs)
 								return halt
 							}
-							else if (!(this_.head as any) .eq (xs_.head))
-								return false
-							else
+							else if ((this_.head as any) .eq (xs_.head))
 								this_ = this_.tail,
 								xs_   = xs_.tail
+							else
+								return false
 						return this_.variation === xs_.variation
 					}
 				},
@@ -1740,17 +1740,19 @@ const prepend = <a>(value : a) => (xs : List <a>) : List <a> =>
 						}
 						else
 						{
-							let str              = "List ("
+							let str              = ""
 							let this_ : List <a> = this
 							for (let i = 0; this_.variation === 'Cons'; ++i)
 								if (i === MAX)
 								{
-
+									console.error(`'.show' traversed too many elements (${MAX})`)
+									console.dir(`Signature : <VALUE> .show | <VALUE> originated from 'prepend'`)
+									console.dir(`<VALUE> =`, this)
 								}
 								else
-									str += (this_.head as any).show + ", ",
+									str += `${(this_.head as any).show}, `,
 									this_ = this_.tail
-							return this.$show = str.slice(0, -2) + ")"
+							return this.$show = `List (${str.slice(0, -2)})`
 						}
 					else return this.$show
 				},
@@ -2876,7 +2878,7 @@ const elem = <a extends Eq <a>>(value : a) => (xs : List <a>) : boolean =>
 	for (let i = 0; xs_.variation === 'Cons'; ++i)
 		if (i === MAX)
 		{
-			console.error(`'elem' traversed too many elements`)
+			console.error(`'elem' traversed too many elements (${MAX})`)
 			console.dir(`Signature : elem (<VALUE>) (<XS>)`)
 			console.dir(`<VALUE> =`, value)
 			console.dir(`<XS>    =`, xs)
@@ -2953,7 +2955,7 @@ const tail_elemIndices = (start : number) => <a extends Eq <a>>(value : a) => (x
 	for (let i = 0; xs_.variation === 'Cons'; ++i)
 		if (i === MAX)
 		{
-			console.error(`'tail_elemIndices' traversed too many elements`)
+			console.error(`'tail_elemIndices' traversed too many elements (${MAX})`)
 			console.dir(`Signature : tail_elemIndices .eq (<START>) (<VALUE>) (<XS>) | This function is the tail version of 'elemIndices'`)
 			console.dir(`<START> =`, start)
 			console.dir(`<VALUE> =`, value)
@@ -2974,7 +2976,7 @@ const elemIndices = <a extends Eq <a>>(value : a) => (xs : List <a>) : List <num
 	for (let i = 0; xs_.variation === 'Cons'; ++i)
 		if (i === MAX)
 		{
-			console.error(`'elemIndices' traversed too many elements`)
+			console.error(`'elemIndices' traversed too many elements (${MAX})`)
 			console.dir(`Signature : elemIndices (<VALUE>) (<XS>)`)
 			console.dir(`<VALUE> =`, value)
 			console.dir(`<XS>    =`, xs)
@@ -3343,7 +3345,7 @@ const elemIndex = <a extends Eq <a>>(value : a) => (xs : List <a>) : Maybe <numb
 	for (let i = 0; xs_.variation === 'Cons'; ++i)
 		if (i === MAX)
 		{
-			console.error(`'elemIndex' traversed too many elements`)
+			console.error(`'elemIndex' traversed too many elements (${MAX})`)
 			console.dir(`Signature : elemIndex (<VALUE>) (<XS>)`)
 			console.dir(`<VALUE> =`, value)
 			console.dir(`<XS>    =`, xs)
