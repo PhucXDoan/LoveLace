@@ -42,32 +42,182 @@ const keyboardKeysArray =
 
 type KeyboardKey = typeof keyboardKeysArray [number]
 
+const __MACRO__ =
+	{
+		clickx   : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i] === 'toDown' ? Just (Ψ.mouseCX) : Nothing),
+		clicky   : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i] === 'toDown' ? Just (Ψ.mouseCY) : Nothing),
+		clickv   : (i : number) : IO <Maybe <V2>>     => IO (() => Ψ.mouseButtons[i] === 'toDown' ? Just (V2 (Ψ.mouseCX, Ψ.mouseCY)) : Nothing),
+		n_clickx : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i] === 'toDown' ? Just (Ψ.mouseCX / Ψ.ctx.canvas.width) : Nothing),
+		n_clicky : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i] === 'toDown' ? Just (Ψ.mouseCY / Ψ.ctx.canvas.height) : Nothing),
+		n_clickv : (i : number) : IO <Maybe <V2>> =>
+			IO (() =>
+				Ψ.mouseButtons[i] === 'toDown'
+					? Just (V2 (Ψ.mouseCX / Ψ.ctx.canvas.width, Ψ.mouseCY / Ψ.ctx.canvas.height))
+					: Nothing
+			),
+
+		err_nonexisting_image_path : (funcName : string, path : string) : never =>
+		{
+			console.error(`'${funcName}' received an unloaded (possibly non-existing) image path`)
+			console.dir(`Signature : ${funcName} (<PATH>)`)
+			console.dir(`<PATH> =`, path)
+			return halt
+		},
+
+		err_nonexisting_audio_path : (funcName : string, path : string) : never =>
+		{
+			console.error(`'${funcName}' received an unloaded (possibly non-existing) audio path`)
+			console.dir(`Signature : ${funcName} (<PATH>)`)
+			console.dir(`<PATH> =`, path)
+			return halt
+		},
+
+		err_layer_index : (funcName : string, index : number) : never =>
+		{
+			console.error(`'${funcName}' only takes an integer in the interval [0, ${Ψ.ctxs.length}) for an index`)
+			console.dir(`Signature : ${clearLayer} (<INDEX>)`)
+			console.dir(`<INDEX> =`, index)
+			return halt
+		},
+		default_implementation_list_eq : <a>(xs : List <a>) => (ys : List <a>) : boolean =>
+		{
+			if (xs.variation === ys.variation)
+				if (xs.variation === 'Nil')
+					return true
+				else if ((xs.head as any) ?.eq === undefined)
+				{
+					console.error(`'.eq' cannot compare the elements of the given Lists that does not implement '.eq'`)
+					console.dir(`Signature : <LEFTSIDE> .eq (<RIGHTSIDE>) | Error originated from Macro`)
+					console.dir(`<LEFTSIDE>  =`, xs)
+					console.dir(`<RIGHTSIDE> =`, ys)
+					return halt
+				}
+				else
+				{
+					let xs_ : List <a> = xs
+					let ys_ : List <a> = ys
+					for (let i = 0; xs_.variation === 'Cons' && ys_.variation === 'Cons'; ++i)
+						if (i === MAX)
+						{
+							console.error(`'.eq' traversed too many elements`)
+							console.dir(`Signature : <LEFTSIDE> .eq (<RIGHTSIDE>) | Error originated from Macro'`)
+							console.dir(`<LEFTSIDE>  =`, xs)
+							console.dir(`<RIGHTSIDE> =`, ys)
+							return halt
+						}
+						else if (!(xs_.head as any) .eq (ys_.head))
+							return false
+						else
+							xs_ = xs_.tail,
+							ys_ = ys_.tail
+					return xs_.variation === ys_.variation
+				}
+			else return false
+		},
+		default_implementation_list_show : <a>(xs : List <a>) : string =>
+		{
+			if (xs.$show === undefined)
+				if ((xs.head as any) ?.eq === undefined)
+				{
+					console.error(`'.show' cannot stringify the elements of the List that does not implement '.show'`)
+					console.dir(`Signature : <VALUE> .show | Error orignated from Macro`)
+					console.dir(`<VALUE> =`, xs)
+					return halt
+				}
+				else
+				{
+					let str            = "List ("
+					let xs_ : List <a> = xs
+					for (let i = 0; xs_.variation === 'Cons'; ++i)
+						if (i === MAX)
+						{
+							console.error(`'.show' traversed too many elements`)
+							console.dir(`Signature : <VALUE> .show | Error originated from Macro`)
+							console.dir(`<VALUE>  =`, xs)
+							return halt
+						}
+						else
+							str += (xs_.head as any).show + ", ",
+							xs_ = xs_.tail
+					return str.slice(0, -2) + ")"
+				}
+			else return xs.$show
+		}
+	}
+
+/********************************************************************************************************************************/
+// Typeclasses //
+
+type Eq <a>   =
+	{
+		/**` (a).eq : a -> Boolean `*/
+		eq : (value : a) => boolean
+	}
+
+type Show <a> =
+	{
+		/**` (a).show : String `*/
+		show : string
+	}
+
 /********************************************************************************************************************************/
 // Algebraic Data Types //
 
 interface Boolean
-{
-	/**` (Boolean).pipe : (Boolean -> a) -> a `*/
-	pipe : <a>(morphism : (bool : boolean) => a) => a
-}
+	{
+		variation  : 'Boolean'
+
+		/**` (Boolean).pipe : (Boolean -> a) -> a `*/
+		pipe : <a>(morphism : (bool : boolean) => a) => a
+
+		/**` (Boolean).eq : Boolean -> Boolean `*/
+		eq : (bool : boolean) => boolean
+
+		/**` (Boolean).show : String `*/
+		show : string
+	}
 
 interface Number
-{
-	/**` (Number).pipe : (Number -> a) -> a `*/
-	pipe : <a>(morphism : (num : number) => a) => a
-}
+	{
+		variation  : 'Number'
+
+		/**` (Number).pipe : (Number -> a) -> a `*/
+		pipe : <a>(morphism : (num : number) => a) => a
+
+		/**` (Number).eq : Number -> Boolean `*/
+		eq : (num : number) => boolean
+
+		/**` (Number).show : String `*/
+		show : string
+	}
 
 interface String
-{
-	/**` (String).pipe : (String -> a) -> a `*/
-	pipe : <a>(morphism : (str : string) => a) => a
-}
+	{
+		variation  : 'String'
+
+		/**` (String).pipe : (String -> a) -> a `*/
+		pipe : <a>(morphism : (str : string) => a) => a
+
+		/**` (String).eq : String -> Boolean `*/
+		eq : (str : string) => boolean
+
+		/**` (String).show : String `*/
+		show : string
+	}
 
 interface Array<T>
-{
-	/**` ([a]).pipe : ([a] -> b) -> b `*/
-	pipe : <a>(morphism : (array : Array <T>) => a) => a
-}
+	{
+		variation  : 'Array'
+
+		/**` ([a]).pipe : ([a] -> b) -> b `*/
+		pipe : <a>(morphism : (array : Array <T>) => a) => a
+
+		/**` ([a]).eq : [a] -> Boolean `*/
+		eq : (array : Array <T>) => boolean
+
+		/**` ([a]).show : String `*/
+		show : string
+	}
 
 type IO <a> =
 	{
@@ -141,8 +291,16 @@ type Process <s, a> =
 
 type Maybe <a> =
 	{
+		$show ?: string
+
 		/**` (Maybe a).pipe : (Maybe a -> b) -> b `*/
 		pipe : <b>(morphism : (maybe : Maybe <a>) => b) => b
+
+		/**` (Maybe a).eq : Maybe a -> Boolean `*/
+		eq : (maybe : Maybe <a>) => boolean
+
+		/**` (Maybe a).show : String `*/
+		show : string
 
 		/**` (Maybe a).bind : (a -> Maybe b) -> Maybe b `*/
 		bind : <b>(reaction : (value : a) => Maybe <b>) => Maybe <b>
@@ -169,6 +327,12 @@ type List <a> =
 		/**` (List a).pipe : (List a -> b) -> b `*/
 		pipe : <b>(morphism : (xs : List <a>) => b) => b
 
+		/**` (List a).eq : List a -> Boolean `*/
+		eq : (xs : List <a>) => boolean
+
+		/**` (List a).show : String `*/
+		show : string
+
 		/**` (List a).bind : (a -> List b) -> List b `*/
 		bind : <b>(reaction : (element : a) => List <b>) => List <b>
 
@@ -187,6 +351,7 @@ type List <a> =
 		variation : 'Nil'
 		$reverse  : Variation <List <a>, 'Nil'>
 		$len      : 0
+		$show     : 'List ()'
 	} | {
 		variation : 'Cons'
 		$head    ?: a
@@ -195,6 +360,7 @@ type List <a> =
 		$init    ?: List <a>
 		$reverse ?: Variation <List <a>, 'Cons'>
 		$len     ?: number
+		$show    ?: string
 
 		/**` (List a).head : a `*/
 		head : a
@@ -206,9 +372,16 @@ type List <a> =
 type Pair <a, b> =
 	{
 		variation : 'Pair'
+		$show    ?: string
 
 		/**` (Pair a b).pipe : (Pair a b -> c) -> c `*/
 		pipe : <c>(morphism : (pair : Pair <a, b>) => c) => c
+
+		/**` (Pair a b).eq : Pair a b -> Boolean `*/
+		eq : (pair : Pair <a, b>) => boolean
+
+		/**` (Pair a b).show : String `*/
+		show : string
 
 		/**` (Pair a b).fst : a `*/
 		fst : a
@@ -219,8 +392,16 @@ type Pair <a, b> =
 
 type Either <a, b> =
 	{
+		$show ?: string
+
 		/**` (Either a b).pipe : (Either a b -> c) -> c `*/
 		pipe : <c>(morphism : (either : Either <a, b>) => c) => c
+
+		/**` (Either a b).eq : Either a b -> Boolean `*/
+		eq : (either : Either <a, b>) => boolean
+
+		/**` (Either a b).show : String `*/
+		show : string
 	} & ({
 		variation : 'Left'
 
@@ -240,6 +421,12 @@ type V2 =
 		/**` (V2).pipe : (V2 -> a) -> a `*/
 		pipe : <a>(morphism : (vector : V2) => a) => a
 
+		/**` (V2).eq : V2 -> Boolean `*/
+		eq : (vector : V2) => boolean
+
+		/**` (V2).show : String `*/
+		show : string
+
 		/**` (V2).x : Number `*/
 		x : number
 
@@ -253,6 +440,12 @@ type V3 =
 
 		/**` (V3).pipe : (V3 -> a) -> a `*/
 		pipe : <a>(morphism : (vector : V3) => a) => a
+
+		/**` (V3).eq : V3 -> Boolean `*/
+		eq : (vector : V3) => boolean
+
+		/**` (V3).show : String `*/
+		show : string
 
 		/**` (V3).x : Number `*/
 		x : number
@@ -271,6 +464,12 @@ type V4 =
 		/**` (V4).pipe : (V4 -> a) -> a `*/
 		pipe : <a>(morphism : (vector : V4) => a) => a
 
+		/**` (V4).eq : V4 -> Boolean `*/
+		eq : (vector : V4) => boolean
+
+		/**` (V4).show : String `*/
+		show : string
+
 		/**` (V4).x : Number `*/
 		x : number
 
@@ -284,7 +483,8 @@ type V4 =
 		w : number
 	}
 
-type Axis = | 'Positive' | 'Negative' | 'Zero'
+type Axis =
+	| 'Positive' | 'Negative' | 'Zero'
 
 type ButtonState =
 	| 'Up'   | 'Down'
@@ -359,13 +559,93 @@ const id = <a>(value : a) : a => value
 /**` notf : (a -> Boolean) -> a -> Boolean `*/
 const notf = <a>(predicate : (value : a) => boolean) => (value : a) : boolean => !predicate (value)
 
+/**` eqeqeq : a -> a -> Boolean `*/
+const eqeqeq = <a>(leftside : a) => (rightside : a) : boolean => leftside === rightside
+
+/**` toStr : $ -> String `*/
+const toStr = (obj : Object) : string => obj.toString()
+
+/********************************************************************************************************************************/
+// Globalization of Typeclass Functions //
+
+/**` eq : (Eq a) => a -> a -> Boolean `*/
+const eq = <a extends Eq <a>>(leftside : a) : (rightside : a) => boolean => leftside.eq
+
+/**` show : (Show a) => a -> String `*/
+const show = <a extends Show <a>>(value : a) : string => value.show
+
 /********************************************************************************************************************************/
 // Implementation of Algebraic Data Types //
 
-Boolean.prototype.pipe = function (f) { return f (!!this)          }
-Number .prototype.pipe = function (f) { return f (+this)           }
-String .prototype.pipe = function (f) { return f (this.toString()) }
-Array  .prototype.pipe = function (f) { return f (this)            }
+Object.defineProperties(Boolean.prototype, {
+	variation : { value : 'Boolean'                           },
+	pipe      : { get() { return (f : any) => f (!!+this)   } },
+	eq        : { get() { return (b : any) => !!+this === b } },
+	show      : { get() { return this.toString()            } }
+})
+
+Object.defineProperties(Number.prototype, {
+	variation : { value : 'Number'                          },
+	pipe      : { get() { return (f : any) => f (+this)   } },
+	eq        : { get() { return (n : any) => +this === n } },
+	show      : { get() { return this.toString()          } }
+})
+
+Object.defineProperties(String.prototype, {
+	variation : { value : 'String'                                    },
+	pipe      : { get() { return (f : any) => f (this.toString())   } },
+	eq        : { get() { return (s : any) => this.toString() === s } },
+	show      : { get() { return `"${this.toString()}"`             } }
+})
+
+Object.defineProperties(Array.prototype, {
+	variation : { value : 'Array'                },
+	pipe      : { get() { return (f : any) => f (this) } },
+	eq        :
+		{
+			get()
+			{
+				return (array : any) =>
+				{
+					if (this.length === array.length)
+						if (this.length === 0)
+							return true
+						else if (this [0] ?.eq === undefined)
+						{
+							console.error(`'.eq' cannot compare the elements of the given arrays that does not implement '.eq'`)
+							console.dir(`Signature : (<LEFTSIDE>) .eq  (<RIGHTSIDE>)`)
+							console.dir(`<LEFTSIDE>  =`, this)
+							console.dir(`<RIGHTSIDE> =`, array)
+							return halt
+						}
+						else
+						{
+							for (let i = 0; i < this.length; ++i)
+								if (!this [i] .eq (array [i]))
+									return false
+							return true
+						}
+					else return false
+				}
+			}
+		},
+	show      :
+		{
+			get()
+			{
+				if (this.length === 0)
+					return "[]"
+				else if (this [0] ?.show === undefined)
+				{
+					console.error(`'.show' cannot stringify the elements of an array that does not implement '.show'`)
+					console.dir(`Signature : (<VALUE>) .show`)
+					console.dir(`<VALUE> =`, this)
+					return halt
+				}
+				else return `[${this.map((element : any) => element.show).join(", ")}]`
+			}
+		}
+})
 
 /**` IO : (() -> a) -> IO a `*/
 const IO = <a>(effect : () => a) : IO <a> =>
@@ -444,18 +724,50 @@ const Process = <s, a>(computation : (state : s) => Pair <s, a>) : Process <s, a
 const Nothing : Maybe <any> =
 	{
 		variation : 'Nothing',
+		$show     : 'Nothing',
+		show      : 'Nothing',
+		eq        : m => m === Nothing,
 		pipe      : f => f (Nothing),
 		bind      : _ => Nothing,
 		fmap      : _ => Nothing,
 		bindto    : _ => _ => Nothing,
 		fmapto    : _ => _ => Nothing
-	}
+	} as Maybe <any>
 
 /**` Just : a -> Maybe a `*/
 const Just = <a>(value : a) : Maybe <a> =>
 	({
 		variation : 'Just',
 		pipe (f) { return f (this) },
+		eq : m =>
+		{
+			if (m.variation === 'Nothing')
+				return false
+			else if ((value as any) ?.eq === undefined)
+			{
+				console.error(`'.eq' cannot compare the two given Maybe values that does not implement '.eq'`)
+				console.dir(`Signature : Just (<LEFTSIDE>) .eq (Just (<RIGHTSIDE>))`)
+				console.dir(`<LEFTSIDE>  =`, value)
+				console.dir(`<RIGHTSIDE> =`, m.value)
+				return halt
+			}
+			else return (value as any) .eq (m.value)
+		},
+		get show()
+		{
+			if (this.$show === undefined)
+			{
+				if ((value as any) ?.show === undefined)
+				{
+					console.error(`'.show' cannot stringify the given Maybe value as it does not implement '.show'`)
+					console.dir(`Signature : Just (<VALUE>) .show`)
+					console.dir(`<VALUE> =`, value)
+					return halt
+				}
+				else return this.$show = `Just (${(value as any) .show})`
+			}
+			else return this.$show
+		},
 		bind      : f => f (value),
 		fmap      : f => Just (f (value)),
 		bindto    : k => f => f (value) .fmap (x => ({ ...value, [k] : x } as any)),
@@ -467,7 +779,10 @@ const Just = <a>(value : a) : Maybe <a> =>
 const Nil : List <any> =
 	{
 		variation : 'Nil',
+		$show     : 'List ()',
+		show      : 'List ()',
 		pipe      : f  => f (Nil),
+		eq        : xs => xs === Nil,
 		get $reverse () { return this },
 		$len   : 0,
 		bind   : _  => Nil,
@@ -475,13 +790,72 @@ const Nil : List <any> =
 		fmapto : _  => _ => Nil,
 		bindto : _  => _ => Nil,
 		link   : id
-	}
+	} as List <any>
 
 /**` Cons : (() -> a) -> (() -> List a) -> List a `*/
 const Cons = <a>(lvalue : () => a) => (lxs : () => List <a>) : List <a> =>
 	({
 		variation : 'Cons',
 		pipe (f) { return f (this) },
+		eq (xs)
+		{
+			if (xs.variation === 'Nil')
+				return false
+			else if ((this.head as any) ?.eq === undefined)
+			{
+				console.error(`'.eq' cannot compare the elements of the given Lists that does not implement '.eq'`)
+				console.dir(`Signature : <LEFTSIDE> .eq (<RIGHTSIDE>) | <LEFTSIDE> originated from 'Cons'`)
+				console.dir(`<LEFTSIDE>  =`, this)
+				console.dir(`<RIGHTSIDE> =`, xs)
+				return halt
+			}
+			else
+			{
+				let this_ : List <a> = this
+				let xs_   : List <a> = xs
+				for (let i = 0; this_.variation === 'Cons' && xs_.variation === 'Cons'; ++i)
+					if (i === MAX)
+					{
+						console.error(`'.eq' traversed too many elements`)
+						console.dir(`Signature : <LEFTSIDE> .eq (<RIGHTSIDE>) | <LEFTSIDE> originated from 'Cons'`)
+						console.dir(`<LEFTSIDE>  =`, this)
+						console.dir(`<RIGHTSIDE> =`, xs)
+						return halt
+					}
+					else if (!(this_.head as any) .eq (xs_.head))
+						return false
+					else
+						this_ = this_.tail,
+						xs_   = xs_.tail
+				return this_.variation === xs_.variation
+			}
+		},
+		get show()
+		{
+			if (this.$show === undefined)
+				if ((this.head as any) ?.eq === undefined)
+				{
+					console.error(`'.show' cannot stringify the elements of the List that does not implement '.show'`)
+					console.dir(`Signature : <VALUE> .show | <VALUE> originated from 'Cons'`)
+					console.dir(`<VALUE> =`, this)
+					return halt
+				}
+				else
+				{
+					let str              = "List ("
+					let this_ : List <a> = this
+					for (let i = 0; this_.variation === 'Cons'; ++i)
+						if (i === MAX)
+						{
+
+						}
+						else
+							str += (this_.head as any).show + ", ",
+							this_ = this_.tail
+					return this.$show = str.slice(0, -2) + ")"
+				}
+			else return this.$show
+		},
 		get head () { return this.$head ??= lvalue () },
 		get tail () { return this.$tail ??= lxs    () },
 		bind (f)
@@ -555,8 +929,36 @@ const Cons = <a>(lvalue : () => a) => (lxs : () => List <a>) : List <a> =>
 /**` Pair : (a, b) -> Pair a b `*/
 const Pair = <a, b>(fst : a, snd : b) : Pair <a, b> =>
 	({
-		variation : 'Pair',
+		variation  : 'Pair',
 		pipe (f) { return f (this) },
+		eq : p =>
+		{
+			if ((fst as any) ?.eq === undefined || (snd as any) ?.eq === undefined)
+			{
+				console.error(`'.eq' cannot compare Pair values that do not implement '.eq'`)
+				console.dir(`Signature : Pair (<LEFTSIDE_FST>, <LEFTSIDE_SND>) .eq (Pair (<RIGHTSIDE_FST, RIGHTSIDE_SND>))`)
+				console.dir(`<LEFTSIDE_FST> =`, fst)
+				console.dir(`<LEFTSIDE_SND> =`, snd)
+				console.dir(`<RIGHTSIDE_FST> =`, p.fst)
+				console.dir(`<RIGHTSIDE_SND> =`, p.snd)
+				return halt
+			}
+			else return (fst as any) .eq (p.fst) && (snd as any) .eq (p.snd)
+		},
+		get show()
+		{
+			if (this.$show === undefined)
+				if ((fst as any) ?.show === undefined || (snd as any) ?.show === undefined)
+				{
+					console.error(`'.show' cannot stringify Pair values that do not implement '.show'`)
+					console.dir(`Signature : Pair (<FST>, <SND>) .show`)
+					console.dir(`<FST> =`, fst)
+					console.dir(`<SND> =`, snd)
+					return halt
+				}
+				else return this.$show = `Pair (${(fst as any) .show}, ${(snd as any) .show})`
+			else return this.$show
+		},
 		fst, snd
 	})
 
@@ -565,6 +967,33 @@ const Left = <a, b>(value : a) : Either <a, b> =>
 	({
 		variation : 'Left',
 		pipe (f) { return f (this) },
+		eq : er =>
+		{
+			if (er.variation === 'Left')
+				return false
+			else if ((value as any) ?.eq === undefined)
+			{
+				console.error(`'.eq' cannot compare Left values that do not implement '.eq'`)
+				console.dir(`Signature : Left (<LEFTSIDE>) .eq (Left (<RIGHTSIDE>))`)
+				console.dir(`<LEFTSIDE> =`, value)
+				console.dir(`<RIGHTSIDE> =`, er.value)
+				return halt
+			}
+			else return (value as any) .eq (er.value)
+		},
+		get show()
+		{
+			if (this.$show === undefined)
+				if ((value as any) ?.show === undefined)
+				{
+					console.error(`'.show' cannot stringify a Left value that does not implement '.show'`)
+					console.dir(`Signature : Left (<VALUE>) .show`)
+					console.dir(`<VALUE> =`, value)
+					return halt
+				}
+				else return this.$show = `Left (${(value as any) .show})`
+			else return this.$show
+		},
 		value
 	})
 
@@ -573,6 +1002,33 @@ const Right = <a, b>(value : b) : Either <a, b> =>
 	({
 		variation : 'Right',
 		pipe (f) { return f (this) },
+		eq : er =>
+		{
+			if (er.variation === 'Left')
+				return false
+			else if ((value as any) ?.eq === undefined)
+			{
+				console.error(`'.eq' cannot compare Right values that do not implement '.eq'`)
+				console.dir(`Signature : Right (<LEFTSIDE>) .eq (Right (<RIGHTSIDE>))`)
+				console.dir(`<LEFTSIDE> =`, value)
+				console.dir(`<RIGHTSIDE> =`, er.value)
+				return halt
+			}
+			else return (value as any) .eq (er.value)
+		},
+		get show()
+		{
+			if (this.$show === undefined)
+				if ((value as any) ?.show === undefined)
+				{
+					console.error(`'.show' cannot stringify a Right value that does not implement '.show'`)
+					console.dir(`Signature : Right (<VALUE>) .show`)
+					console.dir(`<VALUE> =`, value)
+					return halt
+				}
+				else return this.$show = `Right (${(value as any) ?.show})`
+			else return this.$show
+		},
 		value
 	})
 
@@ -581,6 +1037,8 @@ const V2 = (x : number, y : number) : V2 =>
 	({
 		variation : 'V2',
 		pipe (f) { return f (this) },
+		eq : v => v.x === x && v.y === y,
+		get show() { return `V3 (${x}, ${y})` },
 		x, y
 	})
 
@@ -589,6 +1047,8 @@ const V3 = (x : number, y : number, z : number) : V3 =>
 	({
 		variation : 'V3',
 		pipe (f) { return f (this) },
+		eq : v => v.x === x && v.y === y && v.z === z,
+		get show() { return `V3 (${x}, ${y}, ${z})` },
 		x, y, z
 	})
 
@@ -597,6 +1057,8 @@ const V4 = (x : number, y : number, z : number, w : number) : V4 =>
 	({
 		variation : 'V4',
 		pipe (f) { return f (this) },
+		eq : v => v.x === x && v.y === y && v.z === z && v.w === w,
+		get show() { return `V4 (${x}, ${y}, ${z}, ${w})` },
 		x, y, z, w
 	})
 
@@ -781,49 +1243,201 @@ const randomUppercase : Process <number, string> =
 const randomChance = (probability : number) : Process <number, boolean> =>
 	Process (s =>
 		Pair (
-			Math.abs(462  * s ** 3        + 261  * s ** 2       - 778  * s       - 1510) % 0xffffff,
-			Math.abs(1310 * s ** 3 % 9228 - 2461 * s ** 2 % 568 + 8562 * s % 234 + 2827) % 2048 / 2048 < probability
+			Math.abs(1800 * s ** 3        + 6031 * s ** 2       - 23462 * s       - 1105) % 0xffffff,
+			Math.abs(1587 * s ** 3 % 9228 - 8604 * s ** 2 % 568 + 51310 * s % 234 + 2278) % 2048 / 2048 < probability
 		)
 	)
 
 /**` randomElem : List a -> Process Number a `*/
 const randomElem = <a>(xs : List <a>) : Process <number, a> =>
 {
-	//!!! TODO
-	console.error(`UNIMPLEMENTED`)
-	return halt
+	if (xs === Nil)
+	{
+		console.error(`'randomElem' cannot pseudo-randomly retrieve an element from Nil (an empty List)`)
+		console.dir(`Signature : randomElem (<XS>)`)
+		console.dir(`<XS> =`, xs)
+		return halt
+	}
+	else
+	{
+		const length = xs.$len ??= (() => {
+			let xs_ = xs
+			let i   = 0
+			while (xs_.variation === 'Cons')
+				if (i === MAX)
+				{
+					console.error(`'randomElem' traversed too many elements (${MAX})`)
+					console.dir(`Signature : randomElem (<XS>)`)
+					console.dir(`<XS> =`, xs)
+					return halt
+				}
+				else
+					xs_ = xs_.tail,
+					++i
+			return xs.$len = i
+		})()
+
+		return Process (s => {
+			let xs_ = xs
+			for (let i = Math.abs(4170 * s ** 3 % 92310 - 2410 * s ** 2 % 1568 + 8562752 * s % 34282 + 862) % 2048 / 2048 * length; ~~i; --i)
+				xs_ = (xs_ as any).tail
+			return Pair (
+				Math.abs(462  * s ** 3 + 261 * s ** 2 - 778 * s - 1510) % 0xffffff,
+				(xs_ as any).head
+			)
+		})
+	}
 }
 
 /**` randomChar : String -> Process Number String `*/
 const randomChar = (str : string) : Process <number, string> =>
 {
-	//!!! TODO
-	console.error(`UNIMPLEMENTED`)
-	return halt
+	if (str === "")
+	{
+		console.error(`'randomChar' cannot pseudo-randomly retrieve a character from an empty string`)
+		console.dir(`Signature : randomChar (<STRING>)`)
+		console.dir(`<STRING> =`, str)
+		return halt
+	}
+	else return Process (s =>
+			Pair (
+				Math.abs(488030 * s ** 3 + 47546031 * s ** 2 - 23462 * s - 13105) % 0xffffff,
+				str [Math.trunc(Math.abs(8588 * s ** 3 % 5685 - 8645 * s ** 2 % 4993 + 5168 * s % 2313 + 2210) % 2048 / 2048 * str.length)]
+			)
+		)
 }
 
 /**` randomPick : List a -> Process s (Pair a (List a)) `*/
 const randomPick = <a>(xs : List <a>) : Process <number, Pair <a, List <a>>> =>
 {
-	//!!! TODO
-	console.error(`UNIMPLEMENTED`)
-	return halt
+	if (xs === Nil)
+	{
+		console.error(`'randomPick' cannot pseudo-randomly retrieve an element from Nil (an empty List)`)
+		console.dir(`Signature : randomPick (<XS>)`)
+		console.dir(`<XS> =`, xs)
+		return halt
+	}
+	else
+	{
+		const length = xs.$len ??= (() => {
+			let xs_ = xs
+			let i   = 0
+			while (xs_.variation === 'Cons')
+				if (i === MAX)
+				{
+					console.error(`'randomPick' traversed too many elements (${MAX})`)
+					console.dir(`Signature : randomPick (<XS>)`)
+					console.dir(`<XS> =`, xs)
+					return halt
+				}
+				else
+					xs_ = xs_.tail,
+					++i
+			return xs.$len = i
+		})()
+
+		return Process (s => {
+			let xs_             = xs
+			let rxs0 : List <a> = Nil
+			let xs0  : List <a> = Nil
+			for (let i = Math.abs(4170 * s ** 3 % 92310 - 2410 * s ** 2 % 1568 + 8562752 * s % 34282 + 862) % 2048 / 2048 * length; ~~i; --i)
+				rxs0 = prepend ((xs_ as any).head) (rxs0),
+				xs_ = (xs_ as any).tail
+
+			while (rxs0.variation === 'Cons')
+				xs0  = prepend ((rxs0 as any).head) (xs0),
+				rxs0 = (rxs0 as any).tail
+
+			return Pair (
+				Math.abs(462  * s ** 3 + 261 * s ** 2 - 778 * s - 1510) % 0xffffff,
+				Pair ((xs_ as any).head, xs0 .link ((xs_ as any).tail))
+			)
+		})
+	}
 }
 
 /**` randomShuffle : List a -> Process s (List a) `*/
 const randomShuffle = <a>(xs : List <a>) : Process <number, List <a>> =>
 {
-	//!!! TODO
-	console.error(`UNIMPLEMENTED`)
-	return halt
+	if (xs === Nil)
+		return Process (s => Pair (s ** 3 / 1000, Nil))
+	else
+	{
+		const length = xs.$len ??= (() => {
+			let xs_ = xs
+			let i   = 0
+			while (xs_.variation === 'Cons')
+				if (i === MAX)
+				{
+					console.error(`'randomShuffle' traversed too many elements (${MAX})`)
+					console.dir(`Signature : randomShuffle (<XS>)`)
+					console.dir(`<XS> =`, xs)
+					return halt
+				}
+				else
+					xs_ = xs_.tail,
+					++i
+			return xs.$len = i
+		})()
+
+		return Process (s => {
+			let xs_             = xs
+			let rxs0 : List <a> = Nil
+			let xs0  : List <a> = Nil
+			for (let i = Math.abs(3885 * s ** 3 % 1281 - 2310 * s ** 2 % 2410 + 2752 * s % 3428 + 686) % 2048 / 2048 * length; ~~i; --i)
+				rxs0 = prepend ((xs_ as any).head) (rxs0),
+				xs_ = (xs_ as any).tail
+
+			while (rxs0.variation === 'Cons')
+				xs0  = prepend ((rxs0 as any).head) (xs0),
+				rxs0 = (rxs0 as any).tail
+
+			return Pair (
+				Math.abs(2296  * s ** 3 + 26191 * s ** 2 - 62778 * s - 56885) % 0xffffff,
+				lprepend ((xs_ as any).head) (() => randomShuffle (xs0 .link ((xs_ as any).tail)) .computation (s / 41510 + 13).snd)
+			)
+		})
+	}
 }
 
 /**` strictRandomShuffle : List a -> Process Number (List a) `*/
 const strictRandomShuffle = <a>(xs : List <a>) : Process <number, List <a>> =>
 {
-	//!!! TODO
-	console.error(`UNIMPLEMENTED`)
-	return halt
+	if (xs === Nil)
+		return Process (s => Pair (s ** 3 / 1000, Nil))
+	else
+	{
+		const array = (() => {
+			let xs_             = xs
+			let arr : Array <a> = []
+			for (let i = 0; xs_.variation === 'Cons'; ++i)
+				if (i === MAX)
+				{
+					console.error(`'strictRandomShuffle' traversed too many elements (${MAX})`)
+					console.dir(`Signature : strictRandomShuffle (<XS>)`)
+					console.dir(`<XS> =`, xs)
+					return halt
+				}
+				else
+					arr.push(xs_.head),
+					xs_ = xs_.tail
+			return arr
+		})()
+
+		return Process (s => {
+			let array_ = array.slice()
+			let j = 0
+			let i = array_.length
+			while (i !== 0)
+				j = Math.trunc((3885 * s ** 3 % 1281 - 2310 * s ** 2 % 2410 + 2752 * s % 3428 + 686) % 2048 / 2048 * i),
+				--i,
+				[array_ [i], array_ [j]] = [array_ [j], array_ [i]]
+			let ys : List <a> = Nil
+			for (let i = 0; i < array_.length; ++i)
+				ys = prepend (array_ [i]) (ys)
+			return Pair (Math.abs(2296  * s ** 3 + 26191 * s ** 2 - 62778 * s - 56885) % 0xffffff, ys)
+		})
+	}
 }
 
 /********************************************************************************************************************************/
@@ -991,12 +1605,24 @@ const chars = (str : string) : List <string> =>
 		:
 			{
 				variation : 'Cons',
-				pipe (f) { return f (this) },
 				$head : str [0],
 				$last : str [str.length - 1],
 				$len  : str.length,
 				head  : str [0],
 				get tail () { return this.$tail ??= chars (str.slice(1)) },
+				pipe (f) { return f (this) },
+				eq (xs)
+				{
+					let xs_  : List <string> = xs
+					for (let i = 0; i < str.length; ++i)
+						if (xs_.variation === 'Nil')
+							return false
+						else if (str [i] === xs_.head)
+							xs_ = xs_.tail
+						else return false
+					return xs_.variation === 'Nil'
+				},
+				get show() { return this.$show ??= `List (${str.split('').map(c => `"${c}"`).join(", ")})` },
 				bind (f)
 				{
 					let xs : List <string> = this
@@ -1069,6 +1695,65 @@ const prepend = <a>(value : a) => (xs : List <a>) : List <a> =>
 				$len  : xs.$len! + 1 || undefined,
 				head  : value,
 				tail  : xs,
+				eq (xs)
+				{
+					if (xs.variation === 'Nil')
+						return false
+					else if ((this.head as any) ?.eq === undefined)
+					{
+						console.error(`'.eq' cannot compare the elements of the given Lists that does not implement '.eq'`)
+						console.dir(`Signature : <LEFTSIDE> .eq (<RIGHTSIDE>) | <LEFTSIDE> originated from 'prepend'`)
+						console.dir(`<LEFTSIDE>  =`, this)
+						console.dir(`<RIGHTSIDE> =`, xs)
+						return halt
+					}
+					else
+					{
+						let this_ : List <a> = this
+						let xs_   : List <a> = xs
+						for (let i = 0; this_.variation === 'Cons' && xs_.variation === 'Cons'; ++i)
+							if (i === MAX)
+							{
+								console.error(`'.eq' traversed too many elements`)
+								console.dir(`Signature : <LEFTSIDE> .eq (<RIGHTSIDE>) | <LEFTSIDE> originated from 'prepend'`)
+								console.dir(`<LEFTSIDE>  =`, this)
+								console.dir(`<RIGHTSIDE> =`, xs)
+								return halt
+							}
+							else if (!(this_.head as any) .eq (xs_.head))
+								return false
+							else
+								this_ = this_.tail,
+								xs_   = xs_.tail
+						return this_.variation === xs_.variation
+					}
+				},
+				get show()
+				{
+					if (this.$show === undefined)
+						if ((this.head as any) ?.eq === undefined)
+						{
+							console.error(`'.show' cannot stringify the elements of the List that does not implement '.show'`)
+							console.dir(`Signature : <VALUE> .show | <VALUE> originated from 'prepend'`)
+							console.dir(`<VALUE> =`, this)
+							return halt
+						}
+						else
+						{
+							let str              = "List ("
+							let this_ : List <a> = this
+							for (let i = 0; this_.variation === 'Cons'; ++i)
+								if (i === MAX)
+								{
+
+								}
+								else
+									str += (this_.head as any).show + ", ",
+									this_ = this_.tail
+							return this.$show = str.slice(0, -2) + ")"
+						}
+					else return this.$show
+				},
 				bind (f)
 				{
 					let ys = f (value)
@@ -1158,6 +1843,8 @@ const lprepend = <a>(value : a) => (lxs : () => List <a>) : List <a> =>
 		$head : value,
 		head  : value,
 		get tail () { return this.$tail ??= lxs () },
+		eq (xs)     { return __MACRO__.default_implementation_list_eq   (this) (xs) },
+		get show () { return __MACRO__.default_implementation_list_show (this)      },
 		bind (f)
 		{
 			let ys = f (value)
@@ -1261,6 +1948,8 @@ const postpend = <a>(value : a) => (xs : List <a>) : List <a> =>
 				$len  : xs.$len! + 1 || undefined,
 				get head () { return this.$head ??= (xs as any).head },
 				get tail () { return this.$tail ??= postpend (value) ((xs as any).tail) },
+				eq (xs)     { return __MACRO__.default_implementation_list_eq   (this) (xs) },
+				get show () { return __MACRO__.default_implementation_list_show (this)      },
 				bind (f)
 				{
 					let xs_ : List <a> = xs
@@ -1349,6 +2038,8 @@ const lpostpend = <a>(value : a) => (lxs : () => List <a>) : List <a> =>
 					? singleton (value)
 					: postpend (value) (this.$init.tail)
 		},
+		eq (xs)     { return __MACRO__.default_implementation_list_eq   (this) (xs) },
+		get show () { return __MACRO__.default_implementation_list_show (this)      },
 		bind (f)
 		{
 			let xs_ : List <a> = this.tail
@@ -1435,6 +2126,8 @@ const singleton = <a>(value : a) : List <a> =>
 		$len   : 1,
 		head   : value,
 		tail   : Nil,
+		eq (xs)     { return __MACRO__.default_implementation_list_eq   (this) (xs) },
+		get show () { return __MACRO__.default_implementation_list_show (this)      },
 		bind   : f => f (value),
 		fmap   : f => singleton (f (value)),
 		bindto : k => f => f (value) .fmap (x => ({ ...value, [k] : x } as any)),
@@ -1451,6 +2144,8 @@ const repeat = <a>(value : a) : List <a> =>
 		get $init () { return this },
 		head : value,
 		get tail () { return this },
+		eq (xs)     { return __MACRO__.default_implementation_list_eq   (this) (xs) },
+		get show () { return __MACRO__.default_implementation_list_show (this)      },
 		pipe (f) { return f (this) },
 		bind   : f => cycle  (f (value)),
 		fmap   : f => repeat (f (value)),
@@ -1469,6 +2164,8 @@ const cycle = <a>(pattern : List <a>) : List <a> =>
 				pipe (f) { return f (this) },
 				get head () { return this.$head ??= (pattern as any).head },
 				get tail () { return this.$tail ??= (pattern as any).tail .link (this) },
+				eq (xs)     { return __MACRO__.default_implementation_list_eq   (this) (xs) },
+				get show () { return __MACRO__.default_implementation_list_show (this)      },
 				bind (f)
 				{
 					let xs : List <a> = pattern
@@ -1527,6 +2224,88 @@ const cycle = <a>(pattern : List <a>) : List <a> =>
 				fmapto : k => f => cycle (pattern .fmap (x => ({ ...x, [k] : f (x) } as any))),
 				link (_) { return this }
 			}
+
+/**` range : Number -> Number -> List Number `*/
+const range = (start : number) => (end : number) : List <number> =>
+{
+	if (Number.isFinite(start) && Number.isFinite(end))
+		if (start > end)
+			return Nil
+		else if (start === end)
+			return singleton (end)
+		else if (Number.isInteger(start))
+			return ({
+				variation  : 'Cons',
+				pipe (f) { return f (this) },
+				$head : start,
+				$len  : end - start,
+				$last : end,
+				head  : start,
+				get tail () { return this.$tail ??= range (start + 1) (end) },
+				eq (xs)     { return __MACRO__.default_implementation_list_eq   (this) (xs) },
+				get show () { return __MACRO__.default_implementation_list_show (this)      },
+				bind (f)
+				{
+					let xs : List <number> = this
+					for (let i = 0; xs.variation === 'Cons'; ++i)
+						if (i === MAX)
+						{
+							console.error(`'.bind' traversed too many elements (${MAX})`)
+							console.dir(`Signature : (<OBJECT>) .bind (<REACTION>) | <OBJECT> orignated from 'range'`)
+							console.dir(`<OBJECT>   =`, this)
+							console.dir(`<REACTION> =`, f)
+							return halt
+						}
+						else
+						{
+							const ys = f (xs.head)
+							if (ys.variation === 'Cons')
+								return Cons (() => ys.head) (() => ys.tail .link ((xs as any).tail .bind (f)))
+							else
+								xs = xs.tail
+						}
+					return Nil
+				},
+				fmap (f)
+				{
+					return Cons (() => f (start)) (() => this.tail .fmap (f))
+				},
+				bindto (k)
+				{
+					return f =>
+					{
+						console.error(`'.bindto' shouldn't be used on a list of numbers`)
+						console.dir(`Signature : (<OBJECT>) .bindto (<NAME>) (<REACTION>) | <OBJECT> originated from 'range'`)
+						console.dir(`<OBJECT>   = `, this)
+						console.dir(`<NAME>     = `, k)
+						console.dir(`<REACTION> = `, f)
+						return halt
+					}
+				},
+				fmapto (k)
+				{
+					return f =>
+					{
+						console.error(`'.fmapto' shouldn't be used on a list of numbers`)
+						console.dir(`Signature : (<OBJECT>) .fmapto (<NAME>) (<REACTION>) | <OBJECT> originated from 'range'`)
+						console.dir(`<OBJECT>   = `, this)
+						console.dir(`<NAME>     = `, k)
+						console.dir(`<MORPHISM> = `, f)
+						return halt
+					}
+				},
+				link (xs) { return lprepend (start) (() => this.tail .link (xs)) }
+			})
+		else return range (~~start) (end)
+	else
+	{
+		console.error(`'range' expected integer inputs`)
+		console.dir(`Signature : range (<START>) (<END>)`)
+		console.dir(`<START> =`, start)
+		console.dir(`<END>   =`, end)
+		return halt
+	}
+}
 
 /**` iterate : (a -> a) -> a -> List a `*/
 const iterate = <a>(endomorphism : (value : a) => a) => (initial : a) : List <a> =>
@@ -2091,11 +2870,23 @@ const span = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : Pair
 }
 
 /**` elem : (Eq a) => a -> List a -> Boolean `*/
-const elem = <a>(value : a) => (xs : List <a>) : boolean =>
+const elem = <a extends Eq <a>>(value : a) => (xs : List <a>) : boolean =>
 {
-	//!!! TODO
-	console.error(`UNIMPLEMENTED`)
-	return halt
+	let xs_ = xs
+	for (let i = 0; xs_.variation === 'Cons'; ++i)
+		if (i === MAX)
+		{
+			console.error(`'elem' traversed too many elements`)
+			console.dir(`Signature : elem (<VALUE>) (<XS>)`)
+			console.dir(`<VALUE> =`, value)
+			console.dir(`<XS>    =`, xs)
+			return halt
+		}
+		else if (xs_.head .eq (value))
+			return true
+		else
+			xs_ = xs_.tail
+	return false
 }
 
 /**` filter : (a -> Boolean) -> List a -> List a `*/
@@ -2109,6 +2900,7 @@ const filter = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : Li
 			console.dir(`Signature : filter (<PREDICATE>) (<XS>)`)
 			console.dir(`<PREDICATE> =`, predicate)
 			console.dir(`<XS>        =`, xs)
+			return halt
 		}
 		else if (predicate (xs_.head))
 			return lprepend (xs_.head) (() => filter (predicate) ((xs_ as any).tail))
@@ -2154,12 +2946,45 @@ const strictPartition = <a>(predicate : (element : a) => boolean) => (xs : List 
 	return Pair (xs0, xs1)
 }
 
-/**` elemIndices : (Eq a) => a -> List a -> List Number `*/
-const elemIndices = <a>(value : a) => (xs : List <a>) : List <number> =>
+/**` tail_elemIndices : (Eq a) => Number -> a -> List a -> List Number `*/
+const tail_elemIndices = (start : number) => <a extends Eq <a>>(value : a) => (xs : List <a>) : List <number> =>
 {
-	//!!! TODO
-	console.error(`UNIMPLEMENTED`)
-	return halt
+	let xs_ = xs
+	for (let i = 0; xs_.variation === 'Cons'; ++i)
+		if (i === MAX)
+		{
+			console.error(`'tail_elemIndices' traversed too many elements`)
+			console.dir(`Signature : tail_elemIndices .eq (<START>) (<VALUE>) (<XS>) | This function is the tail version of 'elemIndices'`)
+			console.dir(`<START> =`, start)
+			console.dir(`<VALUE> =`, value)
+			console.dir(`<XS>    =`, xs)
+			return halt
+		}
+		else if (xs_.head .eq (value))
+			return lprepend (i + start) (() => tail_elemIndices (i + start + 1) (value) ((xs_ as any).tail))
+		else
+			xs_ = xs_.tail
+	return Nil
+}
+
+/**` elemIndices : (Eq a) => a -> List a -> List Number `*/
+const elemIndices = <a extends Eq <a>>(value : a) => (xs : List <a>) : List <number> =>
+{
+	let xs_ = xs
+	for (let i = 0; xs_.variation === 'Cons'; ++i)
+		if (i === MAX)
+		{
+			console.error(`'elemIndices' traversed too many elements`)
+			console.dir(`Signature : elemIndices (<VALUE>) (<XS>)`)
+			console.dir(`<VALUE> =`, value)
+			console.dir(`<XS>    =`, xs)
+			return halt
+		}
+		else if (xs_.head .eq (value))
+			return lprepend (i) (() => tail_elemIndices (i + 1) (value) ((xs_ as any).tail))
+		else
+			xs_ = xs_.tail
+	return Nil
 }
 
 /**` findIndices : (a -> Boolean) -> List a -> List Number `*/
@@ -2432,12 +3257,28 @@ const maybeHead = <a>(xs : List <a>) : Maybe <a> =>
 		? Nothing
 		: Just (xs.head)
 
-// ! TODO : Factor out usage of functions that could throw errors
 /**` maybeLast : List a -> Maybe a `*/
 const maybeLast = <a>(xs : List <a>) : Maybe <a> =>
-	xs.variation === 'Nil'
-		? Nothing
-		: Just (last (xs))
+{
+	if (xs.variation === 'Nil')
+		return Nothing
+	else if (xs.$last === undefined)
+	{
+		let xs_ : List <a> = xs
+		for (let i = 0; (xs_ as any).tail.variation === 'Cons'; ++i)
+			if (i === MAX)
+			{
+				console.error(`'maybeLast' traversed too many elements (${MAX})`)
+				console.dir(`Signature : maybeLast (<XS>)`)
+				console.dir(`<XS> =`, xs)
+				return halt
+			}
+			else
+				xs_ = (xs_ as any).tail
+		return Just (xs.$last = (xs_ as any).head)
+	}
+	else return Just (xs.$last)
+}
 
 /**` maybeTail : List a -> Maybe (List a) `*/
 const maybeTail = <a>(xs : List <a>) : Maybe <List <a>> =>
@@ -2445,12 +3286,15 @@ const maybeTail = <a>(xs : List <a>) : Maybe <List <a>> =>
 		? Nothing
 		: Just (xs.tail)
 
-// ! TODO : Factor out usage of functions that could throw errors
 /**` maybeInit : List a -> Maybe (List a) `*/
 const maybeInit = <a>(xs : List <a>) : Maybe <List <a>> =>
-	xs.variation === 'Nil'
-		? Nothing
-		: Just (init (xs))
+{
+	if (xs.variation === 'Nil')
+		return Nothing
+	else if (xs.$init === undefined)
+		return Just (xs.$init = xs.tail.variation === 'Nil' ? Nil : Cons (() => xs.head) (() => init (xs.tail)))
+	else return Just (xs.$init)
+}
 
 /**` maybeSingleton : Maybe a -> List a `*/
 const maybeSingleton = <a>(maybe : Maybe <a>) : List <a> =>
@@ -2493,11 +3337,23 @@ const find = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : Mayb
 }
 
 /**` elemIndex : (Eq a) => a -> List a -> Maybe Number `*/
-const elemIndex = <a>(value : a) => (xs : List <a>) : Maybe <number> =>
+const elemIndex = <a extends Eq <a>>(value : a) => (xs : List <a>) : Maybe <number> =>
 {
-	//!!! TODO
-	console.error(`UNIMPLEMENTED`)
-	return halt
+	let xs_ = xs
+	for (let i = 0; xs_.variation === 'Cons'; ++i)
+		if (i === MAX)
+		{
+			console.error(`'elemIndex' traversed too many elements`)
+			console.dir(`Signature : elemIndex (<VALUE>) (<XS>)`)
+			console.dir(`<VALUE> =`, value)
+			console.dir(`<XS>    =`, xs)
+			return halt
+		}
+		else if (xs_.head .eq (value))
+			return Just (i)
+		else
+			xs_ = xs_.tail
+	return Nothing
 }
 
 /**` findIndex : (a -> Boolean) -> List a -> Maybe Number `*/
@@ -2666,7 +3522,7 @@ const pickout = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : P
 			rys = prepend (xs_.head) (rys),
 			xs_ = xs_.tail
 
-	return Pair (Nothing, xs_)
+	return Pair (Nothing, xs_ as List <a>)
 }
 
 /********************************************************************************************************************************/
@@ -2754,45 +3610,6 @@ const time : IO <number> = IO (Date.now)
 
 /********************************************************************************************************************************/
 // Major IO Operations //
-
-const __MACRO__ =
-	{
-		clickx   : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i] === 'toDown' ? Just (Ψ.mouseCX) : Nothing),
-		clicky   : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i] === 'toDown' ? Just (Ψ.mouseCY) : Nothing),
-		clickv   : (i : number) : IO <Maybe <V2>>     => IO (() => Ψ.mouseButtons[i] === 'toDown' ? Just (V2 (Ψ.mouseCX, Ψ.mouseCY)) : Nothing),
-		n_clickx : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i] === 'toDown' ? Just (Ψ.mouseCX / Ψ.ctx.canvas.width) : Nothing),
-		n_clicky : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i] === 'toDown' ? Just (Ψ.mouseCY / Ψ.ctx.canvas.height) : Nothing),
-		n_clickv : (i : number) : IO <Maybe <V2>> =>
-			IO (() =>
-				Ψ.mouseButtons[i] === 'toDown'
-					? Just (V2 (Ψ.mouseCX / Ψ.ctx.canvas.width, Ψ.mouseCY / Ψ.ctx.canvas.height))
-					: Nothing
-			),
-
-		err_nonexisting_image_path : (funcName : string, path : string) : never =>
-		{
-			console.error(`'${funcName}' received an unloaded (possibly non-existing) image path`)
-			console.dir(`Signature : ${funcName} (<PATH>)`)
-			console.dir(`<PATH> =`, path)
-			return halt
-		},
-
-		err_nonexisting_audio_path : (funcName : string, path : string) : never =>
-		{
-			console.error(`'${funcName}' received an unloaded (possibly non-existing) audio path`)
-			console.dir(`Signature : ${funcName} (<PATH>)`)
-			console.dir(`<PATH> =`, path)
-			return halt
-		},
-
-		err_layer_index : (funcName : string, index : number) : never =>
-		{
-			console.error(`'${funcName}' only takes an integer in the interval [0, ${Ψ.ctxs.length}) for an index`)
-			console.dir(`Signature : ${clearLayer} (<INDEX>)`)
-			console.dir(`<INDEX> =`, index)
-			return halt
-		}
-	}
 
 const Ψ =
 	{
@@ -5173,5 +5990,9 @@ onload = () =>
 	document.onpointerlockchange = () => Ψ.isPointerLocked = document.pointerLockElement === Ψ.ctxs[0].canvas
 	Ψ.ctxs[0].canvas.setAttribute("style", "background:white")
 
-	if (typeof (window as any).main !== 'undefined') (window as any).main.effect ()
+	if (typeof (window as any).main !== 'undefined')
+		if ((window as any).main.variation === 'IO')
+			(window as any).main.effect ()
+		else
+			console.log ((window as any).main)
 }
