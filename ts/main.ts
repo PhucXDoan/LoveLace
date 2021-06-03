@@ -1,2 +1,1 @@
-const main : IO <null> =
-	idle
+const main = idle
