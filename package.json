@@ -12,13 +12,13 @@
 		"compile": "npx swc ./ts -d ./js/ -w --log-watch-compilation"
 	},
 	"dependencies": {
-		"@swc/cli": "^0.1.40",
-		"@swc/core": "^1.2.58",
+		"@swc/cli": "^0.1.45",
+		"@swc/core": "^1.2.59",
 		"@types/css-font-loading-module": "0.0.4",
-		"@typescript-eslint/eslint-plugin": "^4.24.0",
-		"@typescript-eslint/parser": "^4.24.0",
+		"@typescript-eslint/eslint-plugin": "^4.26.0",
+		"@typescript-eslint/parser": "^4.26.0",
 		"chokidar": "^3.5.1",
-		"eslint": "^7.26.0",
-		"typescript": "^4.2.4"
+		"eslint": "^7.27.0",
+		"typescript": "^4.3.2"
 	}
 }
