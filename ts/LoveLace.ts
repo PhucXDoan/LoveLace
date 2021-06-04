@@ -137,7 +137,7 @@ const __MACRO__ =
 							return halt
 						}
 						else
-							str += `${(xs_.head as any).show}, "`,
+							str += `${(xs_.head as any).show}, `,
 							xs_ = xs_.tail
 					return `${str.slice(0, -2)})`
 				}
@@ -158,6 +158,42 @@ type Show <a> =
 	{
 		/**` (a).show : String `*/
 		show : string
+	}
+
+type Field <a> =
+	{
+		/**` (a).add : a -> a `*/
+		add : (addend : a) => a
+
+		/**` (a).sub : a -> a `*/
+		sub : (subtrahend : a) => a
+
+		/**` (a).negate : a `*/
+		negate : a
+
+		/**` (a).mul : a -> a `*/
+		mul : (factor : a) => a
+
+		/**` (a).div : a -> a `*/
+		div : (divisor : a) => a
+
+		/**` (a).reciprocate : a `*/
+		reciprocate : a
+	}
+
+type Vector <a> =
+	{
+		$norm      ?: number
+		$normalize ?: a
+
+		/**` (a).vmap : (Number -> Number) -> a `*/
+		vmap : (morphism : (coordinate : number) => number) => a
+
+		/**` (a).norm : Number `*/
+		norm : number
+
+		/**` (a).normalize : a `*/
+		normalize : a
 	}
 
 /********************************************************************************************************************************/
@@ -189,6 +225,24 @@ interface Number
 
 		/**` (Number).show : String `*/
 		show : string
+
+		/**` (a).add : a -> a `*/
+		add : (addend : number) => number
+
+		/**` (a).sub : Number -> Number `*/
+		sub : (subtrahend : number) => number
+
+		/**` (a).negate : Number `*/
+		negate : number
+
+		/**` (a).mul : Number -> Number `*/
+		mul : (factor : number) => number
+
+		/**` (a).div : Number -> Number `*/
+		div : (divisor : number) => number
+
+		/**` (a).reciprocate : Number `*/
+		reciprocate : number
 	}
 
 interface String
@@ -416,7 +470,9 @@ type Either <a, b> =
 
 type V2 =
 	{
-		variation : 'V2'
+		variation   : 'V2'
+		$norm      ?: number
+		$normalize ?: V2
 
 		/**` (V2).pipe : (V2 -> a) -> a `*/
 		pipe : <a>(morphism : (vector : V2) => a) => a
@@ -427,6 +483,33 @@ type V2 =
 		/**` (V2).show : String `*/
 		show : string
 
+		/**` (V2).add : V2 -> V2 `*/
+		add : (addend : V2) => V2
+
+		/**` (V2).sub : V2 -> V2 `*/
+		sub : (subtrahend : V2) => V2
+
+		/**` (V2).negate : V2 `*/
+		negate : V2
+
+		/**` (V2).mul : V2 -> V2 `*/
+		mul : (factor : V2) => V2
+
+		/**` (V2).div : V2 -> V2 `*/
+		div : (divisor : V2) => V2
+
+		/**` (V2).reciprocate : V2 `*/
+		reciprocate : V2
+
+		/**` (V2).vmap : (Number -> Number) -> V2 `*/
+		vmap : (morphism : (coordinate : number) => number) => V2
+
+		/**` (V2).norm : Number `*/
+		norm : number
+
+		/**` (V2).normalize : V2 `*/
+		normalize : V2
+
 		/**` (V2).x : Number `*/
 		x : number
 
@@ -436,7 +519,9 @@ type V2 =
 
 type V3 =
 	{
-		variation : 'V3'
+		variation   : 'V3'
+		$norm      ?: number
+		$normalize ?: V3
 
 		/**` (V3).pipe : (V3 -> a) -> a `*/
 		pipe : <a>(morphism : (vector : V3) => a) => a
@@ -446,6 +531,33 @@ type V3 =
 
 		/**` (V3).show : String `*/
 		show : string
+
+		/**` (V3).add : V3 -> V3 `*/
+		add : (addend : V3) => V3
+
+		/**` (V3).sub : V3 -> V3 `*/
+		sub : (subtrahend : V3) => V3
+
+		/**` (V3).negate : V3 `*/
+		negate : V3
+
+		/**` (V3).mul : V3 -> V3 `*/
+		mul : (factor : V3) => V3
+
+		/**` (V3).div : V3 -> V3 `*/
+		div : (divisor : V3) => V3
+
+		/**` (V3).reciprocate : V3 `*/
+		reciprocate : V3
+
+		/**` (V3).vmap : (Number -> Number) -> V3 `*/
+		vmap : (morphism : (coordinate : number) => number) => V3
+
+		/**` (V3).norm : Number `*/
+		norm : number
+
+		/**` (V3).normalize : V3 `*/
+		normalize : V3
 
 		/**` (V3).x : Number `*/
 		x : number
@@ -459,7 +571,9 @@ type V3 =
 
 type V4 =
 	{
-		variation : 'V4'
+		variation   : 'V4'
+		$norm      ?: number
+		$normalize ?: V4
 
 		/**` (V4).pipe : (V4 -> a) -> a `*/
 		pipe : <a>(morphism : (vector : V4) => a) => a
@@ -469,6 +583,33 @@ type V4 =
 
 		/**` (V4).show : String `*/
 		show : string
+
+		/**` (V4).add : V4 -> V4 `*/
+		add : (addend : V4) => V4
+
+		/**` (V4).sub : V4 -> V4 `*/
+		sub : (subtrahend : V4) => V4
+
+		/**` (V4).negate : V4 `*/
+		negate : V4
+
+		/**` (V4).mul : V4 -> V4 `*/
+		mul : (factor : V4) => V4
+
+		/**` (V4).div : V4 -> V4 `*/
+		div : (divisor : V4) => V4
+
+		/**` (V4).reciprocate : V4 `*/
+		reciprocate : V4
+
+		/**` (V4).vmap : (Number -> Number) -> V4 `*/
+		vmap : (morphism : (coordinate : number) => number) => V4
+
+		/**` (V4).norm : Number `*/
+		norm : number
+
+		/**` (V4).normalize : V4 `*/
+		normalize : V4
 
 		/**` (V4).x : Number `*/
 		x : number
@@ -521,7 +662,7 @@ type Composition =
 	| 'difference'       | 'exclusion'
 
 /********************************************************************************************************************************/
-// Primitive Functions
+// Primitive Constants
 
 /**` e : Number `*/
 const e : number = Math.E
@@ -556,14 +697,30 @@ const invsqrt2 : number = Math.SQRT1_2
 /**` id : a -> a `*/
 const id = <a>(value : a) : a => value
 
-/**` notf : (a -> Boolean) -> a -> Boolean `*/
-const notf = <a>(predicate : (value : a) => boolean) => (value : a) : boolean => !predicate (value)
-
 /**` eqeqeq : a -> a -> Boolean `*/
 const eqeqeq = <a>(leftside : a) => (rightside : a) : boolean => leftside === rightside
 
+/**` mod : Number -> Number -> Boolean `*/
+const mod = (num : number) => (modulo : number) : number => num % modulo
+
+/**` pow : Number -> Number -> Boolean `*/
+const pow = (num : number) => (modulo : number) : number => num % modulo
+
+/**` sqrt : Number -> Number `*/
+const sqrt = Math.sqrt
+
 /**` toStr : $ -> String `*/
 const toStr = (obj : Object) : string => obj.toString()
+
+/**` notf : (a -> Boolean) -> a -> Boolean `*/
+const notf = <a>(predicate : (value : a) => boolean) => (value : a) : boolean => !predicate (value)
+
+/********************************************************************************************************************************/
+// Generic Functions //
+
+/**` flip : (a -> b -> c) -> b -> a -> c `*/
+const flip = <a, b, c>(f : (x : a) => (y : b) => c) => (y : b) => (x : a) : c =>
+	f (x) (y)
 
 /********************************************************************************************************************************/
 // Globalization of Typeclass Functions //
@@ -572,7 +729,37 @@ const toStr = (obj : Object) : string => obj.toString()
 const eq = <a extends Eq <a>>(leftside : a) => (rightside : a) : boolean => leftside .eq (rightside)
 
 /**` show : (Show a) => a -> String `*/
-const show = <a extends Show <a>>(value : a) : string => value.show
+const show = <a extends Show <a>>(value : a) : string => value .show
+
+/**` add : (Field a) => a -> a -> a `*/
+const add = <a extends Field <a>>(firstAddend : a) => (secondAddend : a) : a => firstAddend .add (secondAddend)
+
+/**` sub : (Field a) => a -> a -> a `*/
+const sub = <a extends Field <a>>(minuend : a) => (subtrahend : a) : a => minuend .sub (subtrahend)
+
+/**` minus : (Field a) => a -> a -> a `*/
+const minus = <a extends Field <a>>(subtrahend : a) => (minuend : a) : a => minuend .sub (subtrahend)
+
+/**` negate : (Field a) => a -> a `*/
+const negate = <a extends Field <a>>(value : a) : a => value .negate
+
+/**` mul : (Field a) => a -> a -> a `*/
+const mul = <a extends Field <a>>(firstFactor : a) => (secondFactor : a) : a => firstFactor .mul (secondFactor)
+
+/**` div : (Field a) => a -> a -> a `*/
+const div = <a extends Field <a>>(divisor : a) => (dividend : a) : a => divisor .div (dividend)
+
+/**` reciprocate : (Field a) => a -> a `*/
+const reciprocate = <a extends Field <a>>(value : a) : a => value .reciprocate
+
+/**` vmap : (Vector a) => (a -> a) -> a -> a `*/
+const vmap = <a extends Vector <a>>(morphism : (coordinate : number) => number) => (vector : a) : a => vector .vmap (morphism)
+
+/**` norm : (Vector a) => a -> Number `*/
+const norm = <a extends Vector <a>>(vector : a) : number => vector .norm
+
+/**` normalize : (Vector a) => a -> Number `*/
+const normalize = <a extends Vector <a>>(vector : a) : a => vector .normalize
 
 /********************************************************************************************************************************/
 // Implementation of Algebraic Data Types //
@@ -585,10 +772,16 @@ Object.defineProperties(Boolean.prototype, {
 })
 
 Object.defineProperties(Number.prototype, {
-	variation : { value : 'Number'                          },
-	pipe      : { get() { return (f : any) => f (+this)   } },
-	eq        : { get() { return (n : any) => +this === n } },
-	show      : { get() { return this.toString()          } }
+	variation   : { value : 'Number'                           },
+	pipe        : { get() { return (f : any) => f (+this)    } },
+	eq          : { get() { return (n : any) => +this === n  } },
+	show        : { get() { return this.toString()           } },
+	add         : { get() { return (n : any) =>     this + n } },
+	sub         : { get() { return (n : any) =>     this - n } },
+	negate      : { get() { return (n : any) =>    -this     } },
+	mul         : { get() { return (n : any) =>     this * n } },
+	div         : { get() { return (n : any) =>     this / n } },
+	reciprocate : { get() { return (n : any) => 1 / this     } }
 })
 
 Object.defineProperties(String.prototype, {
@@ -1038,7 +1231,16 @@ const V2 = (x : number, y : number) : V2 =>
 		variation : 'V2',
 		pipe (f) { return f (this) },
 		eq : v => v.x === x && v.y === y,
-		get show() { return `V3 (${x}, ${y})` },
+		get show() { return `V2 (${x}, ${y})` },
+		add (v) { return V2 (x + v.x, y + v.y) },
+		sub (v) { return V2 (x - v.x, y - v.y) },
+		get negate () { return V2 (-x, -y) },
+		mul (v) { return V2 (x * v.x, y * v.y) },
+		div (v) { return V2 (x / v.x, y / v.y) },
+		get reciprocate () { return V2 (1 / x, 1 / y) },
+		vmap : f => V2 (f (x), f (y)),
+		get norm () { return this.$norm ??= Math.sqrt(x ** 2 + y ** 2) },
+		get normalize () { return this.$normalize ??= V2 (x / this.norm, y / this.$norm!) },
 		x, y
 	})
 
@@ -1049,6 +1251,15 @@ const V3 = (x : number, y : number, z : number) : V3 =>
 		pipe (f) { return f (this) },
 		eq : v => v.x === x && v.y === y && v.z === z,
 		get show() { return `V3 (${x}, ${y}, ${z})` },
+		add (v) { return V3 (x + v.x, y + v.y, z + v.z) },
+		sub (v) { return V3 (x - v.x, y - v.y, z - v.z) },
+		get negate () { return V3 (-x, -y, -z) },
+		mul (v) { return V3 (x * v.x, y * v.y, z * v.z) },
+		div (v) { return V3 (x / v.x, y / v.y, z / v.z) },
+		get reciprocate () { return V3 (1 / x, 1 / y, 1 / z) },
+		vmap : f => V3 (f (x), f (y), f (z)),
+		get norm () { return this.$norm ??= Math.sqrt(x ** 2 + y ** 2 + z ** 2) },
+		get normalize () { return this.$normalize ??= V3 (x / this.norm, y / this.$norm!, z / this.$norm!) },
 		x, y, z
 	})
 
@@ -1059,6 +1270,15 @@ const V4 = (x : number, y : number, z : number, w : number) : V4 =>
 		pipe (f) { return f (this) },
 		eq : v => v.x === x && v.y === y && v.z === z && v.w === w,
 		get show() { return `V4 (${x}, ${y}, ${z}, ${w})` },
+		add (v) { return V4 (x + v.x, y + v.y, z + v.z, w + v.w) },
+		sub (v) { return V4 (x - v.x, y - v.y, z - v.z, w - v.w) },
+		get negate () { return V4 (-x, -y, -z, -w) },
+		mul (v) { return V4 (x * v.x, y * v.y, z * v.z, w * v.w) },
+		div (v) { return V4 (x / v.x, y / v.y, z / v.z, w / v.w) },
+		get reciprocate () { return V4 (1 / x, 1 / y, 1 / z, 1 / w) },
+		vmap : f => V4 (f (x), f (y), f (z), f (w)),
+		get norm () { return this.$norm ??= Math.sqrt(x ** 2 + y ** 2 + z ** 2 + w ** 2) },
+		get normalize () { return this.$normalize ??= V4 (x / this.norm, y / this.$norm!, z / this.$norm!, w / this.$norm!) },
 		x, y, z, w
 	})
 
@@ -1748,6 +1968,7 @@ const prepend = <a>(value : a) => (xs : List <a>) : List <a> =>
 									console.error(`'.show' traversed too many elements (${MAX})`)
 									console.dir(`Signature : <VALUE> .show | <VALUE> originated from 'prepend'`)
 									console.dir(`<VALUE> =`, this)
+									return halt
 								}
 								else
 									str += `${(this_.head as any).show}, `,
@@ -2591,6 +2812,7 @@ const foldl1 = <a>(operation : (leftside : a) => (rightside : a) => a) => (xs : 
 				console.dir(`Signature : foldl1 (<OPERATION>) (<XS>)`)
 				console.dir(`<OPERATION> =`, operation)
 				console.dir(`<XS>        =`, xs)
+				return halt
 			}
 			else
 				out = operation (out) (xs_.head),
@@ -2858,6 +3080,7 @@ const span = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : Pair
 			console.dir(`Signature : span (<PREDICATE>) (<XS>)`)
 			console.dir(`<PREDICATE> =`, predicate)
 			console.dir(`<XS>        =`, xs)
+			return halt
 		}
 		else
 			rxs0 = prepend (xs_.head) (rxs0),
@@ -3203,6 +3426,46 @@ const zeroV3 : V3 = V3 (0, 0, 0)
 /**` zeroV4 : V4 `*/
 const zeroV4 : V4 = V4 (0, 0, 0, 0)
 
+/**` _vTranslate : (a = (V2 | V3 | V4)) => (Number, Number, Number?, Number?) -> a -> a `*/
+const _vTranslate
+	: (dx : number, dy : number, dz ?: number, dw ?: number) => & ((vector : V2) => V2) & ((vector : V3) => V3) & ((vector : V4) => V4)
+	= (dx, dy, dz = 0, dw = 0) => (vector : any) : any =>
+	vector.variation === 'V2' ? V2 (vector.x + dx, vector.y + dy                              ) :
+	vector.variation === 'V3' ? V3 (vector.x + dx, vector.y + dy, vector.z + dz               ) :
+	vector.variation === 'V4' ? V4 (vector.x + dx, vector.y + dy, vector.z + dz, vector.w + dw) : never
+
+/**` _vUntranslate : (a = (V2 | V3 | V4)) => (Number, Number, Number?, Number?) -> a -> a `*/
+const _vUntranslate
+	: (dx : number, dy : number, dz ?: number, dw ?: number) => & ((vector : V2) => V2) & ((vector : V3) => V3) & ((vector : V4) => V4)
+	= (dx, dy, dz = 0, dw = 0) => (vector : any) : any =>
+	vector.variation === 'V2' ? V2 (vector.x - dx, vector.y - dy                              ) :
+	vector.variation === 'V3' ? V3 (vector.x - dx, vector.y - dy, vector.z - dz               ) :
+	vector.variation === 'V4' ? V4 (vector.x - dx, vector.y - dy, vector.z - dz, vector.w - dw) : never
+
+/**` _vScaleAxis : (a = (V2 | V3 | V4)) => (Number, Number, Number?, Number?) -> a -> a `*/
+const _vScaleAxis
+	: (kx : number, ky : number, kz ?: number, kw ?: number) => & ((vector : V2) => V2) & ((vector : V3) => V3) & ((vector : V4) => V4)
+	= (kx, ky, kz = 1, kw = 1) => (vector : any) : any =>
+	vector.variation === 'V2' ? V2 (vector.x * kx, vector.y * ky                              ) :
+	vector.variation === 'V3' ? V3 (vector.x * kx, vector.y * ky, vector.z * kz               ) :
+	vector.variation === 'V4' ? V4 (vector.x * kx, vector.y * ky, vector.z * kz, vector.w * kw) : never
+
+/**` _vUnscaleAxis : (a = (V2 | V3 | V4)) => (Number, Number, Number?, Number?) -> a -> a `*/
+const _vUnscaleAxis
+	: (kx : number, ky : number, kz ?: number, kw ?: number) => & ((vector : V2) => V2) & ((vector : V3) => V3) & ((vector : V4) => V4)
+	= (kx, ky, kz = 1, kw = 1) => (vector : any) : any =>
+	vector.variation === 'V2' ? V2 (vector.x / kx, vector.y / ky                              ) :
+	vector.variation === 'V3' ? V3 (vector.x / kx, vector.y / ky, vector.z / kz               ) :
+	vector.variation === 'V4' ? V4 (vector.x / kx, vector.y / ky, vector.z / kz, vector.w / kw) : never
+
+/**` vScale : (Vector a) => Number -> a -> a `*/
+const vScale = (k : number) => <a extends Vector <a>>(vector : a) : a =>
+	vector .vmap (n => n * k)
+
+/**` vUnscale : (Vector a) => Number -> a -> a `*/
+const vUnscale = (k : number) => <a extends Vector <a>>(vector : a) : a =>
+	vector .vmap (n => n / k)
+
 /**` isButtonUp : ButtonState -> Boolean `*/
 const isButtonUp = (state : ButtonState) : boolean =>
 	state === 'Up' || state === 'toUp'
@@ -3530,26 +3793,6 @@ const pickout = <a>(predicate : (element : a) => boolean) => (xs : List <a>) : P
 /********************************************************************************************************************************/
 // Minor IO Operations //
 
-/**` forn : Number -> (Number -> IO a) -> IO () `*/
-const forn = (amount : number) => <a>(operation : (index : number) => IO <a>) : IO <null> =>
-{
-	const effects : Array <() => a> = []
-	for (let i = 0; i < amount; ++i) effects.push(operation (i).effect)
-	return IO (() => (effects.forEach(f => f ()), null))
-}
-
-/**` forloop : Number -> Number -> Number -> (Number -> IO a) -> IO () `*/
-const forloop =
-	(start     : number                     ) =>
-	(condition : (index : number) => boolean) =>
-	(morphism  : (index : number) => number ) =>
-	<a>(operation : (index : number) => IO <a>) : IO <null> =>
-{
-	const effects : Array <() => a> = []
-	for (let i = start; condition (i); i = morphism (i)) effects.push(operation (i).effect)
-	return IO (() => (effects.forEach(f => f ()), null))
-}
-
 /**` prompting : String -> IO (Maybe String) `*/
 const prompting = (message : string) : IO <Maybe <string>> =>
 	IO (() => {
@@ -3610,29 +3853,28 @@ const resetCountLog = (identifier : string) : IO <null> =>
 /**` time : IO Number `*/
 const time : IO <number> = IO (Date.now)
 
+/**` forn : Number -> (Number -> IO a) -> IO () `*/
+const forn = (amount : number) => <a>(operation : (index : number) => IO <a>) : IO <null> =>
+{
+	const effects : Array <() => a> = []
+	for (let i = 0; i < amount; ++i) effects.push(operation (i).effect)
+	return IO (() => (effects.forEach(f => f ()), null))
+}
+
+/**` forloop : Number -> Number -> Number -> (Number -> IO a) -> IO () `*/
+const forloop =
+	(start     : number                     ) =>
+	(condition : (index : number) => boolean) =>
+	(morphism  : (index : number) => number ) =>
+	<a>(operation : (index : number) => IO <a>) : IO <null> =>
+{
+	const effects : Array <() => a> = []
+	for (let i = start; condition (i); i = morphism (i)) effects.push(operation (i).effect)
+	return IO (() => (effects.forEach(f => f ()), null))
+}
+
 /********************************************************************************************************************************/
 // Major IO Operations //
-
-const Ψ =
-	{
-		MUTABLE         : {} as any,
-		ctxs            : [] as Array <CanvasRenderingContext2D>,
-		ctx             : undefined as unknown as CanvasRenderingContext2D,
-		resizeID        : undefined as unknown as number,
-		isResized       : false,
-		isPointerLocked : false,
-		seed            : (Math.random() - 0.5) * Date.now() % 0xffffff,
-		debugCounter    : 0,
-		image           : Object.create(null) as { [x : string] : HTMLImageElement },
-		audio           : Object.create(null) as { [x : string] : HTMLAudioElement },
-		mouseSX         : 0, mouseSY : 0,
-		mouseWX         : 0, mouseWY : 0,
-		mouseCX         : 0, mouseCY : 0,
-		mouseDX         : 0, mouseDY : 0,
-		mouseScroll     : 'Zero' as Axis,
-		mouseButtons    : Array(5).fill('Up') as [ButtonState, ButtonState, ButtonState, ButtonState, ButtonState],
-		keyboard        : keyboardKeysArray.reduce(($, k) => ({ ...$, [k] : 'Up' }), Object.create(null)) as { [x in KeyboardKey] : ButtonState }
-	}
 
 /**` n_mouseScreenPositionX : IO Number `*/
 const n_mouseScreenPositionX : IO <number> = IO (() => Ψ.mouseSX / screen.width)
@@ -5962,6 +6204,28 @@ const Do_Maybe : Maybe <{}> = Just (SCOPE)
 
 /**` Do_List : List $ `*/
 const Do_List : List <{}> = singleton (SCOPE)
+
+const Ψ =
+	{
+		MUTABLE         : {} as any,
+		STACK           : [] as any [],
+		ctxs            : [] as Array <CanvasRenderingContext2D>,
+		ctx             : undefined as unknown as CanvasRenderingContext2D,
+		resizeID        : undefined as unknown as number,
+		isResized       : false,
+		isPointerLocked : false,
+		seed            : (Math.random() - 0.5) * Date.now() % 0xffffff,
+		debugCounter    : 0,
+		image           : Object.create(null) as { [x : string] : HTMLImageElement },
+		audio           : Object.create(null) as { [x : string] : HTMLAudioElement },
+		mouseSX         : 0, mouseSY : 0,
+		mouseWX         : 0, mouseWY : 0,
+		mouseCX         : 0, mouseCY : 0,
+		mouseDX         : 0, mouseDY : 0,
+		mouseScroll     : 'Zero' as Axis,
+		mouseButtons    : Array(5).fill('Up') as [ButtonState, ButtonState, ButtonState, ButtonState, ButtonState],
+		keyboard        : keyboardKeysArray.reduce(($, k) => ({ ...$, [k] : 'Up' }), Object.create(null)) as { [x in KeyboardKey] : ButtonState }
+	}
 
 onload = () =>
 {
