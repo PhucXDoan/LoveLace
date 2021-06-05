@@ -747,8 +747,43 @@ const sqrt = Math.sqrt
 /**` toStr : $ -> String `*/
 const toStr = (obj : Object) : string => obj.toString()
 
-/**` notf : (a -> Boolean) -> a -> Boolean `*/
-const notf = <a>(predicate : (value : a) => boolean) => (value : a) : boolean => !predicate (value)
+/**` concat : String -> String -> String `*/
+const concat = (str : string) => (ing : string) : string => str + ing
+
+/**` postconcat : String -> String -> String `*/
+const postconcat = (ing : string) => (str : string) : string => ing + str
+
+/**` uppercase : String -> String `*/
+const uppercase = (str : string) : string => str.toUpperCase()
+
+/**` lowercase : String -> String `*/
+const lowercase = (str : string) : string => str.toLowerCase()
+
+/**` trim : String -> String `*/
+const trim = (str : string) : string => str.trim()
+
+/**` removeSubstr : String -> String -> String `*/
+const removeSubstr = (substr : string) => (str : string) : string => str.replaceAll(substr, "")
+
+/**` removeRegex : Regex -> String -> String `*/
+const removeRegex = (regex : RegExp) => (str : string) : string => str.replaceAll(regex, "")
+
+/**` replaceSubstr : String -> String -> String -> String `*/
+const replaceSubstr = (substr : string) => (replacement : string) => (str : string) : string => str.replaceAll(substr, replacement)
+
+/**` replaceRegex : Regex -> String -> String -> String `*/
+const replaceRegex = (regex : RegExp) => (replacement : string) => (str : string) : string => str.replaceAll(regex, replacement)
+
+/**` toFixed : Number -> Number -> String `*/
+const toFixed = (places : number) => (num : number) : string =>
+	num.toFixed(places)
+
+/**` roundToString : Number -> Number -> String `*/
+const roundToString = (places : number) => (num : number) : string =>
+	num
+		.toFixed(places)
+		.replace(/0+$/, "")
+		.replace(/\.$/, "")
 
 /********************************************************************************************************************************/
 // Generic Functions //
@@ -756,6 +791,9 @@ const notf = <a>(predicate : (value : a) => boolean) => (value : a) : boolean =>
 /**` flip : (a -> b -> c) -> b -> a -> c `*/
 const flip = <a, b, c>(f : (x : a) => (y : b) => c) => (y : b) => (x : a) : c =>
 	f (x) (y)
+
+/**` notf : (a -> Boolean) -> a -> Boolean `*/
+const notf = <a>(predicate : (value : a) => boolean) => (value : a) : boolean => !predicate (value)
 
 /********************************************************************************************************************************/
 // Globalization of Typeclass Functions //
@@ -1163,10 +1201,27 @@ const IOMaybe = <a>(effect : () => Maybe <a>) : IOMaybe <a> =>
 		fmap   : f   => IOMaybe (() => effect () .fmap (f)),
 		bindto : k   => f => IOMaybe (() => effect () .bindto (k) (f as any)),
 		fmapto : k   => f => IOMaybe (() => effect () .fmapto (k) (f as any)),
-		then   : iom => IOMaybe (() => (effect (), iom.effect ())),
-		cast   : x   => IOMaybe (() => (effect (), Just (x))),
-		call   : f   => IOMaybe (() => effect () .fmap (x => (f (x).effect (), x))),
-		side   : iom => IOMaybe (() => effect () .fmap (x => (iom.effect (), x))),
+		then   : iom =>
+			IOMaybe (() =>
+				effect ().variation === 'Nothing'
+					? Nothing
+					: iom.effect ()
+			),
+		cast   : x   => IOMaybe (() => effect ().variation === 'Nothing' ? Nothing : Just (x)),
+		call   : f   =>
+			IOMaybe (() => {
+				const maybeX = effect ()
+				if (maybeX.variation === 'Just')
+					f (maybeX.value).effect ()
+				return maybeX
+			}),
+		side   : iom =>
+			IOMaybe (() => {
+				const maybeX = effect ()
+				if (maybeX.variation === 'Just')
+					iom.effect ()
+				return maybeX
+			}),
 		effect
 	})
 
@@ -1743,6 +1798,24 @@ const ensure = <a>(predicate : (value : a) => boolean) => (value : a) : Maybe <a
 /**` testMaybe : (a -> Boolean) -> Maybe a -> Boolean `*/
 const testMaybe = <a>(predicate : (value : a) => boolean) => (maybe : Maybe <a>) : boolean =>
 	maybe.variation === 'Just' && predicate (maybe.value)
+
+/**` readInt : String -> Maybe Number `*/
+const readInt = (str : string) : Maybe <number> =>
+{
+	const parsed = parseInt(str)
+	return Number.isNaN(parsed)
+		? Nothing
+		: Just (parsed)
+}
+
+/**` readFloat : String -> Maybe Number `*/
+const readFloat = (str : string) : Maybe <number> =>
+{
+	const parsed = parseFloat(str)
+	return Number.isNaN(parsed)
+		? Nothing
+		: Just (parsed)
+}
 
 /********************************************************************************************************************************/
 // Implementation of Constants and Functions of List //
@@ -3364,9 +3437,45 @@ const IOM =
 		liftf : <a, b>(reaction : (value : a) => IO <b>) => (value : a) : IOMaybe <b> =>
 			IOMaybe (() => Just (reaction (value).effect ())),
 
+		/*` IOM.hoist : Maybe a -> IOMaybe a `*/
+		hoist : <a>(maybe : Maybe <a>) : IOMaybe <a> =>
+			maybe.variation === 'Nothing'
+				? sendNothing
+				: sendJust (maybe.value),
+
 		/**` IOM.resolve : IOMaybe a -> IO () `*/
 		resolve : <a>(iomaybe : IOMaybe <a>) : IO <null> =>
-			IO (() => (iomaybe.effect (), null))
+			IO (() => (iomaybe.effect (), null)),
+
+		/**` IOM.fallback : IO a -> IOMaybe a -> IO a `*/
+		fallback : <a>(fallback : IO <a>) => (iomaybe : IOMaybe <a>) : IO <a> =>
+			IO (() => {
+				const maybe = iomaybe.effect ()
+				return maybe.variation === 'Nothing'
+					? fallback.effect ()
+					: maybe.value
+			}),
+
+		/**` IOM.guard : Boolean -> a -> IOMaybe a `*/
+		guard : <a>(condition : boolean) => (value : a) : IOMaybe <a> =>
+			condition
+				? sendJust (value)
+				: sendNothing,
+
+		/**` IOM.guardIf : (a -> Boolean) -> a -> IOMaybe a `*/
+		guardIf : <a>(predicate : (value : a) => boolean) => (value : a) : IOMaybe <a> =>
+			predicate (value)
+				? sendJust (value)
+				: sendNothing,
+
+		/**` IOM.repeat : IOMaybe a -> IOMaybe a `*/
+		repeat : <a>(iomaybe : IOMaybe <a>) : IOMaybe <a> =>
+			IOMaybe (() => {
+				let maybeOut = iomaybe.effect ()
+				while (maybeOut.variation === 'Nothing')
+					maybeOut = iomaybe.effect ()
+				return maybeOut
+			})
 	}
 
 /**` sendJust : a -> IOMaybe a `*/
@@ -3384,6 +3493,22 @@ const sendJust = <a>(value : a) : IOMaybe <a> =>
 		side      : iom => IOMaybe (() => (iom.effect (), Just (value))),
 		effect    : ()  => Just (value)
 	})
+
+/**` sendNothing : IOMaybe a `*/
+const sendNothing : IOMaybe <any> =
+	{
+		variation : 'IOMaybe',
+		pipe (f) { return f (this) },
+		bind      : _  => sendNothing,
+		fmap      : _  => sendNothing,
+		bindto    : _  => _ => sendNothing,
+		fmapto    : _  => _ => sendNothing,
+		then      : _  => sendNothing,
+		cast      : _  => sendNothing,
+		call      : _  => sendNothing,
+		side      : _  => sendNothing,
+		effect    : () => Nothing
+	}
 
 /********************************************************************************************************************************/
 // Implementation of Constants and Functions of Pair //
@@ -3586,7 +3711,24 @@ const signButtonState = (state : ButtonState) : number =>
 
 /**` sequence_IO : List (IO a) -> IO (List a) `*/
 const sequence_IO = <a>(ios : List <IO <a>>) : IO <List <a>> =>
-	IO (() => ios .fmap (io => io.effect ()))
+{
+	const effects : Array <() => a> = []
+	let ios_ = ios
+
+	for (let i = 0; ios_.variation === 'Cons'; ++i)
+		if (i === MAX)
+		{
+			console.error(`'sequence_IO' traversed too many elements (${MAX}) when coverting the given List (IO a) to a primitive Array`)
+			console.dir(`Signature : sequence_IO (<IOS>)`)
+			console.dir(`<IOS> =`, ios_)
+			return halt
+		}
+		else
+			effects.push(ios_.head.effect),
+			ios_ = ios_.tail
+
+	return IO (() => List (...effects.map(f => f ())))
+}
 
 /**` execute_IO : List (IO a) -> IO () `*/
 const execute_IO = <a>(ios : List <IO <a>>) : IO <null> =>
@@ -6290,6 +6432,10 @@ const setWindowBackgroundRGBAV4 = (rgba : V4) : IO <null> =>
 /********************************************************************************************************************************/
 // Underhead //
 
+/**` formatter : (a -> String) -> `String` -> String `*/
+const formatter = <a>(morphism : (value : a) => string) => (strings : TemplateStringsArray, ...values : a []) : string =>
+	values.map((value, i) => strings [i] + morphism (value)).join('') + strings [strings.length - 1]
+
 /**` Do_IO : IO $ `*/
 const Do_IO : IO <{}> = send (SCOPE)
 
@@ -6301,6 +6447,9 @@ const Do_Maybe : Maybe <{}> = Just (SCOPE)
 
 /**` Do_List : List $ `*/
 const Do_List : List <{}> = singleton (SCOPE)
+
+/**` Do_MaybeIO : IOMaybe $ `*/
+const Do_MaybeIO : IOMaybe <{}> = sendJust (SCOPE)
 
 const Ψ =
 	{
