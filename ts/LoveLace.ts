@@ -423,6 +423,41 @@ type List <a> =
 		tail : List <a>
 	})
 
+type IOMaybe <a> =
+	{
+		variation : 'IOMaybe'
+
+		/**` (IOMaybe a).pipe : (IOMaybe a -> b) -> b `*/
+		pipe : <b>(morphism : (iomaybe : IOMaybe <a>) => b) => b
+
+		/**` (IOMaybe a).effect : () -> Maybe a `*/
+		effect : () => Maybe <a>
+
+		/**` (IOMaybe a).bind : (a -> IOMaybe b) -> IOMaybe b `*/
+		bind : <b>(reaction : (value : a) => IOMaybe <b>) => IOMaybe <b>
+
+		/**` (IOMaybe a).fmap : (a -> b) -> IOMaybe b `*/
+		fmap : <b>(morphism : (value : a) => b) => IOMaybe <b>
+
+		/**` (IOMaybe $).bindto : String -> ($ -> IOMaybe b) -> IOMaybe $ `*/
+		bindto : <k extends string>(name : k) => <b>(reaction : ($ : a) => IOMaybe <b>) => IOMaybe <a & { [x in k] : b }>
+
+		/**` (IOMaybe $).fmapto : String -> ($ -> b) -> IOMaybe $ `*/
+		fmapto : <k extends string>(name : k) => <b>(morphism : ($ : a) => b) => IOMaybe <a & { [x in k] : b }>
+
+		/**` (IOMaybe a).then : IOMaybe b -> IOMaybe b `*/
+		then : <b>(successor : IOMaybe <b>) => IOMaybe <b>
+
+		/**` (IOMaybe a).cast : b -> IOMaybe b `*/
+		cast : <b>(replacement : b) => IOMaybe <b>
+
+		/**` (IOMaybe a).call : (a -> IOMaybe b) -> IOMaybe a `*/
+		call : <b>(reaction : (value : a) => IOMaybe <b>) => IOMaybe <a>
+
+		/**` (IOMaybe a).side : IOMaybe b -> IOMaybe a `*/
+		side : <b>(effect : IOMaybe <b>) => IOMaybe <a>
+	}
+
 type Pair <a, b> =
 	{
 		variation : 'Pair'
@@ -1117,6 +1152,22 @@ const Cons = <a>(lvalue : () => a) => (lxs : () => List <a>) : List <a> =>
 				? this
 				: Cons (() => this.head) (() => this.tail .link (xs))
 		}
+	})
+
+/**` IOMaybe : (() -> Maybe a) -> IOMaybe a `*/
+const IOMaybe = <a>(effect : () => Maybe <a>) : IOMaybe <a> =>
+	({
+		variation : 'IOMaybe',
+		pipe (f) { return f (this) },
+		bind   : f   => IOMaybe (() => effect () .bind (x => f (x) .effect ())),
+		fmap   : f   => IOMaybe (() => effect () .fmap (f)),
+		bindto : k   => f => IOMaybe (() => effect () .bindto (k) (f as any)),
+		fmapto : k   => f => IOMaybe (() => effect () .fmapto (k) (f as any)),
+		then   : iom => IOMaybe (() => (effect (), iom.effect ())),
+		cast   : x   => IOMaybe (() => (effect (), Just (x))),
+		call   : f   => IOMaybe (() => effect () .fmap (x => (f (x).effect (), x))),
+		side   : iom => IOMaybe (() => effect () .fmap (x => (iom.effect (), x))),
+		effect
 	})
 
 /**` Pair : (a, b) -> Pair a b `*/
@@ -3293,6 +3344,48 @@ const lowercases : List <string> = chars ('abcdefghijklmnopqrstuvwxyz')
 const uppercases : List <string> = chars ('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
 
 /********************************************************************************************************************************/
+// Implementation of Constants and Functions of IOMaybe //
+
+const IOM =
+	{
+		/**` IOM.merge : IO (Maybe a) -> IOMaybe a `*/
+		merge : <a>(iomaybe : IO <Maybe <a>>) : IOMaybe <a> =>
+			IOMaybe (iomaybe.effect),
+
+		/**` IOM.unmerge : IOMaybe a -> IO (Maybe a) `*/
+		unmerge : <a>(iomaybe : IOMaybe <a>) : IO <Maybe <a>> =>
+			IO (iomaybe.effect),
+
+		/**` IOM.lift : IO a -> IOMaybe a `*/
+		lift : <a>(io : IO <a>) : IOMaybe <a> =>
+			IOMaybe (() => Just (io.effect ())),
+
+		/*` IOM.liftf : (a -> IO b) -> a -> IOMaybe b `*/
+		liftf : <a, b>(reaction : (value : a) => IO <b>) => (value : a) : IOMaybe <b> =>
+			IOMaybe (() => Just (reaction (value).effect ())),
+
+		/**` IOM.resolve : IOMaybe a -> IO () `*/
+		resolve : <a>(iomaybe : IOMaybe <a>) : IO <null> =>
+			IO (() => (iomaybe.effect (), null))
+	}
+
+/**` sendJust : a -> IOMaybe a `*/
+const sendJust = <a>(value : a) : IOMaybe <a> =>
+	({
+		variation : 'IOMaybe',
+		pipe (f) { return f (this) },
+		bind      : f   => f (value),
+		fmap      : f   => sendJust (f (value)),
+		bindto    : k   => f => f (value) .fmap (x => ({ ...value, [k] : x } as any)),
+		fmapto    : k   => f => sendJust ({ ...value, [k] : f (value) } as any),
+		then      : id,
+		cast      : sendJust,
+		call      : f   => IOMaybe (() => (f (value).effect (), Just (value))),
+		side      : iom => IOMaybe (() => (iom.effect (), Just (value))),
+		effect    : ()  => Just (value)
+	})
+
+/********************************************************************************************************************************/
 // Implementation of Constants and Functions of Pair //
 
 /**` fst : Pair a b -> a `*/
@@ -3821,6 +3914,10 @@ const delay = (amount : number) => <a>(io : IO <a>) : IO <null> =>
 /**` flush : IO () `*/
 const flush : IO <null> =
 	IO (() => (console.clear(), null))
+
+/**` printf : (...*) -> IO () `*/
+const printf = (...messages : any []) : IO <null> =>
+	IO (() => (console.log(...messages), null))
 
 /**` log : a -> IO () `*/
 const log = <a>(message : a) : IO <null> =>
@@ -6257,8 +6354,8 @@ onload = () =>
 	Ψ.ctxs[0].canvas.setAttribute("style", "background:white")
 
 	if (typeof (window as any).main !== 'undefined')
-		if ((window as any).main.variation === 'IO')
+		if (typeof (window as any).main?.effect === 'function')
 			(window as any).main.effect ()
 		else
-			console.log ((window as any).main)
+			console.dir("main =", (window as any).main)
 }
