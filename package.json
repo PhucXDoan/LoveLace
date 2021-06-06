@@ -9,7 +9,7 @@
 	"scripts": {
 		"lint": "npx eslint ./ts/*.ts & exit 0",
 		"typechecking": "tsc",
-		"compile": "npx swc ./ts -d ./js/ -w --log-watch-compilation"
+		"compile": "npx swc ./ts/ ./examples/ -d ./js/ -w --log-watch-compilation"
 	},
 	"dependencies": {
 		"@swc/cli": "^0.1.45",
