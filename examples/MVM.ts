@@ -126,12 +126,12 @@ const circuit = (code : string) : IO <null> =>
 	:
 	code === 'C-4' ?
 		shortcircuit
-			("What's the circumference")
+			("What's the circumference?")
 			(c => fix `pi*d = ${c}\nd = ${c} / pi\nd = ${c / pi}\n`)
 	:
 	code === 'C-4' ?
 		shortcircuit
-			("What's the circumference")
+			("What's the circumference?")
 			(c => fix `pi*d = ${c}\nd = ${c} / pi\nd = ${c / pi}\n`)
 	:
 	code === 'P+1' ?
