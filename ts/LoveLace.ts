@@ -148,7 +148,7 @@ const __MACRO__ =
 /********************************************************************************************************************************/
 // Typeclasses //
 
-type Eq <a>   =
+type Eq <a> =
 	{
 		/**` (a).eq : a -> Boolean `*/
 		eq : (value : a) => boolean
@@ -732,6 +732,9 @@ const invsqrt2 : number = Math.SQRT1_2
 /**` id : a -> a `*/
 const id = <a>(value : a) : a => value
 
+/**` constant : a -> b -> a `*/
+const constant = <a>(value : a) => <b>(_ : b) : a => value
+
 /**` eqeqeq : a -> a -> Boolean `*/
 const eqeqeq = <a>(leftside : a) => (rightside : a) : boolean => leftside === rightside
 
@@ -743,6 +746,15 @@ const pow = (num : number) => (modulo : number) : number => num % modulo
 
 /**` sqrt : Number -> Number `*/
 const sqrt = Math.sqrt
+
+/**` ln : Number -> Number `*/
+const ln = Math.log
+
+/**` ln2 : Number -> Number `*/
+const log2 = Math.log2
+
+/**` ln10 : Number -> Number `*/
+const log10 = Math.log10
 
 /**` toStr : $ -> String `*/
 const toStr = (obj : Object) : string => obj.toString()
@@ -766,13 +778,13 @@ const trim = (str : string) : string => str.trim()
 const removeSubstr = (substr : string) => (str : string) : string => str.replaceAll(substr, "")
 
 /**` removeRegex : Regex -> String -> String `*/
-const removeRegex = (regex : RegExp) => (str : string) : string => str.replaceAll(regex, "")
+const removeRegex = (regex : RegExp) => (str : string) : string => str.replace(regex, "")
 
 /**` replaceSubstr : String -> String -> String -> String `*/
 const replaceSubstr = (substr : string) => (replacement : string) => (str : string) : string => str.replaceAll(substr, replacement)
 
 /**` replaceRegex : Regex -> String -> String -> String `*/
-const replaceRegex = (regex : RegExp) => (replacement : string) => (str : string) : string => str.replaceAll(regex, replacement)
+const replaceRegex = (regex : RegExp) => (replacement : string) => (str : string) : string => str.replace(regex, replacement)
 
 /**` toFixed : Number -> Number -> String `*/
 const toFixed = (places : number) => (num : number) : string =>
@@ -794,6 +806,10 @@ const flip = <a, b, c>(f : (x : a) => (y : b) => c) => (y : b) => (x : a) : c =>
 
 /**` notf : (a -> Boolean) -> a -> Boolean `*/
 const notf = <a>(predicate : (value : a) => boolean) => (value : a) : boolean => !predicate (value)
+
+/**` isFactor : Number -> Number -> Boolean `*/
+const isFactor = (factor : number) => (num : number) : boolean =>
+	factor % num === 0
 
 /********************************************************************************************************************************/
 // Globalization of Typeclass Functions //
@@ -3447,8 +3463,8 @@ const IOM =
 		resolve : <a>(iomaybe : IOMaybe <a>) : IO <null> =>
 			IO (() => (iomaybe.effect (), null)),
 
-		/**` IOM.fallback : IO a -> IOMaybe a -> IO a `*/
-		fallback : <a>(fallback : IO <a>) => (iomaybe : IOMaybe <a>) : IO <a> =>
+		/**` IOM.fromIOMaybe : IO a -> IOMaybe a -> IO a `*/
+		fromIOMaybe : <a>(fallback : IO <a>) => (iomaybe : IOMaybe <a>) : IO <a> =>
 			IO (() => {
 				const maybe = iomaybe.effect ()
 				return maybe.variation === 'Nothing'
@@ -4102,10 +4118,10 @@ const forn = (amount : number) => <a>(operation : (index : number) => IO <a>) : 
 
 /**` forloop : Number -> Number -> Number -> (Number -> IO a) -> IO () `*/
 const forloop =
-	(start     : number                     ) =>
-	(condition : (index : number) => boolean) =>
-	(morphism  : (index : number) => number ) =>
-	<a>(operation : (index : number) => IO <a>) : IO <null> =>
+	(   start     : number                     ) =>
+	(   condition : (index : number) => boolean) =>
+	(   morphism  : (index : number) => number ) =>
+	<a>(operation : (index : number) => IO <a> ) : IO <null> =>
 {
 	const effects : Array <() => a> = []
 	for (let i = start; condition (i); i = morphism (i)) effects.push(operation (i).effect)
@@ -6451,6 +6467,10 @@ const Do_List : List <{}> = singleton (SCOPE)
 /**` Do_MaybeIO : IOMaybe $ `*/
 const Do_MaybeIO : IOMaybe <{}> = sendJust (SCOPE)
 
+/**` run : `String` -> () `*/
+const run = (strings : TemplateStringsArray, ...values : never []) : void =>
+	location.replace(`index.html?project=${strings.raw [0]}`)
+
 const Ψ =
 	{
 		MUTABLE         : {} as any,
@@ -6502,9 +6522,21 @@ onload = () =>
 	document.onpointerlockchange = () => Ψ.isPointerLocked = document.pointerLockElement === Ψ.ctxs[0].canvas
 	Ψ.ctxs[0].canvas.setAttribute("style", "background:white")
 
-	if (typeof (window as any).main !== 'undefined')
-		if (typeof (window as any).main?.effect === 'function')
-			(window as any).main.effect ()
-		else
-			console.dir("main =", (window as any).main)
+	new Promise((resolve, reject) => {
+		const script = document.createElement("script")
+		script.src = `./js/${new URLSearchParams(location.search).get("project") ?? "main"}.js`
+		script.onerror = reject
+		script.onload = resolve
+		script.addEventListener("error", reject)
+		script.addEventListener("load", resolve)
+		document.body.appendChild(script)
+	})
+		.then (() => {
+			if (typeof (window as any).main !== 'undefined')
+				if (typeof (window as any).main?.effect === 'function')
+					(window as any).main.effect ()
+				else
+					console.dir("main =", (window as any).main)
+		})
+		.catch (() => run `main`)
 }
