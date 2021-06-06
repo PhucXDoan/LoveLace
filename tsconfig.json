@@ -1,21 +1,23 @@
 {
 	"include"         : ["./ts/*.ts"],
+	"compileOnSave"   : false,
 	"compilerOptions" :
 	{
 		"lib"                          : ["ESNext", "DOM"],
 		"target"                       : "ES6",
+		"module"                       : "none",
 		"outDir"                       : "./js/",
-		"alwaysStrict"                 : true,
-		"noImplicitAny"                : true,
 		"removeComments"               : true,
 		"preserveConstEnums"           : true,
+		"pretty"                       : true,
 		"watch"                        : true,
+		"alwaysStrict"                 : true,
+		"strict"                       : true,
 		"strictNullChecks"             : true,
 		"strictFunctionTypes"          : true,
 		"strictPropertyInitialization" : true,
 		"strictBindCallApply"          : true,
-		"strict"                       : true,
-		"pretty"                       : true,
+		"noImplicitAny"                : true,
 		"noImplicitReturns"            : true,
 		"noEmit"                       : true
 	}
