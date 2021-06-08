@@ -13,7 +13,9 @@
 const MAX   = 2048
 const SCOPE = Object.create(null)
 
+type Pipe      <a   > = <b>(morphism : (value : a) => b) => b
 type Variation <a, b> = a & { variation : b }
+type Recordize <a   > = Omit <a, 'variation' | 'pipe'>
 
 /**` halt : a `*/
 declare const halt : never
@@ -744,6 +746,24 @@ const mod = (num : number) => (modulo : number) : number => num % modulo
 /**` pow : Number -> Number -> Boolean `*/
 const pow = (num : number) => (modulo : number) : number => num % modulo
 
+/**` min : Number -> Number -> Number `*/
+const min = (x : number) => (y : number) => Math.min(x, y)
+
+/**` max : Number -> Number -> Number `*/
+const max = (x : number) => (y : number) => Math.max(x, y)
+
+/**` abs : Number -> Number `*/
+const abs = Math.abs
+
+/**` sin : Number -> Number `*/
+const sin = Math.sin
+
+/**` cos : Number -> Number `*/
+const cos = Math.cos
+
+/**` tan : Number -> Number `*/
+const tan = Math.tan
+
 /**` sqrt : Number -> Number `*/
 const sqrt = Math.sqrt
 
@@ -796,6 +816,14 @@ const roundToString = (places : number) => (num : number) : string =>
 		.toFixed(places)
 		.replace(/0+$/, "")
 		.replace(/\.$/, "")
+
+/**` diff : Number -> Number -> Number `*/
+const diff = (x : number) => (y : number) : number =>
+	Math.abs(x - y)
+
+/**` lerp : Number -> Number -> Number -> Number `*/
+const lerp = (time : number) => (start : number) => (end : number) : number =>
+	start + (end - start) * time
 
 /********************************************************************************************************************************/
 // Generic Functions //
@@ -1474,8 +1502,8 @@ const random : Process <number, number> =
 const randomFloatRange = (lower : number) => (upper : number) : Process <number, number> =>
 	Process (s =>
 		Pair (
-			Math.abs(698 * s ** 3       - 471 * s ** 2       + 295 * s - 77 ) % 0xffffff,
-			Math.abs(-13 * s ** 3 % 196 + 989 * s ** 2 % 786 + 534 * s - 571) % 2048 / 2048 * (upper - lower) + lower
+			Math.abs(3367 * s ** 3        - 30800 * s ** 2 % 2650 + 9695 * s - 284) % 0xffffff,
+			Math.abs(-141 * s ** 3 % 1961 + 74517 * s ** 2 % 1622 + 8534 * s - 538) % 2048 / 2048 * (upper - lower) + lower
 		)
 	)
 
@@ -1818,7 +1846,7 @@ const testMaybe = <a>(predicate : (value : a) => boolean) => (maybe : Maybe <a>)
 /**` readInt : String -> Maybe Number `*/
 const readInt = (str : string) : Maybe <number> =>
 {
-	const parsed = parseInt(str)
+	const parsed = parseInt(str, 10)
 	return Number.isNaN(parsed)
 		? Nothing
 		: Just (parsed)
@@ -3435,64 +3463,61 @@ const uppercases : List <string> = chars ('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
 /********************************************************************************************************************************/
 // Implementation of Constants and Functions of IOMaybe //
 
-const IOM =
-	{
-		/**` IOM.merge : IO (Maybe a) -> IOMaybe a `*/
-		merge : <a>(iomaybe : IO <Maybe <a>>) : IOMaybe <a> =>
-			IOMaybe (iomaybe.effect),
+/**` IOM_merge : IO (Maybe a) -> IOMaybe a `*/
+const IOM_merge = <a>(iomaybe : IO <Maybe <a>>) : IOMaybe <a> =>
+	IOMaybe (iomaybe.effect)
 
-		/**` IOM.unmerge : IOMaybe a -> IO (Maybe a) `*/
-		unmerge : <a>(iomaybe : IOMaybe <a>) : IO <Maybe <a>> =>
-			IO (iomaybe.effect),
+/**` IOM_unmerge : IOMaybe a -> IO (Maybe a) `*/
+const IOM_unmerge = <a>(iomaybe : IOMaybe <a>) : IO <Maybe <a>> =>
+	IO (iomaybe.effect)
 
-		/**` IOM.lift : IO a -> IOMaybe a `*/
-		lift : <a>(io : IO <a>) : IOMaybe <a> =>
-			IOMaybe (() => Just (io.effect ())),
+/**` IOM_lift : IO a -> IOMaybe a `*/
+const IOM_lift = <a>(io : IO <a>) : IOMaybe <a> =>
+	IOMaybe (() => Just (io.effect ()))
 
-		/*` IOM.liftf : (a -> IO b) -> a -> IOMaybe b `*/
-		liftf : <a, b>(reaction : (value : a) => IO <b>) => (value : a) : IOMaybe <b> =>
-			IOMaybe (() => Just (reaction (value).effect ())),
+/*` IOM_liftf : (a -> IO b) -> a -> IOMaybe b `*/
+const IOM_liftf = <a, b>(reaction : (value : a) => IO <b>) => (value : a) : IOMaybe <b> =>
+	IOMaybe (() => Just (reaction (value).effect ()))
 
-		/*` IOM.hoist : Maybe a -> IOMaybe a `*/
-		hoist : <a>(maybe : Maybe <a>) : IOMaybe <a> =>
-			maybe.variation === 'Nothing'
-				? sendNothing
-				: sendJust (maybe.value),
+/*` IOM_hoist : Maybe a -> IOMaybe a `*/
+const IOM_hoist = <a>(maybe : Maybe <a>) : IOMaybe <a> =>
+	maybe.variation === 'Nothing'
+		? sendNothing
+		: sendJust (maybe.value)
 
-		/**` IOM.resolve : IOMaybe a -> IO () `*/
-		resolve : <a>(iomaybe : IOMaybe <a>) : IO <null> =>
-			IO (() => (iomaybe.effect (), null)),
+/**` IOM_resolve : IOMaybe a -> IO () `*/
+const IOM_resolve = <a>(iomaybe : IOMaybe <a>) : IO <null> =>
+	IO (() => (iomaybe.effect (), null))
 
-		/**` IOM.fromIOMaybe : IO a -> IOMaybe a -> IO a `*/
-		fromIOMaybe : <a>(fallback : IO <a>) => (iomaybe : IOMaybe <a>) : IO <a> =>
-			IO (() => {
-				const maybe = iomaybe.effect ()
-				return maybe.variation === 'Nothing'
-					? fallback.effect ()
-					: maybe.value
-			}),
+/**` IOM_fromIOMaybe : IO a -> IOMaybe a -> IO a `*/
+const IOM_fromIOMaybe = <a>(fallback : IO <a>) => (iomaybe : IOMaybe <a>) : IO <a> =>
+	IO (() => {
+		const maybe = iomaybe.effect ()
+		return maybe.variation === 'Nothing'
+			? fallback.effect ()
+			: maybe.value
+	})
 
-		/**` IOM.guard : Boolean -> a -> IOMaybe a `*/
-		guard : <a>(condition : boolean) => (value : a) : IOMaybe <a> =>
-			condition
-				? sendJust (value)
-				: sendNothing,
+/**` IOM_guard : Boolean -> a -> IOMaybe a `*/
+const IOM_guard = <a>(condition : boolean) => (value : a) : IOMaybe <a> =>
+	condition
+		? sendJust (value)
+		: sendNothing
 
-		/**` IOM.guardIf : (a -> Boolean) -> a -> IOMaybe a `*/
-		guardIf : <a>(predicate : (value : a) => boolean) => (value : a) : IOMaybe <a> =>
-			predicate (value)
-				? sendJust (value)
-				: sendNothing,
+/**` IOM_guardIf : (a -> Boolean) -> a -> IOMaybe a `*/
+const IOM_guardIf = <a>(predicate : (value : a) => boolean) => (value : a) : IOMaybe <a> =>
+	predicate (value)
+		? sendJust (value)
+		: sendNothing
 
-		/**` IOM.repeat : IOMaybe a -> IOMaybe a `*/
-		repeat : <a>(iomaybe : IOMaybe <a>) : IOMaybe <a> =>
-			IOMaybe (() => {
-				let maybeOut = iomaybe.effect ()
-				while (maybeOut.variation === 'Nothing')
-					maybeOut = iomaybe.effect ()
-				return maybeOut
-			})
-	}
+/**` IOM_repeat : IOMaybe a -> IOMaybe a `*/
+const IOM_repeat = <a>(iomaybe : IOMaybe <a>) : IOMaybe <a> =>
+	IOMaybe (() => {
+		let maybeOut = iomaybe.effect ()
+		while (maybeOut.variation === 'Nothing')
+			maybeOut = iomaybe.effect ()
+		return maybeOut
+	})
 
 /**` sendJust : a -> IOMaybe a `*/
 const sendJust = <a>(value : a) : IOMaybe <a> =>
@@ -4074,7 +4099,7 @@ const flush : IO <null> =
 	IO (() => (console.clear(), null))
 
 /**` printf : (...*) -> IO () `*/
-const printf = (...messages : any []) : IO <null> =>
+const printf = (...messages : Array <any>) : IO <null> =>
 	IO (() => (console.log(...messages), null))
 
 /**` log : a -> IO () `*/
@@ -4466,6 +4491,22 @@ const imageHeight = (path : string) : IO <number> =>
 			: __MACRO__.err_nonexisting_image_path('imageHeight', path)
 	)
 
+/**` n_imageAspectRatio : String -> IO Number `*/
+const n_imageAspectRatio = (path : string) : IO <number> =>
+	IO (() =>
+		Ψ.image[path]
+			? Ψ.image[path].width / Ψ.image[path].height * Ψ.ctx.canvas.height / Ψ.ctx.canvas.width
+			: __MACRO__.err_nonexisting_image_path('n_imageHeight', path)
+	)
+
+/**` imageAspectRatio : String -> IO Number `*/
+const imageAspectRatio = (path : string) : IO <number> =>
+	IO (() =>
+		Ψ.image[path]
+			? Ψ.image[path].width / Ψ.image[path].height
+			: __MACRO__.err_nonexisting_image_path('imageHeight', path)
+	)
+
 /**` n_imageDimensions : String -> IO V2 `*/
 const n_imageDimensions = (path : string) : IO <V2> =>
 	IO (() =>
@@ -4620,8 +4661,14 @@ const textBaseline : IO <TextBaseline> = IO (() => Ψ.ctx.textBaseline)
 /**` composition : IO Composition `*/
 const composition : IO <Composition> = IO (() => Ψ.ctx.globalCompositeOperation as Composition)
 
-/**` seed : IO Number `*/
-const seed : IO <number> = IO (() => Ψ.seed)
+/**` sessionSeed : IO Number `*/
+const sessionSeed : IO <number> = IO (() => Ψ.seed)
+
+/**` randomSeedIO : IO Number `*/
+const randomSeedIO : IO <number> = IO (() => Math.random() * Math.random() * 128 + Math.random() * 2023 +  (Math.random() * 766) ** 3 % 2048 * Date.now() % 0xffffff)
+
+/**` randomIO : IO Number `*/
+const randomIO : IO <number> = IO (Math.random)
 
 /**` isWindowResized : IO Boolean `*/
 const isWindowResized : IO <boolean> = IO (() => Ψ.isResized)
@@ -5853,6 +5900,8 @@ const fullImageV2 = (path : string) => (xy : V2) : IO <null> =>
 			: __MACRO__.err_nonexisting_image_path('fullImageV2', path)
 	)
 
+// !!!! NOTE : image io operations act quite inconsistent to their parameters
+
 /**` n_fullScaledImage : String -> Number -> Number -> Number -> IO () `*/
 const n_fullScaledImage = (path : string) => (k : number) => (x : number) => (y : number) : IO <null> =>
 	IO (() =>
@@ -5860,7 +5909,8 @@ const n_fullScaledImage = (path : string) => (k : number) => (x : number) => (y 
 			? (Ψ.ctx.drawImage(
 				Ψ.image[path],
 				x * Ψ.ctx.canvas.width, y * Ψ.ctx.canvas.height,
-				Ψ.image[path].width * k * Ψ.ctx.canvas.width, Ψ.image[path].height * k * Ψ.ctx.canvas.height
+				k * Ψ.ctx.canvas.width,
+				Ψ.image[path].height / Ψ.image[path].width * k * Ψ.ctx.canvas.width
 			), null)
 			: __MACRO__.err_nonexisting_image_path('n_fullScaledImage', path)
 	)
@@ -5872,7 +5922,8 @@ const n_fullScaledImageV2 = (path : string) => (k : number) => (xy : V2) : IO <n
 			? (Ψ.ctx.drawImage(
 				Ψ.image[path],
 				xy.x * Ψ.ctx.canvas.width, xy.y * Ψ.ctx.canvas.height,
-				Ψ.image[path].width * k * Ψ.ctx.canvas.width, Ψ.image[path].height * k * Ψ.ctx.canvas.height
+				k * Ψ.ctx.canvas.width,
+				Ψ.image[path].height / Ψ.image[path].width * k * Ψ.ctx.canvas.width
 			), null)
 			: __MACRO__.err_nonexisting_image_path('n_fullScaledImageV2', path)
 	)
@@ -6306,13 +6357,16 @@ const loadFont = (path : string) : IO <null> =>
 /**` loadImage : String -> IO () `*/
 const loadImage = (path : string) : IO <null> =>
 	IO (() => {
-		Ψ.image[path]          = new Image
-		Ψ.image[path]!.src     = path
-		Ψ.image[path]!.onerror = () => {
-			console.error(`'loadImage' could not load image`)
-			console.dir(`Signature : loadImage (<PATH>)`)
-			console.dir(`<PATH> =`, path)
-			return halt
+		if (Ψ.image[path] === undefined)
+		{
+			Ψ.image[path]          = new Image
+			Ψ.image[path]!.src     = path
+			Ψ.image[path]!.onerror = () => {
+				console.error(`'loadImage' could not load image`)
+				console.dir(`Signature : loadImage (<PATH>)`)
+				console.dir(`<PATH> =`, path)
+				return halt
+			}
 		}
 		return null
 	})
@@ -6320,12 +6374,15 @@ const loadImage = (path : string) : IO <null> =>
 /**` loadAudio : String -> IO () `*/
 const loadAudio = (path : string) : IO <null> =>
 	IO (() => {
-		Ψ.audio[path]          = new Audio(path)
-		Ψ.audio[path]!.onerror = () => {
-			console.error(`'loadAudio' could not load audio`)
-			console.dir(`Signature : loadAudio (<PATH>)`)
-			console.dir(`<PATH> =`, path)
-			return halt
+		if (Ψ.audio[path] === undefined)
+		{
+			Ψ.audio[path]          = new Audio(path)
+			Ψ.audio[path]!.onerror = () => {
+				console.error(`'loadAudio' could not load audio`)
+				console.dir(`Signature : loadAudio (<PATH>)`)
+				console.dir(`<PATH> =`, path)
+				return halt
+			}
 		}
 		return null
 	})
@@ -6389,12 +6446,12 @@ const playSFX = (path : string) : IO <null> =>
 			: __MACRO__.err_nonexisting_audio_path('playSFX', path)
 	)
 
-/**` saveCanvasState : IO () `*/
-const saveCanvasState : IO <null> =
+/**` saveLayerState : IO () `*/
+const saveLayerState : IO <null> =
 	IO (() => (Ψ.ctx.save(), null))
 
-/**` restoreCanvasState : IO () `*/
-const restoreCanvasState : IO <null> =
+/**` restoreLayerState : IO () `*/
+const restoreLayerState : IO <null> =
 	IO (() => (Ψ.ctx.restore(), null))
 
 /**` requestPointerLock : IO () `*/
@@ -6449,7 +6506,7 @@ const setWindowBackgroundRGBAV4 = (rgba : V4) : IO <null> =>
 // Underhead //
 
 /**` formatter : (a -> String) -> `String` -> String `*/
-const formatter = <a>(morphism : (value : a) => string) => (strings : TemplateStringsArray, ...values : a []) : string =>
+const formatter = <a>(morphism : (value : a) => string) => (strings : TemplateStringsArray, ...values : Array <a>) : string =>
 	values.map((value, i) => strings [i] + morphism (value)).join('') + strings [strings.length - 1]
 
 /**` Do_IO : IO $ `*/
@@ -6468,13 +6525,13 @@ const Do_List : List <{}> = singleton (SCOPE)
 const Do_MaybeIO : IOMaybe <{}> = sendJust (SCOPE)
 
 /**` run : `String` -> () `*/
-const run = (strings : TemplateStringsArray, ...values : never []) : void =>
+const run = (strings : TemplateStringsArray, ...values : Array <never>) : void =>
 	location.replace(`index.html?project=${strings.raw [0]}`)
 
 const Ψ =
 	{
 		MUTABLE         : {} as any,
-		STACK           : [] as any [],
+		STACK           : [] as Array <any>,
 		ctxs            : [] as Array <CanvasRenderingContext2D>,
 		ctx             : undefined as unknown as CanvasRenderingContext2D,
 		resizeID        : undefined as unknown as number,
@@ -6538,5 +6595,8 @@ onload = () =>
 				else
 					console.dir("main =", (window as any).main)
 		})
-		.catch (() => run `main`)
+		.catch (e => {
+			console.error(e)
+			halt
+		})
 }
