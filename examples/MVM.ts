@@ -44,7 +44,7 @@ const fix = formatter (roundToString (3))
 
 const requestNumber = (message : string) : IOMaybe <number> =>
 	prompting (message)
-		.pipe (IOM.merge)
+		.pipe (IOM_merge)
 		.bind (input =>
 			readFloat (input)
 				.fmap (sendJust)
@@ -52,21 +52,21 @@ const requestNumber = (message : string) : IOMaybe <number> =>
 					playAudio ('./audio/beep_harsh.mp3')
 						.then (alerting (
 							trim (input) === ""
-								? `The Vending Ma(th)chine didn't receive any input. It is not telepathic.`
-								: `The Vending Ma(th)chine didn't understand the input "${input}".`
+								? `My Vending Ma(th)chine didn't receive any input. It is not telepathic.`
+								: `My Vending Ma(th)chine didn't understand the input "${input}".`
 						))
-						.pipe (IOM.lift)
+						.pipe (IOM_lift)
 						.then (requestNumber (message))
 				))
 		)
 
 const shortcircuit = (message : string) => (computeWork : (num : number) => string) : IO <null> =>
-	IOM.lift (playAudio ('./audio/coin_insert.mp3'))
+	IOM_lift (playAudio ('./audio/coin_insert.mp3'))
 		.then (requestNumber (message))
-			.fmap (computeWork)
-			.side (IOM.lift (playAudio ('./audio/vendingmachine_drop.mp3')))
-			.bind (IOM.liftf (alerting))
-		.pipe (IOM.resolve)
+		.fmap (computeWork)
+		.side (IOM_lift (playAudio ('./audio/vendingmachine_drop.mp3')))
+		.bind (IOM_liftf (alerting))
+		.pipe (IOM_resolve)
 
 const circuit = (code : string) : IO <null> =>
 	code === 'A+1' ?
@@ -168,23 +168,23 @@ const circuit = (code : string) : IO <null> =>
 		idle
 	:
 		playAudio ('./audio/beep_harsh.mp3')
-			.then (alerting (`The Vending Ma(th)chine didn't understand the code "${code}".`))
+			.then (alerting (`My Vending Ma(th)chine didn't understand the code "${code}".`))
 
 const machine : IO <null> =
 	playSFX ('./audio/click_mechanical.mp3')
-		.then (prompting ("The Vending Ma(th)chine™ asks for a code: "))
-		.pipe (IOM.merge)
-			.fmap (removeRegex (/\s/g))
-			.fmap (uppercase)
-			.bind (IOM.liftf (circuit))
-			.bind (_ => IOM.lift (machine))
-		.pipe (IOM.fromIOMaybe (playAudio ('./audio/windowsxp_shutdown.mp3')))
+		.then (prompting ("My Vending Ma(th)chine™ asks for a code: "))
+		.pipe (IOM_merge)
+		.fmap (removeRegex (/\s/g))
+		.fmap (uppercase)
+		.bind (IOM_liftf (circuit))
+		.bind (_ => IOM_lift (machine))
+		.pipe (IOM_fromIOMaybe (playAudio ('./audio/windowsxp_shutdown.mp3')))
 
 const main =
 	audios
 		.fmap (loadAudio)
 		.pipe (execute_IO)
-		.then (printf ("%cMath Vending Ma(th)chine", cssTitle))
+		.then (printf ("%cMy Vending Ma(th)chine", cssTitle))
 		.then (
 			menus
 				.fmap (menu => printf (menu, cssSection, cssItems))
