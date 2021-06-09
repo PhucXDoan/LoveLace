@@ -1,2 +1,2 @@
 # LoveLace
-A functionally-programmed overhead of the JavaScript HTML5 Canvas API, written in TypeScript, designed for education.
+A functionally-programmed framework (another one) of Javascript/Typescript where simplicity is the goal.
