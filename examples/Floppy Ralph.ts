@@ -22,15 +22,16 @@ const STD =
 			'./audio/wingflap_5.mp3'
 		),
 
-	audio_meows     : List (
-		'./audio/meow_0.mp3',
-		'./audio/meow_1.mp3',
-		'./audio/meow_2.mp3',
-		'./audio/meow_loud_lq_0.mp3'
-	),
+	audio_meows     :
+        List (
+            './audio/meow_0.mp3',
+            './audio/meow_1.mp3',
+            './audio/meow_2.mp3',
+            './audio/meow_loud_lq_0.mp3'
+        ),
 
 	aspect_ratio    : 9 / 16,
-	refresh_rate    : 12,
+	refresh_rate    : 15,
 	resizing_speed  : 0.15,
 	bg_speed        : 0.5,
 	ground_hitbox_y : 0.9,
@@ -278,12 +279,13 @@ const loop = (global : Global) => (local : Local) : IO <null> =>
 		)
 
 		.call ($ => render ($.nextLocal))
+        .call ($ => $.nextGlobal.isRefresh ? refreshBuffer : idle)
 		.bind ($ => queueIO (loop ($.nextGlobal) ($.nextLocal)))
 
 const update = (global : Global) => (local : Local) : IO <Local> =>
 	local.variation === 'Start' ?
 		keyboardKey ('Space')
-			.fmap (isButtonDown)
+			.fmap (eq <ButtonState> ('toDown'))
 			.call (isSpaceDown => isSpaceDown ? trigger_wingflap : idle)
 			.fmap (isSpaceDown =>
 				isSpaceDown
@@ -619,7 +621,7 @@ const render_bg = (x : number) : IO <null> =>
 		.bindto ('bgImgAspectRatio') <number> (_ => n_imageAspectRatio ('./image/bg_flappybird.png'))
 		.fmapto ('bgX')              <number> ($ => -x % $.bgImgAspectRatio)
 		.call ($ => n_fullScaledImage ('./image/bg_flappybird.png') ($.bgImgAspectRatio) ($.bgX) (0))
-		.call ($ => n_fullScaledImage ('./image/bg_flappybird.png') ($.bgImgAspectRatio) ($.bgX + $.bgImgAspectRatio - 0.001) (0))
+		.bind ($ => n_fullScaledImage ('./image/bg_flappybird.png') ($.bgImgAspectRatio) ($.bgX + $.bgImgAspectRatio - 0.001) (0))
 
 const render_fg = (x : number) : IO <null> =>
 	Do_IO
