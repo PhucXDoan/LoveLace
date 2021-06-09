@@ -46,14 +46,14 @@ type KeyboardKey = typeof keyboardKeysArray [number]
 
 const __MACRO__ =
 	{
-		clickx   : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i] === 'toDown' ? Just (Ψ.mouseCX) : Nothing),
-		clicky   : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i] === 'toDown' ? Just (Ψ.mouseCY) : Nothing),
-		clickv   : (i : number) : IO <Maybe <V2>>     => IO (() => Ψ.mouseButtons[i] === 'toDown' ? Just (V2 (Ψ.mouseCX, Ψ.mouseCY)) : Nothing),
-		n_clickx : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i] === 'toDown' ? Just (Ψ.mouseCX / Ψ.ctx.canvas.width) : Nothing),
-		n_clicky : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i] === 'toDown' ? Just (Ψ.mouseCY / Ψ.ctx.canvas.height) : Nothing),
+		clickx   : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i][0] === 'toDown' ? Just (Ψ.mouseCX) : Nothing),
+		clicky   : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i][0] === 'toDown' ? Just (Ψ.mouseCY) : Nothing),
+		clickv   : (i : number) : IO <Maybe <V2>>     => IO (() => Ψ.mouseButtons[i][0] === 'toDown' ? Just (V2 (Ψ.mouseCX, Ψ.mouseCY)) : Nothing),
+		n_clickx : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i][0] === 'toDown' ? Just (Ψ.mouseCX / Ψ.ctx.canvas.width) : Nothing),
+		n_clicky : (i : number) : IO <Maybe <number>> => IO (() => Ψ.mouseButtons[i][0] === 'toDown' ? Just (Ψ.mouseCY / Ψ.ctx.canvas.height) : Nothing),
 		n_clickv : (i : number) : IO <Maybe <V2>> =>
 			IO (() =>
-				Ψ.mouseButtons[i] === 'toDown'
+				Ψ.mouseButtons[i][0] === 'toDown'
 					? Just (V2 (Ψ.mouseCX / Ψ.ctx.canvas.width, Ψ.mouseCY / Ψ.ctx.canvas.height))
 					: Nothing
 			),
@@ -4232,19 +4232,19 @@ const mouseDelta : IO <V2> = IO (() => V2 (Ψ.mouseDX, Ψ.mouseDY))
 const mouseScroll : IO <Axis> = IO (() => Ψ.mouseScroll)
 
 /**` mouseLeft : IO ButtonState `*/
-const mouseLeft : IO <ButtonState> = IO (() => Ψ.mouseButtons [0])
+const mouseLeft : IO <ButtonState> = IO (() => Ψ.mouseButtons[0][0])
 
 /**` mouseMiddle : IO ButtonState `*/
-const mouseMiddle : IO <ButtonState> = IO (() => Ψ.mouseButtons[1])
+const mouseMiddle : IO <ButtonState> = IO (() => Ψ.mouseButtons[1][0])
 
 /**` mouseRight : IO ButtonState `*/
-const mouseRight : IO <ButtonState> = IO (() => Ψ.mouseButtons[2])
+const mouseRight : IO <ButtonState> = IO (() => Ψ.mouseButtons[2][0])
 
 /**` mouse4th : IO ButtonState `*/
-const mouse4th : IO <ButtonState> = IO (() => Ψ.mouseButtons[3])
+const mouse4th : IO <ButtonState> = IO (() => Ψ.mouseButtons[3][0])
 
 /**` mouse5th : IO ButtonState `*/
-const mouse5th : IO <ButtonState> = IO (() => Ψ.mouseButtons[4])
+const mouse5th : IO <ButtonState> = IO (() => Ψ.mouseButtons[4][0])
 
 /**` n_mouseLeftClickCoordinateX : IO (Maybe Number) `*/
 const n_mouseLeftClickCoordinateX : IO <Maybe <number>> = __MACRO__.n_clickx(0)
@@ -4337,7 +4337,7 @@ const mouse5thClickCoordinateY : IO <Maybe <number>> = __MACRO__.clicky(4)
 const mouse5thClickCoordinates : IO <Maybe <V2>> = __MACRO__.clickv(4)
 
 /**` keyboardKey : KeyboardKey -> IO ButtonState `*/
-const keyboardKey = (keyname : KeyboardKey) : IO <ButtonState> => IO (() => Ψ.keyboard[keyname])
+const keyboardKey = (keyname : KeyboardKey) : IO <ButtonState> => IO (() => Ψ.keyboard[keyname][0])
 
 /**` screenWidth : IO Number `*/
 const screenWidth : IO <number> = IO (() => screen.width)
@@ -4369,8 +4369,8 @@ const canvasDimensions : IO <V2> = IO (() => V2 (Ψ.ctx.canvas.width, Ψ.ctx.can
 /**` n_wasdKeys : IO V2 `*/
 const n_wasdKeys : IO <V2> =
 	IO (() => {
-		const x = isButtonDown (Ψ.keyboard.KeyD) as unknown as number - (isButtonDown (Ψ.keyboard.KeyA) as unknown as number)
-		const y = isButtonDown (Ψ.keyboard.KeyS) as unknown as number - (isButtonDown (Ψ.keyboard.KeyW) as unknown as number)
+		const x = isButtonDown (Ψ.keyboard.KeyD[0]) as unknown as number - (isButtonDown (Ψ.keyboard.KeyA[0]) as unknown as number)
+		const y = isButtonDown (Ψ.keyboard.KeyS[0]) as unknown as number - (isButtonDown (Ψ.keyboard.KeyW[0]) as unknown as number)
 		const l = x ** 2 + y ** 2
 		return l === 0
 			? zeroV2
@@ -4383,16 +4383,16 @@ const n_wasdKeys : IO <V2> =
 const wasdKeys : IO <V2> =
 	IO (() =>
 		V2 (
-			isButtonDown (Ψ.keyboard.KeyD) as unknown as number - (isButtonDown (Ψ.keyboard.KeyA) as unknown as number),
-			isButtonDown (Ψ.keyboard.KeyS) as unknown as number - (isButtonDown (Ψ.keyboard.KeyW) as unknown as number)
+			isButtonDown (Ψ.keyboard.KeyD[0]) as unknown as number - (isButtonDown (Ψ.keyboard.KeyA[0]) as unknown as number),
+			isButtonDown (Ψ.keyboard.KeyS[0]) as unknown as number - (isButtonDown (Ψ.keyboard.KeyW[0]) as unknown as number)
 		)
 	)
 
 /**` n_arrowKeys : IO V2 `*/
 const n_arrowKeys : IO <V2> =
 	IO (() => {
-		const x = isButtonDown (Ψ.keyboard.ArrowRight) as unknown as number - (isButtonDown (Ψ.keyboard.ArrowLeft) as unknown as number)
-		const y = isButtonDown (Ψ.keyboard.ArrowDown)  as unknown as number - (isButtonDown (Ψ.keyboard.ArrowUp)   as unknown as number)
+		const x = isButtonDown (Ψ.keyboard.ArrowRight[0]) as unknown as number - (isButtonDown (Ψ.keyboard.ArrowLeft[0]) as unknown as number)
+		const y = isButtonDown (Ψ.keyboard.ArrowDown [0]) as unknown as number - (isButtonDown (Ψ.keyboard.ArrowUp  [0]) as unknown as number)
 		const l = x ** 2 + y ** 2
 		return l === 0
 			? zeroV2
@@ -4405,8 +4405,8 @@ const n_arrowKeys : IO <V2> =
 const arrowKeys : IO <V2> =
 	IO (() =>
 		V2 (
-			isButtonDown (Ψ.keyboard.ArrowRight) as unknown as number - (isButtonDown (Ψ.keyboard.ArrowLeft) as unknown as number),
-			isButtonDown (Ψ.keyboard.ArrowDown)  as unknown as number - (isButtonDown (Ψ.keyboard.ArrowUp)   as unknown as number)
+			isButtonDown (Ψ.keyboard.ArrowRight[0]) as unknown as number - (isButtonDown (Ψ.keyboard.ArrowLeft[0]) as unknown as number),
+			isButtonDown (Ψ.keyboard.ArrowDown [0]) as unknown as number - (isButtonDown (Ψ.keyboard.ArrowUp  [0]) as unknown as number)
 		)
 	)
 
@@ -6462,21 +6462,34 @@ const requestPointerLock : IO <null> =
 const deactivatePointerLock : IO <null> =
 	IO (() => (document.exitPointerLock(), document.onmouseup = null))
 
-/**` queueIO : IO a -> IO () `*/
-const queueIO = <a>(io : IO <a>) : IO <null> =>
+/**` refreshBuffer : IO () `*/
+const refreshBuffer : IO <null> =
 	IO (() => {
-		for (const k in Ψ.keyboard)     Ψ.keyboard[k as KeyboardKey] = iterateButtonState (Ψ.keyboard[k as KeyboardKey])
-		for (const i in Ψ.mouseButtons) Ψ.mouseButtons[i]            = iterateButtonState (Ψ.mouseButtons[i]!)
+		for (const k in Ψ.keyboard)
+		{
+			const keyBuffer = Ψ.keyboard[k as KeyboardKey]
+			const lastKeyInput = keyBuffer[keyBuffer.length - 1]
+			if      (lastKeyInput === 'toDown') keyBuffer.push('Down')
+			else if (lastKeyInput === 'toUp')   keyBuffer.push('Up')
+			if      (keyBuffer.length !== 1) keyBuffer.shift()
+		}
+		for (const i in Ψ.mouseButtons)
+		{
+			const buttonBuffer = Ψ.mouseButtons[i]
+			const lastButtonInput = buttonBuffer[buttonBuffer.length - 1]
+			if      (lastButtonInput === 'toDown') buttonBuffer.push('Down')
+			else if (lastButtonInput === 'toUp')   buttonBuffer.push('Up')
+			if (buttonBuffer.length !== 1)         buttonBuffer.shift()
+		}
 		Ψ.mouseDX     = Ψ.mouseDY = 0
 		Ψ.mouseScroll = 'Zero'
 		Ψ.isResized   = false
-		requestAnimationFrame(io.effect)
 		return null
 	})
 
-/**` lqueueIO : (() -> IO a) -> IO () `*/
-const lqueueIO = <a>(lio : () => IO <a>) : IO <null> =>
-	IO (() => queueIO (lio ()).effect ())
+/**` queueIO : IO a -> IO () `*/
+const queueIO = <a>(io : IO <a>) : IO <null> =>
+	IO (() => (requestAnimationFrame(io.effect), null))
 
 /**` setCanvasBackgroundColor : String -> IO () `*/
 const setCanvasBackgroundColor = (color : string) : IO <null> =>
@@ -6546,8 +6559,8 @@ const Ψ =
 		mouseCX         : 0, mouseCY : 0,
 		mouseDX         : 0, mouseDY : 0,
 		mouseScroll     : 'Zero' as Axis,
-		mouseButtons    : Array(5).fill('Up') as [ButtonState, ButtonState, ButtonState, ButtonState, ButtonState],
-		keyboard        : keyboardKeysArray.reduce(($, k) => ({ ...$, [k] : 'Up' }), Object.create(null)) as { [x in KeyboardKey] : ButtonState }
+		mouseButtons    : Array(5).fill(['Up']) as [Array <ButtonState>, Array <ButtonState>, Array <ButtonState>, Array <ButtonState>, Array <ButtonState>],
+		keyboard        : keyboardKeysArray.reduce(($, k) => ({ ...$, [k] : ['Up'] }), Object.create(null)) as { [x in KeyboardKey] : Array <ButtonState> }
 	}
 
 onload = () =>
@@ -6556,10 +6569,14 @@ onload = () =>
 	Ψ.ctx  = Ψ.ctxs[0]!
 
 	onresize    = () => (clearTimeout(Ψ.resizeID), Ψ.resizeID = setTimeout(() => Ψ.isResized = true, 250))
-	onmouseup   = ev => Ψ.mouseButtons[ev.button]                             = 'toUp'
-	onmousedown = ev => Ψ.mouseButtons[ev.button]                             = 'toDown'
-	onkeyup     = ev => Ψ.keyboard[ev.code as KeyboardKey]                    = 'toUp'
-	onkeydown   = ev => ev.repeat ? null : Ψ.keyboard[ev.code as KeyboardKey] = 'toDown'
+	onmouseup   = ev => Ψ.mouseButtons[ev.button].push('toUp')
+	onmousedown = ev => Ψ.mouseButtons[ev.button].push('toDown')
+	onkeyup     = ev =>
+		Ψ.keyboard[ev.code as KeyboardKey].push('toUp')
+	onkeydown   = ev =>
+		ev.repeat
+			? null
+			: Ψ.keyboard[ev.code as KeyboardKey].push('toDown')
 	onwheel     = ev =>
 		Ψ.mouseScroll =
 			ev.deltaY < 0 ? 'Positive' :
